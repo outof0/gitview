@@ -1,0 +1,17 @@
+:root {
+  --brand-primary: #F15A29;
+  --brand-ink: #0F1115;
+  --brand-surface: #FAFAF9;
+  --brand-canvas-dark: #16181D;
+  --graph-blue: #3882F6;
+  --graph-green: #22C55E;
+  --graph-purple: #A855F7;
+  --graph-cyan: #06B6D4;
+  --graph-pink: #EC4899;
+  --semantic-info: #3882F6;
+  --semantic-success: #22C55E;
+  --semantic-warning: #F59E0B;
+  --semantic-danger: #EF4444;
+  --font-ui: "Inter Tight", Inter, system-ui, sans-serif;
+  --font-display: "Inter Tight", Inter, system-ui, sans-serif;
+}

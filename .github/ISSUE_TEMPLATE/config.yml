@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/gitview/gitview/security/advisories/new
+    about: Report vulnerabilities privately, never as a public issue.
+  - name: Documentation
+    url: https://github.com/gitview/gitview/tree/main/docs
+    about: Guide, reference and contributor documentation.

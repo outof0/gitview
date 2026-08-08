@@ -1,0 +1,72 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "brand": {
+    "name": "GitView",
+    "domain": "gitview.dev",
+    "tagline": "See Git clearly."
+  },
+  "color": {
+    "brand": {
+      "primary": {
+        "$type": "color",
+        "$value": "#F15A29"
+      },
+      "ink": {
+        "$type": "color",
+        "$value": "#0F1115"
+      },
+      "surface": {
+        "$type": "color",
+        "$value": "#FAFAF9"
+      },
+      "canvasDark": {
+        "$type": "color",
+        "$value": "#16181D"
+      }
+    },
+    "semantic": {
+      "info": {
+        "$type": "color",
+        "$value": "#3882F6"
+      },
+      "success": {
+        "$type": "color",
+        "$value": "#22C55E"
+      },
+      "warning": {
+        "$type": "color",
+        "$value": "#F59E0B"
+      },
+      "danger": {
+        "$type": "color",
+        "$value": "#EF4444"
+      }
+    },
+    "graph": {
+      "blue": {
+        "$type": "color",
+        "$value": "#3882F6"
+      },
+      "green": {
+        "$type": "color",
+        "$value": "#22C55E"
+      },
+      "purple": {
+        "$type": "color",
+        "$value": "#A855F7"
+      },
+      "cyan": {
+        "$type": "color",
+        "$value": "#06B6D4"
+      },
+      "pink": {
+        "$type": "color",
+        "$value": "#EC4899"
+      }
+    }
+  },
+  "typography": {
+    "ui": "Inter Tight",
+    "display": "Inter Tight"
+  }
+}

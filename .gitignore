@@ -1,0 +1,24 @@
+node_modules/
+out/
+webview/node_modules/
+webview/dist/
+
+coverage/
+e2e-results/
+e2e-report/
+test-results/
+test-conflict-repo/
+test-clean-repo/
+.playwright-mcp/
+.pnpm-store/
+*.vsix
+.DS_Store
+.vscode-test/
+
+# Local AI/IDE state
+.claude/settings.local.json
+.cursor/
+.idea/
+
+# Editor/design backups
+*.bak

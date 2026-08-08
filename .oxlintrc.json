@@ -1,0 +1,30 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc"],
+  "jsPlugins": ["@stylistic/eslint-plugin"],
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "curly": ["error", "all"],
+    "@stylistic/brace-style": ["error", "1tbs", { "allowSingleLine": false }]
+  },
+  "ignorePatterns": [
+    "dist/**",
+    "out/**",
+    "node_modules/**",
+    "webview/dist/**",
+    "e2e-report/**",
+    "e2e-results/**",
+    "vitest.config.ts",
+    "playwright.config.ts",
+    "webview/vite.config.ts",
+    "webview/tailwind.config.js",
+    "webview/postcss.config.js",
+    "src/core/__benchmarks__/**",
+    "test-conflict-repo/**"
+  ],
+  "env": {
+    "builtin": true
+  }
+}

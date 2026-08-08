@@ -1,0 +1,436 @@
+/* Semantic diff / merge tokens — applied dynamically on rows and blocks */
+
+.nx-match {
+  background: var(
+    --vscode-editor-findMatchHighlightBackground,
+    rgba(224, 175, 83, 0.25)
+  );
+}
+
+.nx-added {
+  background: var(--nx-added-soft);
+}
+
+.nx-deleted {
+  background: var(--nx-deleted-soft);
+  color: var(--vscode-descriptionForeground, rgba(204, 204, 204, 0.78));
+  text-decoration: line-through;
+}
+
+.nx-modified {
+  background: var(--nx-modified-soft);
+}
+
+.nx-conflict,
+.nx-conflict-ours,
+.nx-conflict-theirs {
+  background: var(--nx-conflict-soft);
+}
+
+.nx-manual {
+  background: var(--nx-modified-soft);
+}
+
+.nx-resolved {
+  background: var(--nx-added-soft);
+}
+
+.nx-ignored {
+  background: var(--nx-deleted-soft);
+  color: var(--vscode-descriptionForeground, rgba(204, 204, 204, 0.78));
+}
+
+.nx-stripe.nx-added {
+  background: var(--nx-added-bar);
+}
+.nx-stripe.nx-modified {
+  background: var(--nx-modified-bar);
+}
+.nx-stripe.nx-deleted {
+  background: var(--nx-deleted-bar);
+}
+.nx-stripe.nx-conflict,
+.nx-stripe.nx-conflict-ours,
+.nx-stripe.nx-conflict-theirs {
+  background: var(--nx-conflict-bar);
+}
+.nx-stripe.nx-manual {
+  background: var(--nx-modified-bar);
+}
+.nx-stripe.nx-resolved {
+  background: var(--nx-added-bar);
+}
+.nx-stripe.nx-ignored {
+  background: var(--nx-deleted-bar);
+}
+
+.nx-word {
+  border-radius: 2px;
+}
+
+.nx-block[data-type="modified"] .nx-word,
+.nx-row.nx-modified .nx-word {
+  background: var(--nx-word-modified);
+}
+
+.nx-block[data-type="conflict"] .nx-word,
+.nx-row.nx-conflict .nx-word {
+  background: var(--nx-word-conflict);
+}
+
+.nx-block[data-type="added"] .nx-word,
+.nx-row.nx-added .nx-word {
+  background: var(--nx-word-added);
+}
+
+.nx-block.nx-active .nx-row {
+  box-shadow: inset 0 0 0 9999px var(--nx-active-block);
+}
+
+/*
+ * Code editors: NO per-line backgrounds by default.
+ * Only change/add/delete/conflict/match tokens may paint fills.
+ */
+
+.nx-diff-code-line > .nx-diff-ln,
+.nx-diff-code-line > .nx-diff-txt,
+.nx-diff-hover-line > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Unchanged code rows stay transparent (no hover wash, no zebra). */
+.nx-diff-code-line.nx-hl-none,
+.nx-diff-hover-line.nx-hl-none,
+.nx-diff-code-line:not(.nx-hl-added):not(.nx-hl-removed):not(.nx-hl-changed),
+.nx-diff-hover-line:not(.nx-hl-added):not(.nx-hl-removed):not(.nx-hl-changed) {
+  background: transparent !important;
+}
+
+.nx-diff-code-line::after,
+.nx-diff-hover-line::after {
+  display: none;
+}
+
+/* Intentional change fills only */
+.nx-hl-added {
+  background: var(
+    --vscode-diffEditor-insertedTextBackground,
+    rgba(46, 160, 67, 0.22)
+  ) !important;
+}
+.nx-hl-removed {
+  background: var(
+    --vscode-diffEditor-removedTextBackground,
+    rgba(248, 81, 73, 0.22)
+  ) !important;
+}
+.nx-hl-changed {
+  background: var(
+    --vscode-diffEditor-modifiedTextBackground,
+    rgba(187, 128, 9, 0.28)
+  ) !important;
+}
+
+/*
+ * Compare gutters (line number, blame) stay pinned to the scrollport edge so
+ * long lines scroll under them instead of painting over them. They need an
+ * opaque base for that, so the row tint is re-applied as an inset layer.
+ */
+.nx-diff-code-line > .nx-diff-gutter {
+  position: sticky;
+  z-index: 2;
+}
+.nx-diff-code-line > .nx-diff-ln.nx-diff-gutter {
+  background-color: var(--vscode-editor-background, #1f1f1f);
+}
+.nx-diff-code-line.nx-hl-added > .nx-diff-ln.nx-diff-gutter {
+  box-shadow: inset 0 0 0 9999px
+    var(--vscode-diffEditor-insertedTextBackground, rgba(46, 160, 67, 0.22));
+}
+.nx-diff-code-line.nx-hl-removed > .nx-diff-ln.nx-diff-gutter {
+  box-shadow: inset 0 0 0 9999px
+    var(--vscode-diffEditor-removedTextBackground, rgba(248, 81, 73, 0.22));
+}
+.nx-diff-code-line.nx-hl-changed > .nx-diff-ln.nx-diff-gutter {
+  box-shadow: inset 0 0 0 9999px
+    var(--vscode-diffEditor-modifiedTextBackground, rgba(187, 128, 9, 0.28));
+}
+
+/* Blame gutter rows — code/line number stay clean */
+.nx-blame-annotate-row,
+.nx-blame-annotate-row > .nx-ln,
+.nx-blame-annotate-row > .nx-txt {
+  background: transparent !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+/* Syntax spans may set color only — never background */
+.nx-diff-txt [data-testid="code-line"] span,
+.nx-diff-hover-line [data-testid="code-line"] span,
+.nx-txt [data-testid="code-line"] span,
+[data-testid="code-line"] span {
+  background: transparent !important;
+}
+
+/* Selection only on the left commit-message column — no hover flash */
+.nx-blame-annotate-row--selected .nx-blame-annotate {
+  background: var(--vscode-list-activeSelectionBackground, #3f4247);
+  color: var(--vscode-list-activeSelectionForeground, #ffffff);
+}
+
+/* Full-height editor chrome */
+.nx-blame-editor {
+  min-height: 100%;
+}
+
+.nx-blame-annotate--empty {
+  pointer-events: none;
+  opacity: 0.35;
+}
+
+/* Monaco: fill pane + kill default per-line paints */
+.nx-blame-editor .monaco-editor,
+.nx-blame-editor .monaco-editor .overflow-guard,
+.nx-monaco-center .monaco-editor,
+.nx-monaco-center .monaco-editor .overflow-guard,
+.nx-monaco-diff-host,
+.nx-monaco-diff-host .monaco-diff-editor,
+.nx-monaco-diff-host .monaco-editor,
+.nx-monaco-diff-host .monaco-editor .overflow-guard {
+  height: 100% !important;
+}
+
+/*
+ * Mirrored line numbers for the original pane. Monaco only draws gutters on
+ * the left, so that pane runs with line numbers off and this strip stands in
+ * on its right edge; it must match Monaco's own gutter metrics exactly.
+ */
+.nx-mirrored-gutter {
+  z-index: 5;
+  background-color: var(--vscode-editorGutter-background, var(--vscode-editor-background, #1f1f1f));
+  color: var(--vscode-editorLineNumber-foreground, #6e7681);
+  font-family: var(
+    --vscode-editor-font-family,
+    ui-monospace,
+    "Cascadia Code",
+    Consolas,
+    monospace
+  );
+  font-size: 12.5px;
+  line-height: 20px;
+}
+
+/*
+ * Kill Monaco line washes aggressively.
+ * Theme CSS is injected at runtime AFTER our bundle — use !important +
+ * multiple selectors so it still wins.
+ */
+.monaco-editor .view-overlays .current-line,
+.monaco-editor .view-overlays .current-line-exact,
+.monaco-editor .view-overlays .current-line-both,
+.monaco-editor .margin-view-overlays .current-line,
+.monaco-editor .margin-view-overlays .current-line-margin,
+.monaco-editor .margin-view-overlays .current-line-margin-both,
+.monaco-editor .margin-view-overlays .current-line-exact-margin,
+.monaco-editor .view-overlays .current-line-margin,
+.monaco-editor .view-line,
+.monaco-editor .view-lines,
+.monaco-editor .lines-content,
+.monaco-editor .inputarea.ime-input {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Never paint a chip behind inline colorized code */
+code,
+code.nx-code-line,
+pre,
+[data-testid="code-line"] {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  padding: 0 !important;
+}
+
+/* Re-enable intentional change-line fills (must win over the rules above) */
+.monaco-editor .view-line.nx-monaco-added,
+.monaco-editor .view-lines .view-line.nx-monaco-added,
+.nx-monaco-center .monaco-editor .view-line.nx-monaco-added {
+  background-color: var(--nx-added-soft) !important;
+}
+.monaco-editor .view-line.nx-monaco-deleted,
+.monaco-editor .view-lines .view-line.nx-monaco-deleted,
+.nx-monaco-center .monaco-editor .view-line.nx-monaco-deleted {
+  background-color: var(--nx-deleted-soft) !important;
+}
+.monaco-editor .view-line.nx-monaco-modified,
+.monaco-editor .view-lines .view-line.nx-monaco-modified,
+.nx-monaco-center .monaco-editor .view-line.nx-monaco-modified {
+  background-color: var(--nx-modified-soft) !important;
+}
+.monaco-editor .view-line.nx-monaco-conflict,
+.monaco-editor .view-lines .view-line.nx-monaco-conflict,
+.nx-monaco-center .monaco-editor .view-line.nx-monaco-conflict {
+  background-color: var(--nx-conflict-soft) !important;
+}
+.monaco-editor .view-line.nx-monaco-resolved,
+.monaco-editor .view-line.nx-monaco-manual,
+.monaco-editor .view-lines .view-line.nx-monaco-resolved,
+.monaco-editor .view-lines .view-line.nx-monaco-manual {
+  background-color: var(--nx-added-soft) !important;
+}
+
+/* Monaco center pane — single editor for full result */
+
+.nx-monaco-center::before {
+  display: none;
+}
+
+.nx-monaco-result .nx-monaco-revert {
+  position: absolute;
+  right: 4px;
+  z-index: 30;
+  opacity: 0.9;
+}
+
+.nx-monaco-result:hover .nx-monaco-revert,
+.nx-monaco-result:focus-within .nx-monaco-revert {
+  opacity: 1;
+}
+
+.monaco-editor .view-line.nx-monaco-active-line {
+  box-shadow: inset 0 0 0 9999px var(--nx-active-block);
+}
+
+.monaco-editor .view-line.nx-monaco-match-line {
+  outline: 1px solid
+    var(--vscode-editor-findMatchHighlightBorder, rgba(224, 175, 83, 0.6));
+  outline-offset: -1px;
+}
+
+.nx-monaco-collapse-zone {
+  width: 100%;
+}
+
+/* Change fills also applied under .nx-monaco-center (see rules above) */
+
+.monaco-editor .nx-monaco-stripe-added,
+.monaco-editor .nx-monaco-stripe-resolved,
+.monaco-editor .nx-monaco-stripe-manual {
+  background-color: var(--nx-added-bar) !important;
+}
+
+.monaco-editor .nx-monaco-stripe-modified {
+  background-color: var(--nx-modified-bar) !important;
+}
+
+.monaco-editor .nx-monaco-stripe-conflict {
+  background-color: var(--nx-conflict-bar) !important;
+}
+
+.monaco-editor .nx-monaco-stripe-deleted,
+.monaco-editor .nx-monaco-stripe-ignored {
+  background-color: var(--nx-deleted-bar) !important;
+}
+
+/*
+ * Syntax highlighting — Dark+ style fallbacks so code is never flat black.
+ * Prefer VS Code theme tokens when the host injects them.
+ */
+
+.syntax-keyword {
+  color: var(--vscode-symbolIcon-keywordForeground, #569cd6) !important;
+}
+.syntax-keyword2 {
+  color: var(--vscode-symbolIcon-keywordForeground, #c586c0) !important;
+}
+.syntax-type {
+  color: var(--vscode-symbolIcon-classForeground, #4ec9b0) !important;
+}
+.syntax-builtin {
+  color: var(--vscode-symbolIcon-functionForeground, #dcdcaa) !important;
+}
+.syntax-string {
+  color: var(--vscode-symbolIcon-stringForeground, #ce9178) !important;
+}
+.syntax-template {
+  color: var(--vscode-symbolIcon-stringForeground, #ce9178) !important;
+}
+.syntax-comment {
+  color: var(--vscode-descriptionForeground, #6a9955) !important;
+  font-style: italic;
+}
+.syntax-number {
+  color: var(--vscode-symbolIcon-numberForeground, #b5cea8) !important;
+}
+.syntax-decorator {
+  color: #d7ba7d !important;
+}
+.syntax-property {
+  color: var(--vscode-symbolIcon-propertyForeground, #9cdcfe) !important;
+}
+.syntax-variable {
+  color: var(--vscode-symbolIcon-variableForeground, #9cdcfe) !important;
+}
+
+/* Monaco colorize / tokenizer classes (mtk*) — Dark+ defaults */
+.mtk1 { color: #d4d4d4 !important; } /* default */
+.mtk2 { color: #569cd6 !important; }
+.mtk3 { color: #b5cea8 !important; }
+.mtk4 { color: #6a9955 !important; }
+.mtk5 { color: #ce9178 !important; }
+.mtk6 { color: #dcdcaa !important; }
+.mtk7 { color: #569cd6 !important; }
+.mtk8 { color: #9cdcfe !important; }
+.mtk9 { color: #4ec9b0 !important; }
+.mtk10 { color: #c586c0 !important; }
+.mtk11 { color: #d7ba7d !important; }
+.mtk12 { color: #ce9178 !important; }
+.mtk13 { color: #b5cea8 !important; }
+.mtk14 { color: #dcdcaa !important; }
+.mtk15 { color: #569cd6 !important; }
+.mtk16 { color: #9cdcfe !important; }
+.mtk17 { color: #4ec9b0 !important; }
+.mtk18 { color: #c586c0 !important; }
+.mtk19 { color: #d7ba7d !important; }
+.mtk20 { color: #ce9178 !important; }
+.mtk21 { color: #b5cea8 !important; }
+.mtk22 { color: #dcdcaa !important; }
+.mtk23 { color: #569cd6 !important; }
+.mtk24 { color: #9cdcfe !important; }
+
+/* Light theme overrides */
+body.vscode-light .syntax-keyword,
+body.vscode-light .syntax-keyword2 { color: #0000ff !important; }
+body.vscode-light .syntax-type { color: #267f99 !important; }
+body.vscode-light .syntax-builtin { color: #795e26 !important; }
+body.vscode-light .syntax-string,
+body.vscode-light .syntax-template { color: #a31515 !important; }
+body.vscode-light .syntax-comment { color: #008000 !important; }
+body.vscode-light .syntax-number { color: #098658 !important; }
+body.vscode-light .syntax-property,
+body.vscode-light .syntax-variable { color: #001080 !important; }
+
+body.vscode-light .mtk1 { color: #000000 !important; }
+body.vscode-light .mtk2 { color: #0000ff !important; }
+body.vscode-light .mtk3 { color: #098658 !important; }
+body.vscode-light .mtk4 { color: #008000 !important; }
+body.vscode-light .mtk5 { color: #a31515 !important; }
+body.vscode-light .mtk6 { color: #795e26 !important; }
+body.vscode-light .mtk7 { color: #0000ff !important; }
+body.vscode-light .mtk8 { color: #001080 !important; }
+body.vscode-light .mtk9 { color: #267f99 !important; }
+body.vscode-light .mtk10 { color: #af00db !important; }
+
+/* Git log pane height override */
+
+[data-testid="blame-git-log-pane"] [data-testid="git-history-tool-window"],
+[data-testid="history-git-log-pane"] [data-testid="git-history-tool-window"] {
+  height: 100% !important;
+  width: 100% !important;
+}

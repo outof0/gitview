@@ -1,0 +1,48 @@
+# Antfu-style: push a v* tag → generate GitHub Release notes from Conventional Commits.
+# Local CHANGELOG.md is updated by `pnpm release` (changelogen) before the tag is pushed.
+name: Release
+
+permissions:
+  contents: read
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  quality:
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    needs: quality
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Package VSIX
+        run: pnpm run package
+
+      - name: Create GitHub Release
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          test "$GITHUB_REF_NAME" = "v$PACKAGE_VERSION"
+          gh release create "$GITHUB_REF_NAME" "gitview-$PACKAGE_VERSION.vsix" --verify-tag --generate-notes --title "$GITHUB_REF_NAME"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

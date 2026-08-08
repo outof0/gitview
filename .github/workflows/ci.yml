@@ -1,0 +1,149 @@
+name: CI
+
+on:
+  workflow_call:
+  push:
+    branches: [main, master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Platform-independent gates: architecture, docs, bundle budget and packaging
+  # only need to be proven once.
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Dependency audit
+        run: pnpm run security:audit
+
+      - name: Architecture invariants
+        run: pnpm run check:architecture
+
+      - name: Documentation links
+        run: pnpm run check:docs
+
+      - name: Dead code and unused files
+        run: pnpm run check:deadcode
+
+      - name: Typecheck (host + webview)
+        run: pnpm run typecheck
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Unit tests with coverage thresholds
+        run: pnpm run test:coverage
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Bundle budget
+        run: pnpm run check:bundle
+
+      - name: Package contract and dry run
+        run: pnpm run check:package && pnpm exec vsce package --no-dependencies
+
+  # Path handling, CRLF and Git subprocess behaviour differ per OS, so the
+  # tests that touch a real Git and a real filesystem run everywhere we ship.
+  unit-cross-platform:
+    needs: quality
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Configure Git identity for fixture repositories
+        run: |
+          git config --global user.email "ci@gitview.invalid"
+          git config --global user.name "GitView Diff CI"
+          git config --global init.defaultBranch main
+
+      - name: Typecheck (host + webview)
+        run: pnpm run typecheck
+
+      - name: Unit and integration-style tests
+        run: pnpm run test:unit
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: quality
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browser
+        run: pnpm exec playwright install chromium --with-deps
+
+      - name: Native VS Code E2E smoke tests
+        run: xvfb-run -a pnpm run test:e2e:smoke
+        env:
+          CI: "true"
+          HEADED: "1"
+
+  integration:
+    runs-on: ubuntu-latest
+    needs: quality
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Integration tests (VS Code extension host)
+        run: xvfb-run -a pnpm run test:int
+        env:
+          CI: "true"
