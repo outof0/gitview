@@ -1,0 +1,45 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "npm",
+      "script": "build",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "label": "npm: build",
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "label": "setup-conflict-repo",
+      "type": "shell",
+      "command": "bash scripts/setup-test-repo.sh",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "setup-clean-repo",
+      "type": "shell",
+      "command": "bash scripts/setup-test-clean-repo.sh",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "setup-conflict-repo-and-build",
+      "dependsOrder": "sequence",
+      "dependsOn": ["setup-conflict-repo", "npm: build"],
+      "problemMatcher": []
+    },
+    {
+      "label": "setup-clean-repo-and-build",
+      "dependsOrder": "sequence",
+      "dependsOn": ["setup-clean-repo", "npm: build"],
+      "problemMatcher": []
+    }
+  ]
+}

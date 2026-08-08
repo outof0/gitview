@@ -1,0 +1,20 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": [
+        "src/publicApi.ts",
+        "src/test/**/*.ts",
+        "e2e/**/*.ts",
+        "scripts/*.mjs"
+      ],
+      "project": ["src/**/*.ts", "e2e/**/*.ts", "scripts/*.mjs"]
+    },
+    "webview": {
+      "entry": ["src/dev/bootstrap.tsx"],
+      "project": ["src/**/*.{ts,tsx}"]
+    }
+  },
+  "ignoreDependencies": ["react", "react-dom"],
+  "vitest": { "config": ["vitest.config.ts"] }
+}

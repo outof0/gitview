@@ -1,0 +1,41 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Extension (Merge Conflicts)",
+      "type": "extensionHost",
+      "request": "launch",
+      "runtimeExecutable": "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}",
+        "${workspaceFolder}/test-conflict-repo"
+      ],
+      "outFiles": ["${workspaceFolder}/out/**/*.js"],
+      "preLaunchTask": "setup-conflict-repo-and-build"
+    },
+    {
+      "name": "Run Extension (Clean Git Menu)",
+      "type": "extensionHost",
+      "request": "launch",
+      "runtimeExecutable": "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}",
+        "${workspaceFolder}/test-clean-repo"
+      ],
+      "outFiles": ["${workspaceFolder}/out/**/*.js"],
+      "preLaunchTask": "setup-clean-repo-and-build"
+    },
+    {
+      "name": "Run Extension",
+      "type": "extensionHost",
+      "request": "launch",
+      "runtimeExecutable": "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}",
+        "${workspaceFolder}/test-conflict-repo"
+      ],
+      "outFiles": ["${workspaceFolder}/out/**/*.js"],
+      "preLaunchTask": "setup-conflict-repo-and-build"
+    }
+  ]
+}

@@ -1,0 +1,3220 @@
+{
+  "version": "2.14",
+  "children": [
+    {
+      "id": "pg-merge-dialog",
+      "name": "01 - Merge Conflicts Dialog (IntelliJ IDEA New UI)",
+      "type": "page",
+      "children": [
+        {
+          "id": "mcd-bg",
+          "type": "rectangle",
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "w": 900,
+            "h": 680
+          },
+          "style": {
+            "fill": "#2B2B2B",
+            "stroke": "none"
+          }
+        },
+        {
+          "id": "mcd-dialog-bg",
+          "type": "rectangle",
+          "bounds": {
+            "x": 140,
+            "y": 140,
+            "w": 620,
+            "h": 400
+          },
+          "style": {
+            "fill": "#3C3F41",
+            "stroke": "#464849",
+            "strokeWidth": 1,
+            "rx": 6,
+            "ry": 6
+          }
+        },
+        {
+          "id": "mcd-title",
+          "type": "text",
+          "bounds": {
+            "x": 156,
+            "y": 149,
+            "w": 200,
+            "h": 20
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 13,
+            "fontWeight": 600,
+            "fill": "#BBBBBB"
+          },
+          "text": "Merge Conflicts"
+        },
+        {
+          "id": "mcd-close-x",
+          "type": "text",
+          "bounds": {
+            "x": 721,
+            "y": 149,
+            "w": 14,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 14,
+            "fontWeight": 400,
+            "fill": "#BBBBBB"
+          },
+          "text": "✕"
+        },
+        {
+          "id": "mcd-desc",
+          "type": "text",
+          "bounds": {
+            "x": 156,
+            "y": 184,
+            "w": 560,
+            "h": 20
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "Files with conflicts. Merge conflicts detected in 3 files."
+        },
+        {
+          "id": "mcd-filelist-header",
+          "type": "rectangle",
+          "bounds": {
+            "x": 156,
+            "y": 212,
+            "w": 588,
+            "h": 24
+          },
+          "style": {
+            "fill": "#323334",
+            "stroke": "#464849",
+            "strokeWidth": 1,
+            "rx": 4,
+            "ry": 4
+          }
+        },
+        {
+          "id": "mcd-file-hdr-status",
+          "type": "text",
+          "bounds": {
+            "x": 164,
+            "y": 215,
+            "w": 40,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 11,
+            "fontWeight": 600,
+            "fill": "#8A9094"
+          },
+          "text": "Status"
+        },
+        {
+          "id": "mcd-file-hdr-file",
+          "type": "text",
+          "bounds": {
+            "x": 220,
+            "y": 215,
+            "w": 280,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 11,
+            "fontWeight": 600,
+            "fill": "#8A9094"
+          },
+          "text": "File"
+        },
+        {
+          "id": "mcd-file-hdr-type",
+          "type": "text",
+          "bounds": {
+            "x": 560,
+            "y": 215,
+            "w": 80,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 11,
+            "fontWeight": 600,
+            "fill": "#8A9094"
+          },
+          "text": "Type"
+        },
+        {
+          "id": "mcd-row-1-bg",
+          "type": "rectangle",
+          "bounds": {
+            "x": 156,
+            "y": 238,
+            "w": 588,
+            "h": 32
+          },
+          "style": {
+            "fill": "#383A3C",
+            "stroke": "none"
+          }
+        },
+        {
+          "id": "mcd-row-1-icon",
+          "type": "text",
+          "bounds": {
+            "x": 166,
+            "y": 244,
+            "w": 16,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 12,
+            "fontWeight": 600,
+            "fill": "#E37B40"
+          },
+          "text": "!"
+        },
+        {
+          "id": "mcd-row-1-name",
+          "type": "text",
+          "bounds": {
+            "x": 190,
+            "y": 244,
+            "w": 340,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "src/components/Button.tsx"
+        },
+        {
+          "id": "mcd-row-1-type",
+          "type": "text",
+          "bounds": {
+            "x": 560,
+            "y": 244,
+            "w": 100,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#E37B40"
+          },
+          "text": "Both Modified"
+        },
+        {
+          "id": "mcd-row-1-desc",
+          "type": "text",
+          "bounds": {
+            "x": 190,
+            "y": 257,
+            "w": 340,
+            "h": 14
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 10,
+            "fontWeight": 400,
+            "fill": "#8A9094"
+          },
+          "text": "3 conflict blocks"
+        },
+        {
+          "id": "mcd-row-2-bg",
+          "type": "rectangle",
+          "bounds": {
+            "x": 156,
+            "y": 270,
+            "w": 588,
+            "h": 32
+          },
+          "style": {
+            "fill": "#3C3F41",
+            "stroke": "none"
+          }
+        },
+        {
+          "id": "mcd-row-2-icon",
+          "type": "text",
+          "bounds": {
+            "x": 166,
+            "y": 276,
+            "w": 16,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 12,
+            "fontWeight": 600,
+            "fill": "#E37B40"
+          },
+          "text": "!"
+        },
+        {
+          "id": "mcd-row-2-name",
+          "type": "text",
+          "bounds": {
+            "x": 190,
+            "y": 276,
+            "w": 340,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "src/utils/config.ts"
+        },
+        {
+          "id": "mcd-row-2-type",
+          "type": "text",
+          "bounds": {
+            "x": 560,
+            "y": 276,
+            "w": 100,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#E37B40"
+          },
+          "text": "Both Modified"
+        },
+        {
+          "id": "mcd-row-2-desc",
+          "type": "text",
+          "bounds": {
+            "x": 190,
+            "y": 289,
+            "w": 340,
+            "h": 14
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 10,
+            "fontWeight": 400,
+            "fill": "#8A9094"
+          },
+          "text": "1 conflict block"
+        },
+        {
+          "id": "mcd-row-3-bg",
+          "type": "rectangle",
+          "bounds": {
+            "x": 156,
+            "y": 302,
+            "w": 588,
+            "h": 32
+          },
+          "style": {
+            "fill": "#383A3C",
+            "stroke": "none"
+          }
+        },
+        {
+          "id": "mcd-row-3-icon",
+          "type": "text",
+          "bounds": {
+            "x": 166,
+            "y": 308,
+            "w": 16,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 12,
+            "fontWeight": 600,
+            "fill": "#E37B40"
+          },
+          "text": "!"
+        },
+        {
+          "id": "mcd-row-3-name",
+          "type": "text",
+          "bounds": {
+            "x": 190,
+            "y": 308,
+            "w": 340,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "src/styles/theme.css"
+        },
+        {
+          "id": "mcd-row-3-type",
+          "type": "text",
+          "bounds": {
+            "x": 560,
+            "y": 308,
+            "w": 100,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#E37B40"
+          },
+          "text": "Deleted by them"
+        },
+        {
+          "id": "mcd-row-3-desc",
+          "type": "text",
+          "bounds": {
+            "x": 190,
+            "y": 321,
+            "w": 340,
+            "h": 14
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 10,
+            "fontWeight": 400,
+            "fill": "#8A9094"
+          },
+          "text": "Deleted by them, modified by us"
+        },
+        {
+          "id": "mcd-bulk-bar",
+          "type": "rectangle",
+          "bounds": {
+            "x": 156,
+            "y": 344,
+            "w": 588,
+            "h": 34
+          },
+          "style": {
+            "fill": "#323334",
+            "stroke": "#464849",
+            "strokeWidth": 1,
+            "rx": 4,
+            "ry": 4
+          }
+        },
+        {
+          "id": "mcd-btn-yours",
+          "type": "rectangle",
+          "bounds": {
+            "x": 164,
+            "y": 350,
+            "w": 120,
+            "h": 24
+          },
+          "style": {
+            "fill": "#4C4E50",
+            "stroke": "#5E6062",
+            "strokeWidth": 1,
+            "rx": 4,
+            "ry": 4
+          }
+        },
+        {
+          "id": "mcd-btn-yours-text",
+          "type": "text",
+          "bounds": {
+            "x": 172,
+            "y": 353,
+            "w": 104,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 11,
+            "fontWeight": 500,
+            "fill": "#BBBBBB"
+          },
+          "textAlign": "center",
+          "text": "Accept All Yours"
+        },
+        {
+          "id": "mcd-btn-theirs",
+          "type": "rectangle",
+          "bounds": {
+            "x": 292,
+            "y": 350,
+            "w": 126,
+            "h": 24
+          },
+          "style": {
+            "fill": "#4C4E50",
+            "stroke": "#5E6062",
+            "strokeWidth": 1,
+            "rx": 4,
+            "ry": 4
+          }
+        },
+        {
+          "id": "mcd-btn-theirs-text",
+          "type": "text",
+          "bounds": {
+            "x": 300,
+            "y": 353,
+            "w": 110,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 11,
+            "fontWeight": 500,
+            "fill": "#BBBBBB"
+          },
+          "textAlign": "center",
+          "text": "Accept All Theirs"
+        },
+        {
+          "id": "mcd-btn-merge",
+          "type": "rectangle",
+          "bounds": {
+            "x": 426,
+            "y": 350,
+            "w": 100,
+            "h": 24
+          },
+          "style": {
+            "fill": "#4C4E50",
+            "stroke": "#5E6062",
+            "strokeWidth": 1,
+            "rx": 4,
+            "ry": 4
+          }
+        },
+        {
+          "id": "mcd-btn-merge-text",
+          "type": "text",
+          "bounds": {
+            "x": 434,
+            "y": 353,
+            "w": 84,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 11,
+            "fontWeight": 500,
+            "fill": "#BBBBBB"
+          },
+          "textAlign": "center",
+          "text": "Merge Files..."
+        },
+        {
+          "id": "mcd-btn-merge-primary",
+          "type": "rectangle",
+          "bounds": {
+            "x": 560,
+            "y": 412,
+            "w": 90,
+            "h": 28
+          },
+          "style": {
+            "fill": "#589DF6",
+            "stroke": "none",
+            "rx": 4,
+            "ry": 4
+          }
+        },
+        {
+          "id": "mcd-btn-merge-primary-text",
+          "type": "text",
+          "bounds": {
+            "x": 570,
+            "y": 416,
+            "w": 70,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 12,
+            "fontWeight": 600,
+            "fill": "#FFFFFF"
+          },
+          "textAlign": "center",
+          "text": "Merge"
+        },
+        {
+          "id": "mcd-btn-cancel",
+          "type": "rectangle",
+          "bounds": {
+            "x": 662,
+            "y": 412,
+            "w": 80,
+            "h": 28
+          },
+          "style": {
+            "fill": "#4C4E50",
+            "stroke": "#5E6062",
+            "strokeWidth": 1,
+            "rx": 4,
+            "ry": 4
+          }
+        },
+        {
+          "id": "mcd-btn-cancel-text",
+          "type": "text",
+          "bounds": {
+            "x": 670,
+            "y": 416,
+            "w": 64,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 12,
+            "fontWeight": 500,
+            "fill": "#BBBBBB"
+          },
+          "textAlign": "center",
+          "text": "Cancel"
+        },
+        {
+          "id": "mcd-progress",
+          "type": "text",
+          "bounds": {
+            "x": 164,
+            "y": 416,
+            "w": 240,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#8A9094"
+          },
+          "text": "Resolved: 0/3   (3 conflicts remaining)"
+        },
+        {
+          "id": "mcd-abort",
+          "type": "text",
+          "bounds": {
+            "x": 156,
+            "y": 480,
+            "w": 120,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#589DF6"
+          },
+          "text": "Abort Merge"
+        }
+      ]
+    },
+    {
+      "id": "pg-merge-editor",
+      "name": "02 - Three-Way Merge Editor (Local | Result | Incoming)",
+      "type": "page",
+      "children": [
+        {
+          "id": "me-bg",
+          "type": "rectangle",
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "w": 1200,
+            "h": 800
+          },
+          "style": {
+            "fill": "#2B2B2B",
+            "stroke": "none"
+          }
+        },
+        {
+          "id": "me-titlebar",
+          "type": "rectangle",
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "w": 1200,
+            "h": 36
+          },
+          "style": {
+            "fill": "#3C3F41",
+            "stroke": "#464849",
+            "strokeWidth": 1
+          }
+        },
+        {
+          "id": "me-title",
+          "type": "text",
+          "bounds": {
+            "x": 16,
+            "y": 9,
+            "w": 400,
+            "h": 20
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 13,
+            "fontWeight": 600,
+            "fill": "#BBBBBB"
+          },
+          "text": "Merge - src/components/Button.tsx"
+        },
+        {
+          "id": "me-close",
+          "type": "text",
+          "bounds": {
+            "x": 1174,
+            "y": 9,
+            "w": 16,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 14,
+            "fontWeight": 400,
+            "fill": "#BBBBBB"
+          },
+          "text": "✕"
+        },
+        {
+          "id": "me-pane-header-bg",
+          "type": "rectangle",
+          "bounds": {
+            "x": 0,
+            "y": 36,
+            "w": 1200,
+            "h": 28
+          },
+          "style": {
+            "fill": "#323334",
+            "stroke": "#464849",
+            "strokeWidth": 1
+          }
+        },
+        {
+          "id": "me-left-header",
+          "type": "rectangle",
+          "bounds": {
+            "x": 0,
+            "y": 36,
+            "w": 400,
+            "h": 28
+          },
+          "style": {
+            "fill": "#3C3F41",
+            "stroke": "#464849",
+            "strokeWidth": 1
+          }
+        },
+        {
+          "id": "me-left-badge",
+          "type": "rectangle",
+          "bounds": {
+            "x": 8,
+            "y": 41,
+            "w": 44,
+            "h": 18
+          },
+          "style": {
+            "fill": "#589DF6",
+            "rx": 3,
+            "ry": 3,
+            "stroke": "none"
+          }
+        },
+        {
+          "id": "me-left-badge-text",
+          "type": "text",
+          "bounds": {
+            "x": 12,
+            "y": 43,
+            "w": 36,
+            "h": 14
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 10,
+            "fontWeight": 700,
+            "fill": "#FFFFFF"
+          },
+          "textAlign": "center",
+          "text": "Local"
+        },
+        {
+          "id": "me-left-filename",
+          "type": "text",
+          "bounds": {
+            "x": 60,
+            "y": 43,
+            "w": 300,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 12,
+            "fontWeight": 500,
+            "fill": "#BBBBBB"
+          },
+          "text": "Button.tsx   (read-only)"
+        },
+        {
+          "id": "me-center-header",
+          "type": "rectangle",
+          "bounds": {
+            "x": 400,
+            "y": 36,
+            "w": 400,
+            "h": 28
+          },
+          "style": {
+            "fill": "#38503F",
+            "stroke": "#464849",
+            "strokeWidth": 1
+          }
+        },
+        {
+          "id": "me-center-badge",
+          "type": "rectangle",
+          "bounds": {
+            "x": 408,
+            "y": 41,
+            "w": 44,
+            "h": 18
+          },
+          "style": {
+            "fill": "#5CB85C",
+            "rx": 3,
+            "ry": 3,
+            "stroke": "none"
+          }
+        },
+        {
+          "id": "me-center-badge-text",
+          "type": "text",
+          "bounds": {
+            "x": 412,
+            "y": 43,
+            "w": 36,
+            "h": 14
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 10,
+            "fontWeight": 700,
+            "fill": "#FFFFFF"
+          },
+          "textAlign": "center",
+          "text": "Result"
+        },
+        {
+          "id": "me-center-filename",
+          "type": "text",
+          "bounds": {
+            "x": 460,
+            "y": 43,
+            "w": 300,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 12,
+            "fontWeight": 500,
+            "fill": "#BBBBBB"
+          },
+          "text": "Button.tsx   (editable - merge result)"
+        },
+        {
+          "id": "me-right-header",
+          "type": "rectangle",
+          "bounds": {
+            "x": 800,
+            "y": 36,
+            "w": 400,
+            "h": 28
+          },
+          "style": {
+            "fill": "#3C3F41",
+            "stroke": "#464849",
+            "strokeWidth": 1
+          }
+        },
+        {
+          "id": "me-right-badge",
+          "type": "rectangle",
+          "bounds": {
+            "x": 808,
+            "y": 41,
+            "w": 56,
+            "h": 18
+          },
+          "style": {
+            "fill": "#D78D4E",
+            "rx": 3,
+            "ry": 3,
+            "stroke": "none"
+          }
+        },
+        {
+          "id": "me-right-badge-text",
+          "type": "text",
+          "bounds": {
+            "x": 812,
+            "y": 43,
+            "w": 48,
+            "h": 14
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 10,
+            "fontWeight": 700,
+            "fill": "#FFFFFF"
+          },
+          "textAlign": "center",
+          "text": "Incoming"
+        },
+        {
+          "id": "me-right-filename",
+          "type": "text",
+          "bounds": {
+            "x": 872,
+            "y": 43,
+            "w": 300,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 12,
+            "fontWeight": 500,
+            "fill": "#BBBBBB"
+          },
+          "text": "Button.tsx   (read-only)"
+        },
+        {
+          "id": "me-toolbar",
+          "type": "rectangle",
+          "bounds": {
+            "x": 0,
+            "y": 64,
+            "w": 1200,
+            "h": 30
+          },
+          "style": {
+            "fill": "#323334",
+            "stroke": "#464849",
+            "strokeWidth": 1
+          }
+        },
+        {
+          "id": "me-tb-prev",
+          "type": "rectangle",
+          "bounds": {
+            "x": 8,
+            "y": 68,
+            "w": 24,
+            "h": 22
+          },
+          "style": {
+            "fill": "transparent",
+            "stroke": "none",
+            "rx": 3,
+            "ry": 3
+          }
+        },
+        {
+          "id": "me-tb-prev-text",
+          "type": "text",
+          "bounds": {
+            "x": 14,
+            "y": 70,
+            "w": 12,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 14,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "▲"
+        },
+        {
+          "id": "me-tb-next",
+          "type": "rectangle",
+          "bounds": {
+            "x": 34,
+            "y": 68,
+            "w": 24,
+            "h": 22
+          },
+          "style": {
+            "fill": "transparent",
+            "stroke": "none",
+            "rx": 3,
+            "ry": 3
+          }
+        },
+        {
+          "id": "me-tb-next-text",
+          "type": "text",
+          "bounds": {
+            "x": 40,
+            "y": 70,
+            "w": 12,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 14,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "▼"
+        },
+        {
+          "id": "me-tb-sep1",
+          "type": "rectangle",
+          "bounds": {
+            "x": 64,
+            "y": 68,
+            "w": 1,
+            "h": 22
+          },
+          "style": {
+            "fill": "#464849",
+            "stroke": "none"
+          }
+        },
+        {
+          "id": "me-tb-accept-l",
+          "type": "rectangle",
+          "bounds": {
+            "x": 72,
+            "y": 68,
+            "w": 28,
+            "h": 22
+          },
+          "style": {
+            "fill": "transparent",
+            "stroke": "none",
+            "rx": 3,
+            "ry": 3
+          }
+        },
+        {
+          "id": "me-tb-accept-l-text",
+          "type": "text",
+          "bounds": {
+            "x": 76,
+            "y": 70,
+            "w": 20,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 12,
+            "fontWeight": 600,
+            "fill": "#A9B7C6"
+          },
+          "text": "◀"
+        },
+        {
+          "id": "me-tb-accept-r",
+          "type": "rectangle",
+          "bounds": {
+            "x": 104,
+            "y": 68,
+            "w": 28,
+            "h": 22
+          },
+          "style": {
+            "fill": "transparent",
+            "stroke": "none",
+            "rx": 3,
+            "ry": 3
+          }
+        },
+        {
+          "id": "me-tb-accept-r-text",
+          "type": "text",
+          "bounds": {
+            "x": 108,
+            "y": 70,
+            "w": 20,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 12,
+            "fontWeight": 600,
+            "fill": "#A9B7C6"
+          },
+          "text": "▶"
+        },
+        {
+          "id": "me-tb-sep2",
+          "type": "rectangle",
+          "bounds": {
+            "x": 140,
+            "y": 68,
+            "w": 1,
+            "h": 22
+          },
+          "style": {
+            "fill": "#464849",
+            "stroke": "none"
+          }
+        },
+        {
+          "id": "me-tb-ignore-l",
+          "type": "rectangle",
+          "bounds": {
+            "x": 148,
+            "y": 68,
+            "w": 28,
+            "h": 22
+          },
+          "style": {
+            "fill": "transparent",
+            "stroke": "none",
+            "rx": 3,
+            "ry": 3
+          }
+        },
+        {
+          "id": "me-tb-ignore-l-text",
+          "type": "text",
+          "bounds": {
+            "x": 152,
+            "y": 70,
+            "w": 20,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "✕"
+        },
+        {
+          "id": "me-tb-ignore-r",
+          "type": "rectangle",
+          "bounds": {
+            "x": 180,
+            "y": 68,
+            "w": 28,
+            "h": 22
+          },
+          "style": {
+            "fill": "transparent",
+            "stroke": "none",
+            "rx": 3,
+            "ry": 3
+          }
+        },
+        {
+          "id": "me-tb-ignore-r-text",
+          "type": "text",
+          "bounds": {
+            "x": 184,
+            "y": 70,
+            "w": 20,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "✕"
+        },
+        {
+          "id": "me-tb-sep3",
+          "type": "rectangle",
+          "bounds": {
+            "x": 216,
+            "y": 68,
+            "w": 1,
+            "h": 22
+          },
+          "style": {
+            "fill": "#464849",
+            "stroke": "none"
+          }
+        },
+        {
+          "id": "me-tb-resolve-l",
+          "type": "text",
+          "bounds": {
+            "x": 228,
+            "y": 71,
+            "w": 100,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "Resolve using Left"
+        },
+        {
+          "id": "me-tb-resolve-r",
+          "type": "text",
+          "bounds": {
+            "x": 336,
+            "y": 71,
+            "w": 108,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "Resolve using Right"
+        },
+        {
+          "id": "me-tb-sep4",
+          "type": "rectangle",
+          "bounds": {
+            "x": 452,
+            "y": 68,
+            "w": 1,
+            "h": 22
+          },
+          "style": {
+            "fill": "#464849",
+            "stroke": "none"
+          }
+        },
+        {
+          "id": "me-tb-compare",
+          "type": "text",
+          "bounds": {
+            "x": 460,
+            "y": 71,
+            "w": 80,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "Compare..."
+        },
+        {
+          "id": "me-tb-sep5",
+          "type": "rectangle",
+          "bounds": {
+            "x": 548,
+            "y": 68,
+            "w": 1,
+            "h": 22
+          },
+          "style": {
+            "fill": "#464849",
+            "stroke": "none"
+          }
+        },
+        {
+          "id": "me-conflict-count",
+          "type": "text",
+          "bounds": {
+            "x": 556,
+            "y": 71,
+            "w": 140,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#8A9094"
+          },
+          "text": "Conflict 2 of 3"
+        },
+        {
+          "id": "me-tb-apply",
+          "type": "rectangle",
+          "bounds": {
+            "x": 1020,
+            "y": 67,
+            "w": 80,
+            "h": 24
+          },
+          "style": {
+            "fill": "#4C4E50",
+            "stroke": "#5E6062",
+            "strokeWidth": 1,
+            "rx": 4,
+            "ry": 4
+          }
+        },
+        {
+          "id": "me-tb-apply-text",
+          "type": "text",
+          "bounds": {
+            "x": 1034,
+            "y": 70,
+            "w": 52,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 11,
+            "fontWeight": 500,
+            "fill": "#6C7E8A"
+          },
+          "textAlign": "center",
+          "text": "Apply"
+        },
+        {
+          "id": "me-tb-cancel",
+          "type": "rectangle",
+          "bounds": {
+            "x": 1110,
+            "y": 67,
+            "w": 74,
+            "h": 24
+          },
+          "style": {
+            "fill": "#4C4E50",
+            "stroke": "#5E6062",
+            "strokeWidth": 1,
+            "rx": 4,
+            "ry": 4
+          }
+        },
+        {
+          "id": "me-tb-cancel-text",
+          "type": "text",
+          "bounds": {
+            "x": 1124,
+            "y": 70,
+            "w": 46,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 11,
+            "fontWeight": 500,
+            "fill": "#BBBBBB"
+          },
+          "textAlign": "center",
+          "text": "Cancel"
+        },
+        {
+          "id": "me-left-pane",
+          "type": "rectangle",
+          "bounds": {
+            "x": 0,
+            "y": 94,
+            "w": 400,
+            "h": 706
+          },
+          "style": {
+            "fill": "#2B2B2B",
+            "stroke": "#464849",
+            "strokeWidth": 1
+          }
+        },
+        {
+          "id": "me-left-gutter",
+          "type": "rectangle",
+          "bounds": {
+            "x": 0,
+            "y": 94,
+            "w": 32,
+            "h": 706
+          },
+          "style": {
+            "fill": "#262626",
+            "stroke": "none"
+          }
+        },
+        {
+          "id": "me-status-bar",
+          "type": "rectangle",
+          "bounds": {
+            "x": 0,
+            "y": 780,
+            "w": 1200,
+            "h": 20
+          },
+          "style": {
+            "fill": "#313335",
+            "stroke": "#464849",
+            "strokeWidth": 1
+          }
+        },
+        {
+          "id": "me-status-text",
+          "type": "text",
+          "bounds": {
+            "x": 16,
+            "y": 782,
+            "w": 300,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#8A9094"
+          },
+          "text": "  Conflicts: 2 of 3 resolved"
+        },
+        {
+          "id": "me-status-crlf",
+          "type": "text",
+          "bounds": {
+            "x": 1130,
+            "y": 782,
+            "w": 60,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#8A9094"
+          },
+          "textAlign": "right",
+          "text": "UTF-8  LF"
+        },
+        {
+          "id": "me-left-ln-00",
+          "type": "text",
+          "bounds": {
+            "x": 2,
+            "y": 102,
+            "w": 28,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#555555"
+          },
+          "textAlign": "right",
+          "text": "10"
+        },
+        {
+          "id": "me-left-code-00",
+          "type": "text",
+          "bounds": {
+            "x": 40,
+            "y": 102,
+            "w": 340,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "  export function Button(props: ButtonProps) {"
+        },
+        {
+          "id": "me-left-ln-01",
+          "type": "text",
+          "bounds": {
+            "x": 2,
+            "y": 120,
+            "w": 28,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#555555"
+          },
+          "textAlign": "right",
+          "text": "11"
+        },
+        {
+          "id": "me-left-code-01",
+          "type": "text",
+          "bounds": {
+            "x": 40,
+            "y": 120,
+            "w": 340,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "  // NEW: Add loading spinner support"
+        },
+        {
+          "id": "me-left-gm-01",
+          "type": "rectangle",
+          "bounds": {
+            "x": 30,
+            "y": 120,
+            "w": 3,
+            "h": 18
+          },
+          "style": {
+            "fill": "#3C5C4C",
+            "stroke": "none"
+          }
+        },
+        {
+          "id": "me-left-ln-02",
+          "type": "text",
+          "bounds": {
+            "x": 2,
+            "y": 138,
+            "w": 28,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#555555"
+          },
+          "textAlign": "right",
+          "text": "12"
+        },
+        {
+          "id": "me-left-code-02",
+          "type": "text",
+          "bounds": {
+            "x": 40,
+            "y": 138,
+            "w": 340,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "  const [isLoading, setIsLoading] = useState(false);"
+        },
+        {
+          "id": "me-left-gm-02",
+          "type": "rectangle",
+          "bounds": {
+            "x": 30,
+            "y": 138,
+            "w": 3,
+            "h": 18
+          },
+          "style": {
+            "fill": "#3C5C4C",
+            "stroke": "none"
+          }
+        },
+        {
+          "id": "me-left-ln-03",
+          "type": "text",
+          "bounds": {
+            "x": 2,
+            "y": 156,
+            "w": 28,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#555555"
+          },
+          "textAlign": "right",
+          "text": "13"
+        },
+        {
+          "id": "me-left-code-03",
+          "type": "text",
+          "bounds": {
+            "x": 40,
+            "y": 156,
+            "w": 340,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "  return ("
+        },
+        {
+          "id": "me-left-ln-04",
+          "type": "text",
+          "bounds": {
+            "x": 2,
+            "y": 174,
+            "w": 28,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#555555"
+          },
+          "textAlign": "right",
+          "text": "14"
+        },
+        {
+          "id": "me-left-code-04",
+          "type": "text",
+          "bounds": {
+            "x": 40,
+            "y": 174,
+            "w": 340,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "    <button className={styles.button}>"
+        },
+        {
+          "id": "me-left-ln-05",
+          "type": "text",
+          "bounds": {
+            "x": 2,
+            "y": 192,
+            "w": 28,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#555555"
+          },
+          "textAlign": "right",
+          "text": "15"
+        },
+        {
+          "id": "me-left-code-05",
+          "type": "text",
+          "bounds": {
+            "x": 40,
+            "y": 192,
+            "w": 340,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "      {props.label}"
+        },
+        {
+          "id": "me-left-ln-06",
+          "type": "text",
+          "bounds": {
+            "x": 2,
+            "y": 210,
+            "w": 28,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#555555"
+          },
+          "textAlign": "right",
+          "text": "16"
+        },
+        {
+          "id": "me-left-code-06",
+          "type": "text",
+          "bounds": {
+            "x": 40,
+            "y": 210,
+            "w": 340,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "    </button>"
+        },
+        {
+          "id": "me-left-ln-07",
+          "type": "text",
+          "bounds": {
+            "x": 2,
+            "y": 228,
+            "w": 28,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#555555"
+          },
+          "textAlign": "right",
+          "text": "17"
+        },
+        {
+          "id": "me-left-code-07",
+          "type": "text",
+          "bounds": {
+            "x": 40,
+            "y": 228,
+            "w": 340,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "  );"
+        },
+        {
+          "id": "me-left-ln-08",
+          "type": "text",
+          "bounds": {
+            "x": 2,
+            "y": 246,
+            "w": 28,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#555555"
+          },
+          "textAlign": "right",
+          "text": "18"
+        },
+        {
+          "id": "me-left-code-08",
+          "type": "text",
+          "bounds": {
+            "x": 40,
+            "y": 246,
+            "w": 340,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "  export default Button;"
+        },
+        {
+          "id": "me-left-gm-08",
+          "type": "rectangle",
+          "bounds": {
+            "x": 30,
+            "y": 246,
+            "w": 3,
+            "h": 18
+          },
+          "style": {
+            "fill": "#3C5C4C",
+            "stroke": "none"
+          }
+        },
+        {
+          "id": "me-right-ln-00",
+          "type": "text",
+          "bounds": {
+            "x": 802,
+            "y": 102,
+            "w": 28,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#555555"
+          },
+          "textAlign": "right",
+          "text": "10"
+        },
+        {
+          "id": "me-right-code-00",
+          "type": "text",
+          "bounds": {
+            "x": 840,
+            "y": 102,
+            "w": 340,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "  export function Button(props: ButtonProps) {"
+        },
+        {
+          "id": "me-right-ln-01",
+          "type": "text",
+          "bounds": {
+            "x": 802,
+            "y": 120,
+            "w": 28,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#555555"
+          },
+          "textAlign": "right",
+          "text": "11"
+        },
+        {
+          "id": "me-right-code-01",
+          "type": "text",
+          "bounds": {
+            "x": 840,
+            "y": 120,
+            "w": 340,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "  // FIX: Add loading state types"
+        },
+        {
+          "id": "me-right-gm-01",
+          "type": "rectangle",
+          "bounds": {
+            "x": 830,
+            "y": 120,
+            "w": 3,
+            "h": 18
+          },
+          "style": {
+            "fill": "#5C3C3C",
+            "stroke": "none"
+          }
+        },
+        {
+          "id": "me-right-ln-02",
+          "type": "text",
+          "bounds": {
+            "x": 802,
+            "y": 138,
+            "w": 28,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#555555"
+          },
+          "textAlign": "right",
+          "text": "12"
+        },
+        {
+          "id": "me-right-code-02",
+          "type": "text",
+          "bounds": {
+            "x": 840,
+            "y": 138,
+            "w": 340,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "  const [loading, setLoading] = useState(false);"
+        },
+        {
+          "id": "me-right-gm-02",
+          "type": "rectangle",
+          "bounds": {
+            "x": 830,
+            "y": 138,
+            "w": 3,
+            "h": 18
+          },
+          "style": {
+            "fill": "#5C3C3C",
+            "stroke": "none"
+          }
+        },
+        {
+          "id": "me-right-ln-03",
+          "type": "text",
+          "bounds": {
+            "x": 802,
+            "y": 156,
+            "w": 28,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#555555"
+          },
+          "textAlign": "right",
+          "text": "13"
+        },
+        {
+          "id": "me-right-code-03",
+          "type": "text",
+          "bounds": {
+            "x": 840,
+            "y": 156,
+            "w": 340,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "  return ("
+        },
+        {
+          "id": "me-right-ln-04",
+          "type": "text",
+          "bounds": {
+            "x": 802,
+            "y": 174,
+            "w": 28,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#555555"
+          },
+          "textAlign": "right",
+          "text": "14"
+        },
+        {
+          "id": "me-right-code-04",
+          "type": "text",
+          "bounds": {
+            "x": 840,
+            "y": 174,
+            "w": 340,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "    <button className={styles.button}>"
+        },
+        {
+          "id": "me-right-ln-05",
+          "type": "text",
+          "bounds": {
+            "x": 802,
+            "y": 192,
+            "w": 28,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#555555"
+          },
+          "textAlign": "right",
+          "text": "15"
+        },
+        {
+          "id": "me-right-code-05",
+          "type": "text",
+          "bounds": {
+            "x": 840,
+            "y": 192,
+            "w": 340,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "      {props.label}"
+        },
+        {
+          "id": "me-right-ln-06",
+          "type": "text",
+          "bounds": {
+            "x": 802,
+            "y": 210,
+            "w": 28,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#555555"
+          },
+          "textAlign": "right",
+          "text": "16"
+        },
+        {
+          "id": "me-right-code-06",
+          "type": "text",
+          "bounds": {
+            "x": 840,
+            "y": 210,
+            "w": 340,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "    </button>"
+        },
+        {
+          "id": "me-right-ln-07",
+          "type": "text",
+          "bounds": {
+            "x": 802,
+            "y": 228,
+            "w": 28,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#555555"
+          },
+          "textAlign": "right",
+          "text": "17"
+        },
+        {
+          "id": "me-right-code-07",
+          "type": "text",
+          "bounds": {
+            "x": 840,
+            "y": 228,
+            "w": 340,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "  );"
+        },
+        {
+          "id": "me-right-ln-08",
+          "type": "text",
+          "bounds": {
+            "x": 802,
+            "y": 246,
+            "w": 28,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#555555"
+          },
+          "textAlign": "right",
+          "text": "18"
+        },
+        {
+          "id": "me-right-code-08",
+          "type": "text",
+          "bounds": {
+            "x": 840,
+            "y": 246,
+            "w": 340,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "  export default Button;"
+        },
+        {
+          "id": "me-right-gm-08",
+          "type": "rectangle",
+          "bounds": {
+            "x": 830,
+            "y": 246,
+            "w": 3,
+            "h": 18
+          },
+          "style": {
+            "fill": "#5C3C3C",
+            "stroke": "none"
+          }
+        },
+        {
+          "id": "me-center-gutter",
+          "type": "rectangle",
+          "bounds": {
+            "x": 400,
+            "y": 94,
+            "w": 32,
+            "h": 706
+          },
+          "style": {
+            "fill": "#262626",
+            "stroke": "none"
+          }
+        },
+        {
+          "id": "me-center-conflict-bg",
+          "type": "rectangle",
+          "bounds": {
+            "x": 432,
+            "y": 118,
+            "w": 368,
+            "h": 108
+          },
+          "style": {
+            "fill": "#383A3C",
+            "stroke": "#E37B40",
+            "strokeWidth": 1,
+            "rx": 2,
+            "ry": 2
+          }
+        },
+        {
+          "id": "me-center-conflict-hdr",
+          "type": "rectangle",
+          "bounds": {
+            "x": 432,
+            "y": 118,
+            "w": 368,
+            "h": 20
+          },
+          "style": {
+            "fill": "#3A2E22",
+            "stroke": "#E37B40",
+            "strokeWidth": 1,
+            "rx": 2,
+            "ry": 2
+          }
+        },
+        {
+          "id": "me-center-conflict-hdr-text",
+          "type": "text",
+          "bounds": {
+            "x": 438,
+            "y": 120,
+            "w": 160,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 10,
+            "fontWeight": 600,
+            "fill": "#E37B40"
+          },
+          "text": "Conflict 1 - Conflicting lines"
+        },
+        {
+          "id": "me-center-cfl-1",
+          "type": "rectangle",
+          "bounds": {
+            "x": 432,
+            "y": 138,
+            "w": 368,
+            "h": 18
+          },
+          "style": {
+            "fill": "#3C5C4C",
+            "stroke": "none"
+          }
+        },
+        {
+          "id": "me-center-cfl-1-text",
+          "type": "text",
+          "bounds": {
+            "x": 440,
+            "y": 139,
+            "w": 340,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "  // NEW: Add loading spinner"
+        },
+        {
+          "id": "me-center-cfr-1",
+          "type": "rectangle",
+          "bounds": {
+            "x": 432,
+            "y": 156,
+            "w": 368,
+            "h": 18
+          },
+          "style": {
+            "fill": "#5C3C3C",
+            "stroke": "none"
+          }
+        },
+        {
+          "id": "me-center-cfr-1-text",
+          "type": "text",
+          "bounds": {
+            "x": 440,
+            "y": 157,
+            "w": 340,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "  // FIX: Add loading state types"
+        },
+        {
+          "id": "me-center-conflict-div",
+          "type": "rectangle",
+          "bounds": {
+            "x": 432,
+            "y": 174,
+            "w": 368,
+            "h": 1
+          },
+          "style": {
+            "fill": "#E37B40",
+            "stroke": "none"
+          }
+        },
+        {
+          "id": "me-center-cfl-2",
+          "type": "rectangle",
+          "bounds": {
+            "x": 432,
+            "y": 175,
+            "w": 368,
+            "h": 18
+          },
+          "style": {
+            "fill": "#3C5C4C",
+            "stroke": "none"
+          }
+        },
+        {
+          "id": "me-center-cfl-2-text",
+          "type": "text",
+          "bounds": {
+            "x": 440,
+            "y": 176,
+            "w": 340,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#6A8759"
+          },
+          "text": "  const [isLoading, setIsLoading] = useState(false);"
+        },
+        {
+          "id": "me-center-cfr-2",
+          "type": "rectangle",
+          "bounds": {
+            "x": 432,
+            "y": 193,
+            "w": 368,
+            "h": 18
+          },
+          "style": {
+            "fill": "#5C3C3C",
+            "stroke": "none"
+          }
+        },
+        {
+          "id": "me-center-cfr-2-text",
+          "type": "text",
+          "bounds": {
+            "x": 440,
+            "y": 194,
+            "w": 340,
+            "h": 16
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#6A8759"
+          },
+          "text": "  const [loading, setLoading] = useState(false);"
+        },
+        {
+          "id": "me-center-hover",
+          "type": "rectangle",
+          "bounds": {
+            "x": 440,
+            "y": 228,
+            "w": 260,
+            "h": 24
+          },
+          "style": {
+            "fill": "#4C4E50",
+            "stroke": "#5E6062",
+            "strokeWidth": 1,
+            "rx": 3,
+            "ry": 3
+          }
+        },
+        {
+          "id": "me-center-hover-l",
+          "type": "text",
+          "bounds": {
+            "x": 444,
+            "y": 230,
+            "w": 80,
+            "h": 20
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 10,
+            "fontWeight": 500,
+            "fill": "#BBBBBB"
+          },
+          "text": "← Accept Left"
+        },
+        {
+          "id": "me-center-hover-r",
+          "type": "text",
+          "bounds": {
+            "x": 528,
+            "y": 230,
+            "w": 90,
+            "h": 20
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 10,
+            "fontWeight": 500,
+            "fill": "#BBBBBB"
+          },
+          "text": "Accept Right →"
+        },
+        {
+          "id": "me-center-hover-e",
+          "type": "text",
+          "bounds": {
+            "x": 624,
+            "y": 230,
+            "w": 60,
+            "h": 20
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 10,
+            "fontWeight": 500,
+            "fill": "#BBBBBB"
+          },
+          "text": "Edit"
+        }
+      ]
+    },
+    {
+      "id": "pg-context-menu",
+      "name": "03 - Context Menu on Conflict Block",
+      "type": "page",
+      "children": [
+        {
+          "id": "cm-bg",
+          "type": "rectangle",
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "w": 600,
+            "h": 500
+          },
+          "style": {
+            "fill": "#2B2B2B",
+            "stroke": "none"
+          }
+        },
+        {
+          "id": "cm-code-bg",
+          "type": "rectangle",
+          "bounds": {
+            "x": 40,
+            "y": 40,
+            "w": 520,
+            "h": 90
+          },
+          "style": {
+            "fill": "#2B2B2B",
+            "stroke": "#464849",
+            "strokeWidth": 1
+          }
+        },
+        {
+          "id": "cm-code-1",
+          "type": "text",
+          "bounds": {
+            "x": 48,
+            "y": 46,
+            "w": 500,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "  // NEW: Add loading spinner support  -- Local"
+        },
+        {
+          "id": "cm-code-div",
+          "type": "line",
+          "bounds": {
+            "x1": 40,
+            "y1": 64,
+            "x2": 560,
+            "y2": 64,
+            "w": 520,
+            "h": 1
+          },
+          "style": {
+            "stroke": "#E37B40",
+            "strokeWidth": 1
+          }
+        },
+        {
+          "id": "cm-code-2",
+          "type": "text",
+          "bounds": {
+            "x": 48,
+            "y": 74,
+            "w": 500,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "  // FIX: Add loading state types    -- Incoming"
+        },
+        {
+          "id": "cm-code-3",
+          "type": "text",
+          "bounds": {
+            "x": 48,
+            "y": 92,
+            "w": 500,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#6A8759"
+          },
+          "text": "  const [isLoading, setIsLoading] = useState(false);  -- Local"
+        },
+        {
+          "id": "cm-code-4",
+          "type": "text",
+          "bounds": {
+            "x": 48,
+            "y": 108,
+            "w": 500,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "JetBrains Mono, monospace",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#6A8759"
+          },
+          "text": "  const [loading, setLoading] = useState(false);  -- Incoming"
+        },
+        {
+          "id": "cm-menu-bg",
+          "type": "rectangle",
+          "bounds": {
+            "x": 40,
+            "y": 140,
+            "w": 230,
+            "h": 260
+          },
+          "style": {
+            "fill": "#3C3F41",
+            "stroke": "#505354",
+            "strokeWidth": 1,
+            "rx": 4,
+            "ry": 4
+          }
+        },
+        {
+          "id": "cm-menu-1",
+          "type": "text",
+          "bounds": {
+            "x": 52,
+            "y": 148,
+            "w": 160,
+            "h": 22
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "  Accept Left"
+        },
+        {
+          "id": "cm-menu-1-shortcut",
+          "type": "text",
+          "bounds": {
+            "x": 180,
+            "y": 148,
+            "w": 78,
+            "h": 22
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#6C7E8A"
+          },
+          "text": "Alt+1"
+        },
+        {
+          "id": "cm-menu-2",
+          "type": "text",
+          "bounds": {
+            "x": 52,
+            "y": 170,
+            "w": 160,
+            "h": 22
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "  Accept Right"
+        },
+        {
+          "id": "cm-menu-2-shortcut",
+          "type": "text",
+          "bounds": {
+            "x": 180,
+            "y": 170,
+            "w": 78,
+            "h": 22
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#6C7E8A"
+          },
+          "text": "Alt+2"
+        },
+        {
+          "id": "cm-menu-3",
+          "type": "text",
+          "bounds": {
+            "x": 52,
+            "y": 192,
+            "w": 160,
+            "h": 22
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "  Accept Both"
+        },
+        {
+          "id": "cm-menu-3-shortcut",
+          "type": "text",
+          "bounds": {
+            "x": 180,
+            "y": 192,
+            "w": 78,
+            "h": 22
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#6C7E8A"
+          },
+          "text": "Alt+3"
+        },
+        {
+          "id": "cm-menu-sep-1",
+          "type": "rectangle",
+          "bounds": {
+            "x": 48,
+            "y": 216,
+            "w": 214,
+            "h": 1
+          },
+          "style": {
+            "fill": "#505354",
+            "stroke": "none"
+          }
+        },
+        {
+          "id": "cm-menu-4",
+          "type": "text",
+          "bounds": {
+            "x": 52,
+            "y": 222,
+            "w": 160,
+            "h": 22
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "  Ignore Left"
+        },
+        {
+          "id": "cm-menu-5",
+          "type": "text",
+          "bounds": {
+            "x": 52,
+            "y": 244,
+            "w": 160,
+            "h": 22
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "  Ignore Right"
+        },
+        {
+          "id": "cm-menu-sep-2",
+          "type": "rectangle",
+          "bounds": {
+            "x": 48,
+            "y": 268,
+            "w": 214,
+            "h": 1
+          },
+          "style": {
+            "fill": "#505354",
+            "stroke": "none"
+          }
+        },
+        {
+          "id": "cm-menu-6",
+          "type": "text",
+          "bounds": {
+            "x": 52,
+            "y": 274,
+            "w": 160,
+            "h": 22
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "  Resolve using Left"
+        },
+        {
+          "id": "cm-menu-7",
+          "type": "text",
+          "bounds": {
+            "x": 52,
+            "y": 296,
+            "w": 160,
+            "h": 22
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "  Resolve using Right"
+        },
+        {
+          "id": "cm-menu-sep-3",
+          "type": "rectangle",
+          "bounds": {
+            "x": 48,
+            "y": 320,
+            "w": 214,
+            "h": 1
+          },
+          "style": {
+            "fill": "#505354",
+            "stroke": "none"
+          }
+        },
+        {
+          "id": "cm-menu-8",
+          "type": "text",
+          "bounds": {
+            "x": 52,
+            "y": 326,
+            "w": 170,
+            "h": 22
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "  Compare with Local"
+        },
+        {
+          "id": "cm-menu-9",
+          "type": "text",
+          "bounds": {
+            "x": 52,
+            "y": 348,
+            "w": 170,
+            "h": 22
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "  Compare with Base"
+        },
+        {
+          "id": "cm-menu-10",
+          "type": "text",
+          "bounds": {
+            "x": 52,
+            "y": 370,
+            "w": 170,
+            "h": 22
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 12,
+            "fontWeight": 400,
+            "fill": "#A9B7C6"
+          },
+          "text": "  Compare with Incoming"
+        }
+      ]
+    },
+    {
+      "id": "pg-conflict-resolved",
+      "name": "04 - Conflict Resolved and Apply Ready",
+      "type": "page",
+      "children": [
+        {
+          "id": "cr-bg",
+          "type": "rectangle",
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "w": 900,
+            "h": 600
+          },
+          "style": {
+            "fill": "#2B2B2B",
+            "stroke": "none"
+          }
+        },
+        {
+          "id": "cr-titlebar",
+          "type": "rectangle",
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "w": 900,
+            "h": 36
+          },
+          "style": {
+            "fill": "#3C3F41",
+            "stroke": "#464849",
+            "strokeWidth": 1
+          }
+        },
+        {
+          "id": "cr-title",
+          "type": "text",
+          "bounds": {
+            "x": 16,
+            "y": 9,
+            "w": 500,
+            "h": 20
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 13,
+            "fontWeight": 600,
+            "fill": "#BBBBBB"
+          },
+          "text": "Merge - src/components/Button.tsx (All conflicts resolved)"
+        },
+        {
+          "id": "cr-close",
+          "type": "text",
+          "bounds": {
+            "x": 874,
+            "y": 9,
+            "w": 16,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 14,
+            "fontWeight": 400,
+            "fill": "#BBBBBB"
+          },
+          "text": "✕"
+        },
+        {
+          "id": "cr-banner",
+          "type": "rectangle",
+          "bounds": {
+            "x": 16,
+            "y": 50,
+            "w": 868,
+            "h": 36
+          },
+          "style": {
+            "fill": "#2C4B38",
+            "stroke": "#3D6B4E",
+            "strokeWidth": 1,
+            "rx": 4,
+            "ry": 4
+          }
+        },
+        {
+          "id": "cr-banner-icon",
+          "type": "text",
+          "bounds": {
+            "x": 28,
+            "y": 56,
+            "w": 20,
+            "h": 20
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 16,
+            "fontWeight": 600,
+            "fill": "#5CB85C"
+          },
+          "text": "✓"
+        },
+        {
+          "id": "cr-banner-text",
+          "type": "text",
+          "bounds": {
+            "x": 52,
+            "y": 60,
+            "w": 500,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 12,
+            "fontWeight": 500,
+            "fill": "#A9B7C6"
+          },
+          "text": "All 3 conflicts have been resolved. Review the result below."
+        },
+        {
+          "id": "cr-pane-header",
+          "type": "rectangle",
+          "bounds": {
+            "x": 16,
+            "y": 96,
+            "w": 868,
+            "h": 28
+          },
+          "style": {
+            "fill": "#38503F",
+            "stroke": "#464849",
+            "strokeWidth": 1
+          }
+        },
+        {
+          "id": "cr-pane-badge",
+          "type": "rectangle",
+          "bounds": {
+            "x": 24,
+            "y": 101,
+            "w": 44,
+            "h": 18
+          },
+          "style": {
+            "fill": "#5CB85C",
+            "rx": 3,
+            "ry": 3,
+            "stroke": "none"
+          }
+        },
+        {
+          "id": "cr-pane-badge-text",
+          "type": "text",
+          "bounds": {
+            "x": 28,
+            "y": 103,
+            "w": 36,
+            "h": 14
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 10,
+            "fontWeight": 700,
+            "fill": "#FFFFFF"
+          },
+          "textAlign": "center",
+          "text": "Result"
+        },
+        {
+          "id": "cr-pane-filename",
+          "type": "text",
+          "bounds": {
+            "x": 76,
+            "y": 103,
+            "w": 400,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 12,
+            "fontWeight": 500,
+            "fill": "#A9B7C6"
+          },
+          "text": "Button.tsx (merged result - editable)"
+        },
+        {
+          "id": "cr-code-bg",
+          "type": "rectangle",
+          "bounds": {
+            "x": 16,
+            "y": 124,
+            "w": 868,
+            "h": 320
+          },
+          "style": {
+            "fill": "#2B2B2B",
+            "stroke": "#464849",
+            "strokeWidth": 1
+          }
+        },
+        {
+          "id": "cr-btn-apply",
+          "type": "rectangle",
+          "bounds": {
+            "x": 658,
+            "y": 460,
+            "w": 100,
+            "h": 28
+          },
+          "style": {
+            "fill": "#589DF6",
+            "stroke": "none",
+            "rx": 4,
+            "ry": 4
+          }
+        },
+        {
+          "id": "cr-btn-apply-text",
+          "type": "text",
+          "bounds": {
+            "x": 668,
+            "y": 464,
+            "w": 80,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 12,
+            "fontWeight": 600,
+            "fill": "#FFFFFF"
+          },
+          "textAlign": "center",
+          "text": "Apply"
+        },
+        {
+          "id": "cr-btn-cancel",
+          "type": "rectangle",
+          "bounds": {
+            "x": 768,
+            "y": 460,
+            "w": 100,
+            "h": 28
+          },
+          "style": {
+            "fill": "#4C4E50",
+            "stroke": "#5E6062",
+            "strokeWidth": 1,
+            "rx": 4,
+            "ry": 4
+          }
+        },
+        {
+          "id": "cr-btn-cancel-text",
+          "type": "text",
+          "bounds": {
+            "x": 778,
+            "y": 464,
+            "w": 80,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 12,
+            "fontWeight": 500,
+            "fill": "#BBBBBB"
+          },
+          "textAlign": "center",
+          "text": "Cancel"
+        },
+        {
+          "id": "cr-summary",
+          "type": "text",
+          "bounds": {
+            "x": 24,
+            "y": 464,
+            "w": 400,
+            "h": 18
+          },
+          "style": {
+            "fontFamily": "Inter, -apple-system, sans-serif",
+            "fontSize": 11,
+            "fontWeight": 400,
+            "fill": "#8A9094"
+          },
+          "text": "  All 3 conflicts resolved. The merged file is ready to be saved."
+        }
+      ]
+    }
+  ],
+  "variables": {
+    "ij-bg": {
+      "type": "color",
+      "value": "#2B2B2B"
+    },
+    "ij-bg-light": {
+      "type": "color",
+      "value": "#313335"
+    },
+    "ij-bg-panel": {
+      "type": "color",
+      "value": "#3C3F41"
+    },
+    "ij-bg-row-alt": {
+      "type": "color",
+      "value": "#383A3C"
+    },
+    "ij-bg-toolbar": {
+      "type": "color",
+      "value": "#323334"
+    },
+    "ij-bg-gutter": {
+      "type": "color",
+      "value": "#262626"
+    },
+    "ij-border": {
+      "type": "color",
+      "value": "#464849"
+    },
+    "ij-border-light": {
+      "type": "color",
+      "value": "#505354"
+    },
+    "ij-text": {
+      "type": "color",
+      "value": "#A9B7C6"
+    },
+    "ij-text-ui": {
+      "type": "color",
+      "value": "#BBBBBB"
+    },
+    "ij-text-dim": {
+      "type": "color",
+      "value": "#8A9094"
+    },
+    "ij-accent-blue": {
+      "type": "color",
+      "value": "#589DF6"
+    },
+    "ij-accent-green": {
+      "type": "color",
+      "value": "#5CB85C"
+    },
+    "ij-accent-orange": {
+      "type": "color",
+      "value": "#E37B40"
+    },
+    "ij-accent-red": {
+      "type": "color",
+      "value": "#DB5B5B"
+    },
+    "ij-diff-insert-bg": {
+      "type": "color",
+      "value": "#3C5C4C"
+    },
+    "ij-diff-delete-bg": {
+      "type": "color",
+      "value": "#5C3C3C"
+    },
+    "ij-diff-conflict-bg": {
+      "type": "color",
+      "value": "#3A2E22"
+    },
+    "ij-label-local": {
+      "type": "color",
+      "value": "#589DF6"
+    },
+    "ij-label-result": {
+      "type": "color",
+      "value": "#5CB85C"
+    },
+    "ij-label-incoming": {
+      "type": "color",
+      "value": "#D78D4E"
+    },
+    "ij-syntax-string": {
+      "type": "color",
+      "value": "#6A8759"
+    },
+    "ij-syntax-keyword": {
+      "type": "color",
+      "value": "#CC7832"
+    },
+    "ij-syntax-function": {
+      "type": "color",
+      "value": "#FFC66D"
+    },
+    "ij-syntax-comment": {
+      "type": "color",
+      "value": "#808080"
+    },
+    "ij-gutter-fg": {
+      "type": "color",
+      "value": "#555555"
+    },
+    "ij-font": {
+      "type": "string",
+      "value": "Inter, -apple-system, sans-serif"
+    },
+    "ij-font-mono": {
+      "type": "string",
+      "value": "JetBrains Mono, monospace"
+    },
+    "ij-fs-xs": {
+      "type": "number",
+      "value": 10
+    },
+    "ij-fs-sm": {
+      "type": "number",
+      "value": 11
+    },
+    "ij-fs-md": {
+      "type": "number",
+      "value": 12
+    },
+    "ij-fs-lg": {
+      "type": "number",
+      "value": 13
+    }
+  },
+  "fileToken": "55d61e07-1b22-43f5-9110-0daa9dd98b93"
+}

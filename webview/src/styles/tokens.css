@@ -1,0 +1,224 @@
+/*
+ * Border reset lives in @layer base so Tailwind utilities / unlayered
+ * component classes (e.g. .btn-vscode-secondary) can set a visible border.
+ * Unlayered `* { border-width: 0 }` was winning over layered borders.
+ */
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-style: solid;
+    border-width: 0;
+    border-color: var(--border);
+  }
+}
+
+:root {
+  /* GitView foundation tokens. Semantic and graph colors remain separate. */
+  --gitview-brand-primary: #f15a29;
+  --gitview-brand-ink: #0f1115;
+  --gitview-brand-surface: #fafaf9;
+  --gitview-graph-blue: #3882f6;
+  --gitview-graph-green: #22c55e;
+  --gitview-graph-purple: #a855f7;
+  --gitview-graph-cyan: #06b6d4;
+  --gitview-graph-pink: #ec4899;
+  --gitview-semantic-info: #3882f6;
+  --gitview-semantic-success: #22c55e;
+  --gitview-semantic-warning: #f59e0b;
+  --gitview-semantic-danger: #ef4444;
+  --background: var(--vscode-editor-background, #1e1e1e);
+  --foreground: var(--vscode-editor-foreground, #d4d4d4);
+
+  --border: var(
+    --vscode-editorGroup-border,
+    var(--vscode-panel-border, rgba(127, 127, 127, 0.35))
+  );
+  --ring: var(--vscode-focusBorder, #007fd4);
+
+  --primary: var(--vscode-button-background, var(--gitview-brand-primary));
+  --primary-foreground: var(--vscode-button-foreground, #ffffff);
+  --primary-hover: var(--vscode-button-hoverBackground, #c74920);
+
+  --secondary: var(
+    --vscode-button-secondaryBackground,
+    rgba(255, 255, 255, 0.08)
+  );
+  --secondary-foreground: var(
+    --vscode-button-secondaryForeground,
+    var(--vscode-editor-foreground, #cccccc)
+  );
+  --secondary-hover: var(
+    --vscode-button-secondaryHoverBackground,
+    rgba(255, 255, 255, 0.12)
+  );
+
+  --input: var(--vscode-input-background, #3c3c3c);
+  --input-foreground: var(--vscode-input-foreground, #cccccc);
+  --input-border: var(--vscode-input-border, transparent);
+
+  --list-hover: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.06));
+  --list-active: var(--vscode-list-activeSelectionBackground, #094771);
+  --list-active-foreground: var(
+    --vscode-list-activeSelectionForeground,
+    #ffffff
+  );
+
+  --menu-bg: var(
+    --vscode-menu-background,
+    var(--vscode-editorWidget-background, #252526)
+  );
+  --menu-fg: var(--vscode-menu-foreground, var(--vscode-foreground, #cccccc));
+  --menu-border: var(
+    --vscode-menu-border,
+    var(--vscode-panel-border, transparent)
+  );
+  --menu-selection: var(
+    --vscode-menu-selectionBackground,
+    var(--vscode-list-activeSelectionBackground, #094771)
+  );
+  --menu-selection-foreground: var(
+    --vscode-menu-selectionForeground,
+    var(--vscode-list-activeSelectionForeground, #ffffff)
+  );
+
+  --toolbar-hover: var(
+    --vscode-toolbar-hoverBackground,
+    rgba(255, 255, 255, 0.08)
+  );
+
+  /* Merge change-type tints — derived from VS Code git/error tokens */
+  --nx-added-soft: color-mix(
+    in srgb,
+    var(--vscode-gitDecoration-addedResourceForeground, #4ba85a) 28%,
+    transparent
+  );
+  --nx-modified-soft: color-mix(
+    in srgb,
+    var(--vscode-gitDecoration-modifiedResourceForeground, #3887c7) 28%,
+    transparent
+  );
+  --nx-deleted-soft: color-mix(
+    in srgb,
+    var(--vscode-descriptionForeground, #8a8d91) 22%,
+    transparent
+  );
+  --nx-conflict-soft: color-mix(
+    in srgb,
+    var(--vscode-editorError-foreground, #cf5c56) 32%,
+    transparent
+  );
+  --nx-added-bar: var(--vscode-gitDecoration-addedResourceForeground, #4ba85a);
+  --nx-modified-bar: var(
+    --vscode-gitDecoration-modifiedResourceForeground,
+    #3887c7
+  );
+  --nx-deleted-bar: var(--vscode-descriptionForeground, #8a8d91);
+  --nx-conflict-bar: var(--vscode-editorError-foreground, #cf5c56);
+  --nx-word-modified: color-mix(
+    in srgb,
+    var(--nx-modified-bar) 50%,
+    transparent
+  );
+  --nx-word-conflict: color-mix(
+    in srgb,
+    var(--nx-conflict-bar) 50%,
+    transparent
+  );
+  --nx-word-added: color-mix(in srgb, var(--nx-added-bar) 45%, transparent);
+  --nx-active-block: color-mix(
+    in srgb,
+    var(--vscode-focusBorder, #3574f0) 12%,
+    transparent
+  );
+
+  /*
+   * Density scale — IDE tool-window compact layout with VS Code theme colors.
+   * Prefer these over ad-hoc Tailwind spacing in Git UI.
+   */
+  --nx-font-ui: "Inter Tight", var(--vscode-font-family, system-ui, sans-serif);
+  --nx-font-code: var(
+    --vscode-editor-font-family,
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    monospace
+  );
+  --nx-font-size-ui: 12px;
+  --nx-font-size-ui-sm: 11px;
+  --nx-font-size-section: 10px;
+  --nx-font-size-code: var(--vscode-editor-font-size, 12px);
+
+  --nx-row-h: 22px;
+  --nx-toolbar-h: 28px;
+  --nx-menu-item-h: 24px;
+  --nx-titlebar-h: 28px;
+  --nx-icon-sm: 14px;
+  --nx-icon-md: 16px;
+
+  --nx-pad-x: 8px;
+  --nx-pad-y: 2px;
+  --nx-menu-pad-x: 10px;
+  --nx-menu-pad-y: 4px;
+  --nx-menu-radius: 2px;
+  --nx-section-gap: 2px;
+}
+
+/* Light themes — softer tints on bright editor backgrounds */
+body.vscode-light,
+.vscode-light {
+  --nx-added-soft: color-mix(
+    in srgb,
+    var(--vscode-gitDecoration-addedResourceForeground, #22863a) 16%,
+    var(--vscode-editor-background, #ffffff)
+  );
+  --nx-modified-soft: color-mix(
+    in srgb,
+    var(--vscode-gitDecoration-modifiedResourceForeground, #005cc5) 14%,
+    var(--vscode-editor-background, #ffffff)
+  );
+  --nx-deleted-soft: color-mix(
+    in srgb,
+    var(--vscode-descriptionForeground, #6a737d) 12%,
+    var(--vscode-editor-background, #ffffff)
+  );
+  --nx-conflict-soft: color-mix(
+    in srgb,
+    var(--vscode-editorError-foreground, #cb2431) 14%,
+    var(--vscode-editor-background, #ffffff)
+  );
+}
+
+/* High contrast — stronger fills for readability */
+body.vscode-high-contrast,
+body.vscode-high-contrast-light,
+.vscode-high-contrast,
+.vscode-high-contrast-light {
+  --nx-added-soft: color-mix(
+    in srgb,
+    var(--vscode-gitDecoration-addedResourceForeground, #00ff00) 38%,
+    transparent
+  );
+  --nx-modified-soft: color-mix(
+    in srgb,
+    var(--vscode-gitDecoration-modifiedResourceForeground, #6fc3df) 38%,
+    transparent
+  );
+  --nx-conflict-soft: color-mix(
+    in srgb,
+    var(--vscode-editorError-foreground, #f48771) 42%,
+    transparent
+  );
+  --nx-word-modified: color-mix(
+    in srgb,
+    var(--nx-modified-bar) 65%,
+    transparent
+  );
+  --nx-word-conflict: color-mix(
+    in srgb,
+    var(--nx-conflict-bar) 65%,
+    transparent
+  );
+}
