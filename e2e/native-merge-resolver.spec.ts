@@ -3,12 +3,16 @@
  * Replaces critical mock-only coverage (resolve/append/F7/folding/folder menu).
  */
 import { test, expect } from "@playwright/test";
+import * as fs from "fs/promises";
+import * as path from "path";
 import {
   closeNativeVsCode,
   expectGitSubmenuInFrame,
+  git,
   launchNativeVsCode,
   openConflictsDialog,
   prepareMergeRepo,
+  TEST_WORKSPACE,
 } from "./helpers/native-vscode";
 import {
   acceptLocalViaContextMenu,
@@ -26,6 +30,52 @@ import {
 } from "./helpers/native-merge";
 
 test.describe.configure({ mode: "serial" });
+
+test.describe("Native merge resolver — Magic Merge", () => {
+  test("combines independent word edits, writes the result, and clears unmerged stages", async () => {
+    const testInfo = test.info();
+    await prepareMergeRepo();
+    const session = await launchNativeVsCode();
+    try {
+      const frame = await openMergeResolverFor(session, "magic-merge.txt");
+      const magicMerge = frame.getByLabel(
+        /Magic Merge|Resolve simple conflicts/i,
+      );
+      await expect(magicMerge).toBeVisible();
+      await magicMerge.click();
+
+      await expectCenterLine(
+        frame,
+        "Below is a simple conflict that can be resolved automatically.",
+      );
+      await expectConflictCounter(frame, /0 conflict/i);
+      await expectApplyEnabled(frame, true);
+      await session.page.screenshot({
+        path: testInfo.outputPath("magic-merge.png"),
+        animations: "disabled",
+      });
+
+      await frame.getByTestId("merge-apply").click();
+      const expected =
+        "Below is a simple conflict that can be resolved automatically.\n";
+      await expect
+        .poll(
+          () =>
+            fs.readFile(path.join(TEST_WORKSPACE, "magic-merge.txt"), "utf8"),
+          { timeout: 15_000 },
+        )
+        .toBe(expected);
+      await expect
+        .poll(() => git(["ls-files", "-u", "--", "magic-merge.txt"]))
+        .toBe("");
+      await expect
+        .poll(() => git(["show", ":magic-merge.txt"]))
+        .toBe(expected);
+    } finally {
+      await closeNativeVsCode(session);
+    }
+  });
+});
 
 test.describe("Native merge resolver — resolve & append", () => {
   test("Accept Local via context menu updates center pane", async () => {

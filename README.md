@@ -10,7 +10,7 @@ Resolve merge conflicts from real Git index stages (base / ours / theirs), not j
 
 - **True 3-way merge** — built from Git stages `:1:` / `:2:` / `:3:`
 - **Three-pane editor** — Local · Result · Repository with scroll sync and change-type colors
-- **Magic resolve (✦)** — auto-resolve trivial identical conflicts
+- **Magic Merge (✦)** — per-file, deterministic 3-way merge of non-overlapping word/character edits; review Result before Apply
 - **GitView workspace** — desktop-IDE-style Git tool window: widget, changes, commit, branches, log, diff, temporary work, hosted review
 - **Git History tab** — commit log, branch filter, inline diff preview
 - **Git context menu** — history, compare, blame, rollback, stage, commit, remote ops, branches, stash, merge, rebase

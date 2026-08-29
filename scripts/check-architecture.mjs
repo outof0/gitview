@@ -469,6 +469,38 @@ for (const absoluteFile of files) {
       );
     }
 
+    // Commands are VS Code command registrations; panels are presenters. A
+    // command that reaches for a panel directly bypasses the GitMenuPresentation
+    // port, and that port is what keeps the native menus and the webview panel
+    // showing the same dialog. Panel entry points belong in src/webview.
+    if (
+      startsWithPath(file, "src/commands") &&
+      target &&
+      startsWithPath(target, "src/webview")
+    ) {
+      addViolation(
+        "interface/direction",
+        absoluteFile,
+        `commands must reach panels through the GitMenuPresentation port, not by importing src/webview (line ${reference.line})`,
+        target,
+      );
+    }
+
+    // Panels host the message router. If the router imports the panel layer the
+    // direction inverts and a panel rebuild can drag the router with it.
+    if (
+      startsWithPath(file, "src/webviewHost") &&
+      target &&
+      startsWithPath(target, "src/webview")
+    ) {
+      addViolation(
+        "interface/direction",
+        absoluteFile,
+        `webviewHost must not depend on the panel layer (line ${reference.line}); move shared logic into src/shared`,
+        target,
+      );
+    }
+
     if (
       (reference.specifier === "child_process" ||
         reference.specifier === "node:child_process") &&

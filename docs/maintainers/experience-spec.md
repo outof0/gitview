@@ -395,6 +395,10 @@ Required behavior:
 - Prefer Git index stages as the source of truth.
 - Marker parsing is fallback only.
 - Result never writes raw conflict markers.
+- Resolve simple conflicts is per-file and deterministic: combine only
+  non-overlapping word/character edits from base, local, and incoming text.
+- Ambiguous overlaps remain unresolved and Magic Merge never writes or stages;
+  the user reviews Result before Apply.
 - Apply is disabled while unresolved conflicts remain.
 - Manual edits are preserved.
 - Dirty Cancel requires confirmation.
@@ -1822,7 +1826,12 @@ Result buffer:
 
 - Initial result is built from base plus automatically safe non-conflicting
   changes.
-- `both_same` blocks can be marked auto-resolved.
+- `both_same` blocks can be marked auto-resolved by the dedicated identical-side
+  setting.
+- A real conflict block is eligible for Magic Merge only when a deterministic
+  word/character-level 3-way merge can combine the two sides without
+  overlapping edits. The generated text updates Result for review; ambiguous
+  blocks and manually edited blocks remain unchanged.
 - Conflict blocks start unresolved.
 - Manual edits update only result lines and mark affected block `manual` when
   it no longer contains conflict markers and passes block validation.
@@ -3885,6 +3894,10 @@ Required technical semantics:
 - Marker parsing is fallback only.
 - Raw conflict markers must never be written by Apply.
 - Manual edits are preserved.
+- Resolve simple conflicts operates on the current file only, combines only
+  non-overlapping word/character edits, and leaves ambiguous blocks unresolved.
+- Magic Merge updates Result for review but never writes or stages before
+  Apply.
 - Dirty Cancel requires confirmation.
 - Apply can auto-stage resolved file when configured.
 - Binary, deleted/modified, both-added, rename/delete, and mode conflicts must

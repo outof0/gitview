@@ -14,7 +14,7 @@ only. Please upgrade before reporting an issue against an older build.
 
 **Do not open a public issue for a security vulnerability.**
 
-Report privately via [GitHub Security Advisories](https://github.com/gitview/gitview/security/advisories/new).
+Report privately via [GitHub Security Advisories](https://github.com/outof0/gitview/security/advisories/new).
 If that is unavailable to you, open a regular issue that contains only the words
 "security report — please provide a private contact" and no technical detail; a
 maintainer will follow up with a private channel.

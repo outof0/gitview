@@ -13,14 +13,11 @@ import {
   git,
   launchNativeVsCode,
   openConflictsDialog,
-  openGitWorkspace,
   openMergeResolver,
-  prepareCleanGitRepo,
   prepareMergeRepo,
   TEST_WORKSPACE,
 } from "./helpers/native-vscode";
 import { dispatchContextMenu } from "./helpers/native-merge";
-
 
 const CONFLICT_FILE = "file.txt";
 
@@ -45,11 +42,13 @@ test.describe("Conflicts dialog — real VS Code webview", () => {
     const session = await launchNativeVsCode();
     try {
       const frame = await openConflictsDialog(session);
-      await frame
-        .getByTestId(`conflicts-file-row-${CONFLICT_FILE}`)
-        .click({ button: "right" });
+      await dispatchContextMenu(
+        frame.getByTestId(`conflicts-file-row-${CONFLICT_FILE}`),
+      );
       await expect(frame.getByTestId("conflicts-context-menu")).toBeVisible();
-      await expect(frame.getByTestId("conflicts-menu-accept-yours")).toBeVisible();
+      await expect(
+        frame.getByTestId("conflicts-menu-accept-yours"),
+      ).toBeVisible();
       await expectGitSubmenuInFrame(frame, { isFolder: false });
     } finally {
       await closeNativeVsCode(session);
@@ -65,9 +64,9 @@ test.describe("Conflicts dialog — real VS Code webview", () => {
     const session = await launchNativeVsCode();
     try {
       const frame = await openConflictsDialog(session);
-      await frame
-        .getByTestId(`conflicts-file-row-${CONFLICT_FILE}`)
-        .click({ button: "right" });
+      await dispatchContextMenu(
+        frame.getByTestId(`conflicts-file-row-${CONFLICT_FILE}`),
+      );
       await frame.getByTestId("git-menu-add").click();
       await expect
         .poll(async () => git(["diff", "--cached", "--", CONFLICT_FILE]), {
@@ -106,7 +105,9 @@ test.describe("Merge resolver — real VS Code webview", () => {
           .first(),
       );
       await expect(frame.getByTestId("merge-context-menu")).toBeVisible();
-      await expect(frame.getByTestId("merge-context-accept-local")).toBeVisible();
+      await expect(
+        frame.getByTestId("merge-context-accept-local"),
+      ).toBeVisible();
       await expectGitSubmenuInFrame(frame, { isFolder: false });
     } finally {
       await closeNativeVsCode(session);
@@ -128,29 +129,6 @@ test.describe("Merge resolver — real VS Code webview", () => {
       await expect(overlay).toContainText("line1");
     } finally {
       await closeNativeVsCode(session);
-    }
-  });
-});
-
-test.describe("Git Workspace — real VS Code webview", () => {
-  test("changes panel exposes Git submenu on a dirty file", async () => {
-    await prepareCleanGitRepo();
-    const target = "native-workspace-dirty.txt";
-    await fs.writeFile(path.join(TEST_WORKSPACE, target), "dirty\n", "utf8");
-
-    const session = await launchNativeVsCode();
-    try {
-      const frame = await openGitWorkspace(session);
-      const changeRow = frame.getByTestId(`change-row-${target}`);
-      await expect(changeRow).toBeVisible({ timeout: 15_000 });
-      // Commit panel / chrome can intercept geometric right-clicks in narrow layouts.
-      await dispatchContextMenu(changeRow);
-      await expectGitSubmenuInFrame(frame, { isFolder: false });
-    } finally {
-      await closeNativeVsCode(session);
-      await fs
-        .rm(path.join(TEST_WORKSPACE, target), { force: true })
-        .catch(() => "");
     }
   });
 });

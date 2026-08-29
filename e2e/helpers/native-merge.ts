@@ -1,8 +1,4 @@
-import {
-  expect,
-  type Frame,
-  type Locator,
-} from "@playwright/test";
+import { expect, type Frame, type Locator } from "@playwright/test";
 import type { NativeVsCodeSession } from "./native-vscode";
 import { openMergeResolver } from "./native-vscode";
 
@@ -83,7 +79,9 @@ export async function acceptLocalViaContextMenu(frame: Frame): Promise<void> {
   await clickMergeMenuItem(frame, "merge-context-accept-local");
 }
 
-export async function appendRepositoryViaContextMenu(frame: Frame): Promise<void> {
+export async function appendRepositoryViaContextMenu(
+  frame: Frame,
+): Promise<void> {
   await dispatchContextMenu(
     frame
       .locator(
@@ -152,16 +150,18 @@ export async function expectResolveMenuItems(
 }
 
 export async function enableConflictsGroupedView(frame: Frame): Promise<void> {
-  await frame.getByLabel("Group files by directory").click();
+  await frame
+    .getByLabel("Group files by directory")
+    .evaluate((element) => (element as HTMLElement).click());
 }
 
 export async function openConflictsFolderContextMenu(
   frame: Frame,
   directory: string,
 ): Promise<void> {
-  await frame.getByTestId(`conflicts-folder-row-${directory}`).click({
-    button: "right",
-  });
+  await dispatchContextMenu(
+    frame.getByTestId(`conflicts-folder-row-${directory}`),
+  );
   await expect(frame.getByTestId("conflicts-context-menu")).toBeVisible();
 }
 

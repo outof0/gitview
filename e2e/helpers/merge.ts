@@ -124,6 +124,42 @@ export function buildSimpleConflictDoc(
   });
 }
 
+/** Same-line conflict with independent edits at the start and end. */
+export function buildMagicMergeConflictDoc(repoRoot: string): MergeDocument {
+  const base = "This is a simple conflict that can be resolved.\n";
+  const ours = "Below is a simple conflict that can be resolved.\n";
+  const theirs =
+    "This is a simple conflict that can be resolved automatically.\n";
+  return buildMergeDocument({
+    repoRoot,
+    relativePath: "src/magic-merge.ts",
+    absolutePath: `${repoRoot}/src/magic-merge.ts`,
+    base,
+    ours,
+    theirs,
+    worktree: ours,
+  });
+}
+
+/** One Magic-Mergeable conflict plus one genuine overlapping conflict. */
+export function buildMixedMagicMergeConflictDoc(repoRoot: string): MergeDocument {
+  const base =
+    "This is a simple conflict that can be resolved.\nseparator\nmode = old\n";
+  const ours =
+    "Below is a simple conflict that can be resolved.\nseparator\nmode = local\n";
+  const theirs =
+    "This is a simple conflict that can be resolved automatically.\nseparator\nmode = incoming\n";
+  return buildMergeDocument({
+    repoRoot,
+    relativePath: "src/mixed-magic-merge.ts",
+    absolutePath: `${repoRoot}/src/mixed-magic-merge.ts`,
+    base,
+    ours,
+    theirs,
+    worktree: ours,
+  });
+}
+
 /** Tall file for scroll tests — unchanged regions collapse until expanded. */
 export function buildTallConflictDoc(repoRoot: string): MergeDocument {
   const prefix = Array.from({ length: 30 }, (_, i) => `ctx${i}`).join("\n");

@@ -31,6 +31,7 @@ const forbidden = [
   /(^|\/)__tests__\//,
   /^out\/test\//,
   /^test-(?:clean|conflict)-repo\//,
+  /(^|\/)(?:test-results|e2e-results|e2e-report|coverage)(?:\/|$)/,
   /\.d\.ts\.map$/,
   /^out\/gitViewContextRef\./,
   /^out\/util\/silentVsCodeApp\./,
@@ -39,6 +40,24 @@ const forbidden = [
 for (const file of packagedFiles) {
   if (forbidden.some((pattern) => pattern.test(file))) {
     failures.push(`test, stale, or source-map artifact packaged: ${file}`);
+  }
+}
+
+/**
+ * A deny-list only catches leaks someone has already hit. `.workbuddy-ai/` and
+ * `tsconfig.e2e.json` were both shipped before this allowlist existed, because
+ * neither matched a pattern — and nothing else would have flagged a new
+ * accidental directory either. The VSIX is only ever metadata, compiled host
+ * code and the webview bundle, so anything else is a leak by definition.
+ */
+const allowed = [
+  /^(?:package\.json|icon\.png|SECURITY\.md|README\.md|LICENSE|CHANGELOG\.md)$/,
+  /^out\//,
+  /^webview\/dist\//,
+];
+for (const file of packagedFiles) {
+  if (!allowed.some((pattern) => pattern.test(file))) {
+    failures.push(`unexpected file packaged: ${file}`);
   }
 }
 
