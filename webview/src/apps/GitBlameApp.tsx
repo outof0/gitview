@@ -272,7 +272,7 @@ export function GitBlameApp() {
 
   return (
     <div
-      className="h-full min-h-screen w-full flex flex-col text-foreground bg-vscode-editor-bg font-[family-name:var(--nx-font-ui)]"
+      className="h-full min-h-0 w-full flex flex-col text-foreground bg-vscode-editor-bg font-[family-name:var(--nx-font-ui)]"
       data-testid="git-blame-app"
     >
       {hasFile ? (

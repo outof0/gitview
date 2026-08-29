@@ -12,7 +12,10 @@ export type WebviewAppMode =
   | "gitHistory"
   | "gitWorkspace"
   | "gitDiff"
-  | "gitBlame";
+  | "gitBlame"
+  | "gitCreateBranch"
+  | "gitCommit"
+  | "gitBranches";
 
 export async function getWebviewHtml(
   webview: vscode.Webview,

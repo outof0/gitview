@@ -38,6 +38,46 @@ function isDiffBootstrap(
 
 export const GIT_DIFF_LOAD_TIMEOUT_MS = 12_000;
 
+function estimateDiffCount(diff: StandaloneDiffPreview["diff"]): number {
+  if (diff.binary) {
+    return 0;
+  }
+  if (diff.layout === "single") {
+    const panel = diff.right ?? diff.left;
+    if (!panel || panel.text === "") {
+      return 0;
+    }
+    return 1;
+  }
+  if (!diff.left || !diff.right) {
+    return 0;
+  }
+  const left = diff.left.text;
+  const right = diff.right.text;
+  if (left === right) {
+    return 0;
+  }
+  if (left === "" || right === "") {
+    return 1;
+  }
+  const l = left.split("\n");
+  const r = right.split("\n");
+  let count = 0;
+  let i = 0;
+  const max = Math.max(l.length, r.length);
+  while (i < max) {
+    if (l[i] === r[i]) {
+      i += 1;
+      continue;
+    }
+    count += 1;
+    while (i < max && l[i] !== r[i]) {
+      i += 1;
+    }
+  }
+  return count || 1;
+}
+
 /** JetBrains-style line menu: only actions that apply on a compared file. */
 const COMPARE_LINE_MENU_ACTIONS = [
   "showHistory",
@@ -140,7 +180,13 @@ export function GitDiffApp() {
   const [viewerOptions, setViewerOptions] = useState<DiffViewerOptions>(
     DEFAULT_DIFF_VIEWER_OPTIONS,
   );
-  const [diffCount, setDiffCount] = useState<number | null>(null);
+  const [diffCount, setDiffCount] = useState<number | null>(() => {
+    const initial = window.__GITVIEW_BOOTSTRAP__;
+    if (isDiffBootstrap(initial)) {
+      return estimateDiffCount(initial.diff);
+    }
+    return null;
+  });
   const viewerRef = useRef<MonacoDiffViewerHandle | null>(null);
 
   const repoId = preview?.repoId ?? null;
@@ -170,7 +216,7 @@ export function GitDiffApp() {
         setPreview(data.payload);
         setError(null);
         setTimedOut(false);
-        setDiffCount(null);
+        setDiffCount(estimateDiffCount(data.payload.diff));
         // New comparison — reset annotate columns
         setAnnotate({ left: false, right: false });
         setLeftBlame(null);

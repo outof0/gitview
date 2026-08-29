@@ -41,6 +41,7 @@ describe("WorkspaceLogPanel log options", () => {
       />,
     );
 
+    fireEvent.click(screen.getByTestId("log-view-options"));
     fireEvent.click(screen.getByTestId("log-option-no-merges"));
     expect(onFiltersChange).toHaveBeenCalledWith(
       expect.objectContaining({ noMerges: true }),
@@ -69,6 +70,7 @@ describe("WorkspaceLogPanel log options", () => {
       />,
     );
 
+    fireEvent.contextMenu(screen.getByTestId("git-commit-aaaaaaa"));
     fireEvent.click(screen.getByTestId("log-copy-hash"));
     expect(onCopyHash).toHaveBeenCalledWith("a".repeat(40));
   });

@@ -51,6 +51,7 @@ node_modules/**
 out/**/*.d.ts.map
 out/test/**
 **/tsconfig.json
+**/tsconfig.*.json
 **/.eslintrc*
 **/vitest.config*
 **/playwright.config*
@@ -59,11 +60,18 @@ pnpm-workspace.yaml
 .github/**
 docs/**
 gitview/**
+.workbuddy-ai/**
+**/.workbuddy-ai/**
+coverage/**
+**/coverage/**
 CONTRIBUTING.md
 RELEASE.md
 AGENTS.md
 CLAUDE.md
 test-results/**
+**/test-results/**
+**/e2e-results/**
+**/e2e-report/**
 .gitignore
 *.vsix
 **/__tests__/**

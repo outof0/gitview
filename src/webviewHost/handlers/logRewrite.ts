@@ -1,5 +1,10 @@
-import { validateMutationPreconditions } from "../../application/mutationPreconditions";
+import {
+  requireDropCommitConfirmation,
+  requireHardResetConfirmation,
+  validateMutationPreconditions,
+} from "../../application/mutationPreconditions";
 import type { ResetMode } from "../../services/git/history";
+import type { ConfirmationSubmission } from "../../shared/types/confirmation";
 import { createError } from "../../shared/errors/codes";
 import { createHostError, createHostResponse } from "../../shared/protocol";
 import {
@@ -19,6 +24,7 @@ export function createLogRewriteHandlers(apis: LogHandlerApis) {
       sha: string,
       mode: ResetMode,
       confirmed = false,
+      confirmation?: ConfirmationSubmission,
     ) {
       const repo = await resolveRepo(repoId);
       const protectedCheck = deps.protectionService.checkDestructiveAction(
@@ -34,7 +40,8 @@ export function createLogRewriteHandlers(apis: LogHandlerApis) {
         deps.postMessage(createHostError(requestId, check.error));
         return;
       }
-      if (!repo || !sha.trim()) {
+      const targetSha = sha.trim();
+      if (!repo || !targetSha) {
         deps.postMessage(
           createHostError(
             requestId,
@@ -43,7 +50,19 @@ export function createLogRewriteHandlers(apis: LogHandlerApis) {
         );
         return;
       }
-      if (
+      if (confirmDestructiveEnabled(deps) && mode === "hard") {
+        const confirmationCheck = requireHardResetConfirmation(
+          repo,
+          targetSha,
+          confirmation,
+        );
+        if (!confirmationCheck.ok) {
+          deps.postMessage(
+            createHostError(requestId, confirmationCheck.error),
+          );
+          return;
+        }
+      } else if (
         confirmDestructiveEnabled(deps) &&
         resetRequiresConfirmation(mode) &&
         !confirmed
@@ -60,11 +79,11 @@ export function createLogRewriteHandlers(apis: LogHandlerApis) {
         return;
       }
       try {
-        await history.resetTo(repo.rootPath, sha.trim(), mode);
+        await history.resetTo(repo.rootPath, targetSha, mode);
         await deps.refreshCoordinator.refreshNow(repo.id);
         deps.postMessage(
           createHostResponse(requestId, "log.reset", {
-            sha: sha.trim(),
+            sha: targetSha,
             mode,
           }),
         );
@@ -189,7 +208,7 @@ export function createLogRewriteHandlers(apis: LogHandlerApis) {
       requestId: string,
       repoId: string,
       sha: string,
-      confirmed = false,
+      confirmation?: ConfirmationSubmission,
     ) {
       const repo = await resolveRepo(repoId);
       const protectedCheck = deps.protectionService.checkDestructiveAction(
@@ -205,7 +224,8 @@ export function createLogRewriteHandlers(apis: LogHandlerApis) {
         deps.postMessage(createHostError(requestId, check.error));
         return;
       }
-      if (!repo || !sha.trim()) {
+      const targetSha = sha.trim();
+      if (!repo || !targetSha) {
         deps.postMessage(
           createHostError(
             requestId,
@@ -214,23 +234,22 @@ export function createLogRewriteHandlers(apis: LogHandlerApis) {
         );
         return;
       }
-      if (confirmDestructiveEnabled(deps) && !confirmed) {
-        deps.postMessage(
-          createHostError(
-            requestId,
-            createError(
-              "CONFIRMATION_REQUIRED",
-              "Dropping a commit rewrites history and requires confirmation.",
-            ),
-          ),
+      if (confirmDestructiveEnabled(deps)) {
+        const confirmationCheck = requireDropCommitConfirmation(
+          repo,
+          targetSha,
+          confirmation,
         );
-        return;
+        if (!confirmationCheck.ok) {
+          deps.postMessage(createHostError(requestId, confirmationCheck.error));
+          return;
+        }
       }
       try {
-        await rebase.dropCommit(repo.rootPath, sha.trim());
+        await rebase.dropCommit(repo.rootPath, targetSha);
         await deps.refreshCoordinator.refreshNow(repo.id);
         deps.postMessage(
-          createHostResponse(requestId, "log.dropCommit", { sha: sha.trim() }),
+          createHostResponse(requestId, "log.dropCommit", { sha: targetSha }),
         );
       } catch (err) {
         deps.postMessage(
@@ -314,6 +333,7 @@ export function createLogRewriteHandlers(apis: LogHandlerApis) {
       sha: string,
       action: "squash" | "fixup" | "drop",
       confirmed = false,
+      confirmation?: ConfirmationSubmission,
     ) {
       const repo = await resolveRepo(repoId);
       const protectedCheck = deps.protectionService.checkDestructiveAction(
@@ -338,7 +358,17 @@ export function createLogRewriteHandlers(apis: LogHandlerApis) {
         );
         return;
       }
-      if (confirmDestructiveEnabled(deps) && !confirmed) {
+      if (confirmDestructiveEnabled(deps) && action === "drop") {
+        const confirmationCheck = requireDropCommitConfirmation(
+          repo,
+          sha.trim(),
+          confirmation,
+        );
+        if (!confirmationCheck.ok) {
+          deps.postMessage(createHostError(requestId, confirmationCheck.error));
+          return;
+        }
+      } else if (confirmDestructiveEnabled(deps) && !confirmed) {
         deps.postMessage(
           createHostError(
             requestId,

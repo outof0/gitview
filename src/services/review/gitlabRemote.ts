@@ -1,3 +1,5 @@
+import { secureApiBaseUrl } from "./apiBaseUrl";
+
 export type GitlabRepoCoordinates = {
   projectPath: string;
   host: string;
@@ -39,19 +41,46 @@ export function encodeGitlabProjectPath(projectPath: string): string {
   return encodeURIComponent(projectPath);
 }
 
-export function gitlabApiBaseUrl(host: string, configured?: string): string {
-  const fallback =
-    host === "gitlab.com"
-      ? "https://gitlab.com/api/v4"
-      : `https://${host}/api/v4`;
+const PUBLIC_GITLAB_HOST = "gitlab.com";
+const PUBLIC_GITLAB_API = "https://gitlab.com/api/v4";
+
+/**
+ * Resolve the API endpoint a stored GitLab token may be sent to, or `null` when
+ * the remote host is not one we may trust with it.
+ *
+ * See `githubApiBaseUrl` for the reasoning; the same rule applies here because
+ * GitLab sends the token in a `PRIVATE-TOKEN` header.
+ */
+export function gitlabApiBaseUrl(
+  host: string,
+  configured?: string,
+): string | null {
+  const normalizedHost = host.trim().toLowerCase();
+  const trimmed = configured?.trim();
+
+  if (normalizedHost === PUBLIC_GITLAB_HOST) {
+    return secureApiBaseUrl({
+      provider: "GitLab",
+      remoteHost: normalizedHost,
+      configured: trimmed,
+      publicDefault: PUBLIC_GITLAB_API,
+      fallback: PUBLIC_GITLAB_API,
+      publicRemoteHost: PUBLIC_GITLAB_HOST,
+      publicApiHost: PUBLIC_GITLAB_HOST,
+    });
+  }
+
+  if (!trimmed || trimmed.replace(/\/$/, "") === PUBLIC_GITLAB_API) {
+    return null;
+  }
+
   return secureApiBaseUrl({
     provider: "GitLab",
-    remoteHost: host,
-    configured,
-    publicDefault: "https://gitlab.com/api/v4",
-    fallback,
-    publicRemoteHost: "gitlab.com",
-    publicApiHost: "gitlab.com",
+    remoteHost: normalizedHost,
+    configured: trimmed,
+    publicDefault: PUBLIC_GITLAB_API,
+    fallback: PUBLIC_GITLAB_API,
+    publicRemoteHost: PUBLIC_GITLAB_HOST,
+    publicApiHost: PUBLIC_GITLAB_HOST,
   });
 }
-import { secureApiBaseUrl } from "./apiBaseUrl";

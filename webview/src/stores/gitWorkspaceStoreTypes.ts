@@ -12,6 +12,10 @@ import type { GitFileStatus, StatusSnapshot } from "@gitview/shared/types/status
 import type { TagListSnapshot } from "@gitview/shared/types/tag";
 import type { WorktreeListSnapshot } from "@gitview/shared/types/worktree";
 import type {
+  SyncOperationEvent,
+  SyncOperationKind,
+} from "@gitview/shared/types/sync";
+import type {
   ReviewDetailsSnapshot,
   ReviewFilters,
   ReviewListSnapshot,
@@ -25,6 +29,11 @@ import type {
 
 export type GitDiffViewMode = "side_by_side" | "unified";
 
+export type GitWorkspaceSyncOperation = {
+  event: SyncOperationEvent;
+  outcomeUnknown: boolean;
+};
+
 export type GitWorkspaceState = {
   loading: boolean;
   error: string | null;
@@ -37,6 +46,7 @@ export type GitWorkspaceState = {
   nativeFocusSurface: GitWorkspaceDialogId | "branches" | null;
   repoSnapshot: RepositorySnapshot | null;
   statusSnapshot: StatusSnapshot | null;
+  syncOperations: GitWorkspaceSyncOperation[];
   branchSnapshot: BranchListSnapshot | null;
   branchCompareSnapshot: BranchCompareSnapshot | null;
   branchCompareOpen: boolean;
@@ -110,6 +120,13 @@ export type GitWorkspaceActions = {
   setError: (error: string | null) => void;
   applyRepoSnapshot: (snapshot: RepositorySnapshot) => void;
   applyStatusSnapshot: (snapshot: StatusSnapshot) => void;
+  applySyncOperation: (event: SyncOperationEvent) => void;
+  markSyncOperationOutcomeUnknown: (operationId: string) => void;
+  dismissSyncOperation: (operationId: string) => void;
+  syncOperationForRepository: (
+    repoId: string,
+    operation?: SyncOperationKind,
+  ) => GitWorkspaceSyncOperation | null;
   applyBranchSnapshot: (snapshot: BranchListSnapshot) => void;
   applyBranchCompareSnapshot: (snapshot: BranchCompareSnapshot | null) => void;
   setBranchCompareOpen: (open: boolean) => void;

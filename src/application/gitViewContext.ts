@@ -5,6 +5,7 @@ import type { GitService } from "../services/gitService";
 import type { ProtectionService } from "../services/protectionService";
 import type { RepositoryService } from "../services/repositoryService";
 import type { RefreshCoordinator } from "../services/watchers/refreshCoordinator";
+import type { SyncOperationCoordinator } from "../services/syncOperationCoordinator";
 import type { BranchFavoriteStorage } from "../storage/branchFavoriteStorage";
 import type { ChangelistStorage } from "../storage/changelistStorage";
 import type { ShelfStorage } from "../storage/shelfStorage";
@@ -20,6 +21,7 @@ export interface GitViewContext {
   repositoryService: RepositoryService;
   protectionService: ProtectionService;
   refreshCoordinator: RefreshCoordinator;
+  syncOperationCoordinator: SyncOperationCoordinator;
   changelistStorage: ChangelistStorage;
   branchFavoriteStorage: BranchFavoriteStorage;
   shelfStorage: ShelfStorage;

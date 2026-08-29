@@ -1,16 +1,24 @@
 import type { ReactNode } from "react";
 import {
   AlertTriangle,
-  ArrowDown,
-  ArrowUp,
-  CloudDownload,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  FolderGit2,
   FolderTree,
   GitBranch,
+  LoaderCircle,
   RefreshCw,
-  ShieldAlert,
+  ShieldCheck,
   Tag,
 } from "lucide-react";
 import type { Repository, RepositorySnapshot } from "@gitview/shared/types/repository";
+import {
+  isSyncOperationActive,
+  type SyncOperationEvent,
+  type SyncOperationKind,
+  type SyncPhase,
+  type SyncRootStatus,
+} from "@gitview/shared/types/sync";
 import { operationLabel } from "../../lib/operationLabel";
 
 export type PullStrategy = "merge" | "rebase" | "ff_only";
@@ -30,6 +38,15 @@ type GitWidgetProps = {
   onPullStrategyChange?: (strategy: PullStrategy) => void;
   refreshing?: boolean;
   syncing?: boolean;
+  syncOperation?: SyncOperationEvent | null;
+  syncOutcomeUnknown?: boolean;
+  onCancelSync?: () => void;
+  onRetrySync?: () => void;
+  onShowSyncChanges?: () => void;
+  onDismissSync?: () => void;
+  canFetch?: boolean;
+  canPull?: boolean;
+  canPush?: boolean;
 };
 
 function branchDisplayName(repo: Repository | null): string {
@@ -47,13 +64,70 @@ function syncLabel(repo: Repository | null): string | null {
     return null;
   }
   const parts: string[] = [];
-  if (repo.ahead != null && repo.ahead > 0) {
-    parts.push(`↑${repo.ahead}`);
-  }
   if (repo.behind != null && repo.behind > 0) {
     parts.push(`↓${repo.behind}`);
   }
-  return parts.length > 0 ? parts.join(" ") : "Up to date";
+  if (repo.ahead != null && repo.ahead > 0) {
+    parts.push(`↑${repo.ahead}`);
+  }
+  return parts.length > 0 ? parts.join("  ") : "Up to date";
+}
+
+const SYNC_OPERATION_LABELS: Record<SyncOperationKind, string> = {
+  fetch: "Fetch",
+  pull: "Pull",
+  push: "Push",
+  update_all_roots: "Update all roots",
+};
+
+const SYNC_PHASE_LABELS: Record<SyncPhase, string> = {
+  preparing: "Preparing",
+  fetching: "Fetching remote updates",
+  pulling: "Integrating remote changes",
+  pushing: "Publishing commits",
+  refreshing: "Refreshing repository state",
+  reconciling: "Reconciling final state",
+};
+
+function syncOperationMessage(
+  event: SyncOperationEvent,
+  outcomeUnknown: boolean,
+): string {
+  if (outcomeUnknown && isSyncOperationActive(event)) {
+    return "Waiting for the extension host to confirm the final outcome.";
+  }
+  switch (event.state) {
+    case "accepted":
+    case "running":
+      return SYNC_PHASE_LABELS[event.phase];
+    case "cancel_requested":
+      return "Waiting for Git to stop safely";
+    case "cancel_rejected":
+      return event.message;
+    case "failed":
+      return event.outcome.message;
+    case "cancel_confirmed":
+      return event.outcome.message;
+    case "completed":
+      return "Completed";
+  }
+}
+
+function syncRootStatusLabel(root: SyncRootStatus): string {
+  switch (root.state) {
+    case "pending":
+      return "Pending";
+    case "running":
+      return SYNC_PHASE_LABELS[root.phase];
+    case "succeeded":
+      return "Updated";
+    case "failed":
+      return `Failed: ${root.outcome.message}`;
+    case "cancelled":
+      return root.outcome.message;
+    case "skipped":
+      return `Skipped: ${root.outcome.message}`;
+  }
 }
 
 function IconButton({
@@ -72,7 +146,7 @@ function IconButton({
   return (
     <button
       type="button"
-      className="h-7 w-7 flex items-center justify-center rounded-vscode border border-border hover:bg-list-hover disabled:opacity-50"
+      className="h-7 w-7 shrink-0 flex items-center justify-center rounded-vscode border border-border hover:bg-list-hover disabled:opacity-50"
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
@@ -99,15 +173,37 @@ export function GitWidget({
   onPullStrategyChange,
   refreshing = false,
   syncing = false,
+  syncOperation = null,
+  syncOutcomeUnknown = false,
+  onCancelSync,
+  onRetrySync,
+  onShowSyncChanges,
+  onDismissSync,
+  canFetch = true,
+  canPull = true,
+  canPush = true,
 }: GitWidgetProps) {
   const operation = activeRepo ? operationLabel(activeRepo.operation) : null;
   const sync = syncLabel(activeRepo);
   const disabled = !activeRepo || syncing;
   const multiRoot = (snapshot?.repositories.length ?? 0) > 1;
+  const activeSyncOperation =
+    syncOperation !== null && isSyncOperationActive(syncOperation);
+  const failedSyncOperation = syncOperation?.state === "failed";
+  const canCancelSync =
+    syncOperation?.state === "accepted" ||
+    syncOperation?.state === "running" ||
+    syncOperation?.state === "cancel_rejected"
+      ? syncOperation.cancellable
+      : false;
+  const progress =
+    syncOperation && "progress" in syncOperation
+      ? syncOperation.progress
+      : undefined;
 
   return (
     <header
-      className="shrink-0 border-b border-border bg-[var(--vscode-sideBar-background,var(--background))]"
+      className="shrink-0 w-full bg-[var(--nx-panel,#202126)]"
       data-testid="gitview-git-widget"
     >
       {snapshot?.multiRootDiverged && (
@@ -120,55 +216,191 @@ export function GitWidget({
         </div>
       )}
 
-      <div className="flex items-center gap-2 px-3 py-2 min-h-[40px]">
-        <GitBranch
-          size={16}
-          className="shrink-0 text-[var(--vscode-symbolIcon-classForeground,var(--foreground))]"
-          aria-hidden
-        />
-        <div className="min-w-0 flex-1">
+      {syncOperation && (activeSyncOperation || failedSyncOperation) ? (
+        <div
+          className={`flex min-h-8 items-center gap-2 border-b border-border px-3 py-1.5 text-[11px] max-[420px]:items-stretch max-[420px]:flex-col ${
+            failedSyncOperation
+              ? "bg-[var(--vscode-inputValidation-errorBackground)] text-[var(--vscode-inputValidation-errorForeground)]"
+              : "bg-[var(--vscode-inputValidation-infoBackground)] text-[var(--vscode-inputValidation-infoForeground)]"
+          }`}
+          data-testid="sync-operation-status"
+          aria-live="polite"
+        >
+          {activeSyncOperation ? (
+            <LoaderCircle
+              size={14}
+              className="shrink-0 animate-spin max-[420px]:hidden"
+              aria-hidden
+            />
+          ) : (
+            <AlertTriangle
+              size={14}
+              className="shrink-0 max-[420px]:hidden"
+              aria-hidden
+            />
+          )}
+          <div className="min-w-0 flex-1">
+            <span className="font-semibold">
+              {SYNC_OPERATION_LABELS[syncOperation.operation]}
+            </span>
+            <span className="ml-1.5">
+              {syncOperationMessage(syncOperation, syncOutcomeUnknown)}
+            </span>
+            {progress && progress.total > 1 ? (
+              <>
+                <span className="ml-1.5" data-testid="sync-operation-progress">
+                  {progress.completed}/{progress.total} roots
+                </span>
+                <details
+                  className="mt-1 text-vscode-description"
+                  data-testid="sync-root-progress"
+                >
+                  <summary className="w-fit cursor-pointer select-none">
+                    Root details
+                  </summary>
+                  <ul className="mt-1 grid gap-0.5">
+                    {progress.roots.map((root) => (
+                      <li
+                        key={root.repoId}
+                        className="flex min-w-0 gap-1.5"
+                        data-testid={`sync-root-status-${root.repoId}`}
+                      >
+                        <span className="shrink-0 font-medium text-foreground">
+                          {root.name}
+                        </span>
+                        <span className="min-w-0 truncate" title={syncRootStatusLabel(root)}>
+                          {syncRootStatusLabel(root)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              </>
+            ) : null}
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5 max-[420px]:justify-end">
+            {activeSyncOperation ? (
+              syncOperation.state === "cancel_requested" ? (
+                <button
+                  type="button"
+                  className="btn-vscode-secondary h-[var(--nx-row-h)] px-2 text-[11px]"
+                  disabled
+                  data-testid="sync-operation-cancel"
+                >
+                  Cancelling…
+                </button>
+              ) : canCancelSync && onCancelSync ? (
+                <button
+                  type="button"
+                  className="btn-vscode-secondary h-[var(--nx-row-h)] px-2 text-[11px]"
+                  onClick={onCancelSync}
+                  data-testid="sync-operation-cancel"
+                >
+                  Cancel
+                </button>
+              ) : (
+                <span className="text-vscode-description">Finishing…</span>
+              )
+            ) : (
+              <>
+                {onDismissSync ? (
+                  <button
+                    type="button"
+                    className="btn-vscode-secondary h-[var(--nx-row-h)] px-2 text-[11px]"
+                    onClick={onDismissSync}
+                    data-testid="sync-operation-dismiss"
+                  >
+                    Dismiss
+                  </button>
+                ) : null}
+                {onShowSyncChanges ? (
+                  <button
+                    type="button"
+                    className="btn-vscode h-[var(--nx-row-h)] px-2 text-[11px]"
+                    onClick={onShowSyncChanges}
+                    data-testid="sync-operation-show-changes"
+                  >
+                    Show Changes
+                  </button>
+                ) : null}
+                {onRetrySync ? (
+                  <button
+                    type="button"
+                    className="btn-vscode h-[var(--nx-row-h)] px-2 text-[11px]"
+                    onClick={onRetrySync}
+                    data-testid="sync-operation-retry"
+                  >
+                    Retry
+                  </button>
+                ) : null}
+              </>
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="flex items-center justify-between gap-2 px-[10px] h-[42px] min-h-[42px] w-full bg-[var(--nx-panel,#202126)] border-b border-[var(--nx-border,#35363D)] overflow-hidden">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <FolderGit2
+            size={16}
+            className="shrink-0 text-[var(--nx-orange,#F15A29)]"
+            aria-hidden
+          />
+          {activeRepo ? (
+            <span
+              className="shrink-0 max-w-[28%] truncate text-[13px] font-semibold text-[var(--nx-text,#E8E8EA)] font-[family-name:var(--nx-font-ui)]"
+              data-testid="repo-name"
+              title={activeRepo.name}
+            >
+              {activeRepo.name}
+            </span>
+          ) : null}
           <button
             type="button"
-            className="text-left w-full text-[13px] font-semibold truncate hover:underline disabled:no-underline"
+            className="h-6 shrink-0 max-w-[36%] px-[7px] flex items-center gap-[5px] rounded-[3px] border border-[var(--nx-border,#35363D)] bg-[var(--nx-panel2,#27282E)] text-[11px] text-[var(--nx-text,#E8E8EA)] hover:bg-[var(--nx-panel2,#27282E)] disabled:opacity-50 font-[family-name:var(--nx-font-ui)]"
             onClick={onOpenBranches}
             disabled={!activeRepo || !onOpenBranches}
             data-testid="branch-name"
+            title={branchDisplayName(activeRepo)}
           >
-            {branchDisplayName(activeRepo)}
+            <GitBranch size={12} className="shrink-0 text-[var(--nx-muted,#9B9CA3)]" aria-hidden />
+            <span className="truncate">{branchDisplayName(activeRepo)}</span>
           </button>
-          {activeRepo && (
-            <div className="text-[11px] text-[var(--vscode-descriptionForeground)] truncate">
-              {activeRepo.name}
-              {sync && (
-                <span className="ml-2" data-testid="sync-counts">
-                  {sync}
-                </span>
-              )}
-            </div>
+          {sync && (
+            <span
+              className="shrink-0 text-[11px] text-[var(--nx-blue,#61AFEF)] font-[family-name:var(--nx-font-ui)]"
+              data-testid="sync-counts"
+            >
+              {sync}
+            </span>
+          )}
+
+          {activeRepo?.protectedBranch && (
+            <span
+              className="shrink-0 h-5 px-[6px] inline-flex items-center gap-1 rounded-[2px] border border-[var(--nx-border,#35363D)] bg-[var(--nx-panel2,#27282E)] text-[9px] text-[var(--nx-muted,#9B9CA3)] max-[520px]:hidden font-[family-name:var(--nx-font-ui)]"
+              data-testid="protected-branch-badge"
+              title="Protected branch"
+            >
+              <ShieldCheck
+                size={11}
+                className="text-[var(--nx-green,#48B57A)]"
+                aria-hidden
+              />
+              protected
+            </span>
+          )}
+
+          {operation && (
+            <span
+              className="shrink-0 text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-[2px] bg-[var(--vscode-inputValidation-infoBackground)] text-[var(--vscode-inputValidation-infoForeground)] max-[520px]:hidden"
+              data-testid="operation-badge"
+            >
+              {operation}
+            </span>
           )}
         </div>
 
-        {activeRepo?.protectedBranch && (
-          <span
-            className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-vscode bg-[var(--vscode-inputValidation-warningBackground)] text-[var(--vscode-inputValidation-warningForeground)] flex items-center gap-1"
-            data-testid="protected-branch-badge"
-            title="Protected branch"
-          >
-            <ShieldAlert size={12} aria-hidden />
-            Protected
-          </span>
-        )}
-
-        {operation && (
-          <span
-            className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-vscode bg-[var(--vscode-inputValidation-infoBackground)] text-[var(--vscode-inputValidation-infoForeground)]"
-            data-testid="operation-badge"
-          >
-            {operation}
-          </span>
-        )}
-
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5 shrink-0">
           {onOpenTags && (
             <IconButton
               label="Tags"
@@ -189,22 +421,25 @@ export function GitWidget({
               <FolderTree size={14} aria-hidden />
             </IconButton>
           )}
-          <IconButton
-            label="Fetch"
+          <button
+            type="button"
+            className="h-[26px] shrink-0 px-2 flex items-center gap-[5px] text-[11px] rounded-[3px] border border-[var(--nx-border,#35363D)] text-[var(--nx-muted,#9B9CA3)] hover:bg-[var(--nx-panel2,#27282E)] disabled:opacity-50 font-[family-name:var(--nx-font-ui)]"
             onClick={onFetch}
-            disabled={disabled}
-            testId="fetch-button"
+            disabled={disabled || !canFetch}
+            aria-label="Fetch"
+            data-testid="fetch-button"
           >
-            <CloudDownload size={14} aria-hidden />
-          </IconButton>
+            <RefreshCw size={12} aria-hidden />
+            <span className="max-[400px]:hidden">Fetch</span>
+          </button>
           {onPullStrategyChange && (
             <select
-              className="h-7 px-1 text-[10px] rounded-vscode border border-border bg-[var(--vscode-input-background)]"
+              className="h-[26px] shrink-0 px-1 text-[10px] rounded-[2px] border border-[var(--nx-border,#35363D)] bg-[var(--vscode-input-background)] text-[var(--nx-muted,#9B9CA3)] max-[400px]:hidden font-[family-name:var(--nx-font-ui)]"
               value={pullStrategy}
               onChange={(e) =>
                 onPullStrategyChange(e.target.value as PullStrategy)
               }
-              disabled={disabled}
+              disabled={disabled || !canPull}
               aria-label="Pull strategy"
               data-testid="pull-strategy-select"
             >
@@ -213,26 +448,32 @@ export function GitWidget({
               <option value="ff_only">FF only</option>
             </select>
           )}
-          <IconButton
-            label={`Pull (${pullStrategy})`}
+          <button
+            type="button"
+            className="h-[26px] shrink-0 px-2 flex items-center gap-[5px] text-[11px] rounded-[3px] border border-[var(--nx-border,#35363D)] text-[var(--nx-muted,#9B9CA3)] hover:bg-[var(--nx-panel2,#27282E)] disabled:opacity-50 font-[family-name:var(--nx-font-ui)]"
             onClick={() => onPull(pullStrategy)}
-            disabled={disabled}
-            testId="pull-button"
+            disabled={disabled || !canPull}
+            aria-label={`Pull (${pullStrategy})`}
+            data-testid="pull-button"
           >
-            <ArrowDown size={14} aria-hidden />
-          </IconButton>
-          <IconButton
-            label="Push"
+            <ArrowDownToLine size={12} aria-hidden />
+            <span className="max-[400px]:hidden">Pull</span>
+          </button>
+          <button
+            type="button"
+            className="h-[26px] shrink-0 px-2 flex items-center gap-[5px] text-[11px] font-semibold rounded-[3px] bg-[var(--vscode-button-background,var(--nx-orange))] text-[var(--vscode-button-foreground,var(--primary-foreground))] border border-[var(--vscode-button-border,transparent)] hover:bg-[var(--vscode-button-hoverBackground,var(--primary-hover))] disabled:opacity-50 font-[family-name:var(--nx-font-ui)]"
             onClick={onPush}
-            disabled={disabled}
-            testId="push-button"
+            disabled={disabled || !canPush}
+            aria-label="Push"
+            data-testid="push-button"
           >
-            <ArrowUp size={14} aria-hidden />
-          </IconButton>
+            <ArrowUpFromLine size={12} aria-hidden />
+            <span className="max-[400px]:hidden">Push</span>
+          </button>
           {multiRoot && onUpdateAllRoots && (
             <button
               type="button"
-              className="h-7 px-2 text-[10px] rounded-vscode border border-border hover:bg-list-hover disabled:opacity-50"
+              className="h-[26px] shrink-0 px-2 text-[10px] rounded-[2px] border border-[var(--nx-border,#35363D)] hover:bg-list-hover disabled:opacity-50 max-[520px]:hidden font-[family-name:var(--nx-font-ui)]"
               onClick={onUpdateAllRoots}
               disabled={disabled}
               aria-label="Update all roots"
@@ -241,17 +482,14 @@ export function GitWidget({
               Update all
             </button>
           )}
-          <button
-            type="button"
-            className="h-7 px-2 flex items-center gap-1 text-[11px] rounded-vscode border border-border hover:bg-list-hover disabled:opacity-50"
+          <IconButton
+            label="Refresh Git status"
             onClick={onRefresh}
             disabled={refreshing || syncing}
-            aria-label="Refresh Git status"
-            data-testid="refresh-button"
+            testId="refresh-button"
           >
             <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} aria-hidden />
-            Refresh
-          </button>
+          </IconButton>
         </div>
       </div>
     </header>

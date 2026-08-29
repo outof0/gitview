@@ -194,12 +194,23 @@
 .nx-blame-editor .monaco-editor,
 .nx-blame-editor .monaco-editor .overflow-guard,
 .nx-monaco-center .monaco-editor,
-.nx-monaco-center .monaco-editor .overflow-guard,
-.nx-monaco-diff-host,
-.nx-monaco-diff-host .monaco-diff-editor,
-.nx-monaco-diff-host .monaco-editor,
-.nx-monaco-diff-host .monaco-editor .overflow-guard {
+.nx-monaco-center .monaco-editor .overflow-guard {
   height: 100% !important;
+}
+
+.nx-monaco-diff-host,
+.nx-monaco-diff-host .monaco-diff-editor {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.nx-monaco-diff-host .monaco-editor .overflow-guard {
+  scrollbar-width: none;
+}
+
+.nx-monaco-diff-host .monaco-editor .overflow-guard::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 /*
@@ -223,27 +234,44 @@
 }
 
 /*
- * Kill Monaco line washes aggressively.
+ * Kill Monaco line washes aggressively for our custom merge/blame editors.
  * Theme CSS is injected at runtime AFTER our bundle — use !important +
  * multiple selectors so it still wins.
+ * IMPORTANT: do not kill the diff viewer — it relies on Monaco's native
+ * inserted/removed line washes (green/red). The host .nx-monaco-diff-host
+ * owns the standalone compare panel.
  */
-.monaco-editor .view-overlays .current-line,
-.monaco-editor .view-overlays .current-line-exact,
-.monaco-editor .view-overlays .current-line-both,
-.monaco-editor .margin-view-overlays .current-line,
-.monaco-editor .margin-view-overlays .current-line-margin,
-.monaco-editor .margin-view-overlays .current-line-margin-both,
-.monaco-editor .margin-view-overlays .current-line-exact-margin,
-.monaco-editor .view-overlays .current-line-margin,
-.monaco-editor .view-line,
-.monaco-editor .view-lines,
-.monaco-editor .lines-content,
-.monaco-editor .inputarea.ime-input {
+.nx-monaco-center .monaco-editor .view-overlays .current-line,
+.nx-monaco-center .monaco-editor .view-overlays .current-line-exact,
+.nx-monaco-center .monaco-editor .view-overlays .current-line-both,
+.nx-monaco-center .monaco-editor .margin-view-overlays .current-line,
+.nx-monaco-center .monaco-editor .margin-view-overlays .current-line-margin,
+.nx-monaco-center .monaco-editor .margin-view-overlays .current-line-margin-both,
+.nx-monaco-center .monaco-editor .margin-view-overlays .current-line-exact-margin,
+.nx-monaco-center .monaco-editor .view-overlays .current-line-margin,
+.nx-monaco-center .monaco-editor .view-line,
+.nx-monaco-center .monaco-editor .view-lines,
+.nx-monaco-center .monaco-editor .lines-content,
+.nx-monaco-center .monaco-editor .inputarea.ime-input,
+.nx-blame-editor .monaco-editor .view-overlays .current-line,
+.nx-blame-editor .monaco-editor .view-overlays .current-line-exact,
+.nx-blame-editor .monaco-editor .view-overlays .current-line-both,
+.nx-blame-editor .monaco-editor .margin-view-overlays .current-line,
+.nx-blame-editor .monaco-editor .margin-view-overlays .current-line-margin,
+.nx-blame-editor .monaco-editor .margin-view-overlays .current-line-margin-both,
+.nx-blame-editor .monaco-editor .margin-view-overlays .current-line-exact-margin,
+.nx-blame-editor .monaco-editor .view-overlays .current-line-margin,
+.nx-blame-editor .monaco-editor .view-line,
+.nx-blame-editor .monaco-editor .view-lines,
+.nx-blame-editor .monaco-editor .lines-content,
+.nx-blame-editor .monaco-editor .inputarea.ime-input {
   background: transparent !important;
   background-color: transparent !important;
   border: none !important;
   box-shadow: none !important;
 }
+
+
 
 /* Never paint a chip behind inline colorized code */
 code,
@@ -336,6 +364,32 @@ pre,
 .monaco-editor .nx-monaco-stripe-deleted,
 .monaco-editor .nx-monaco-stripe-ignored {
   background-color: var(--nx-deleted-bar) !important;
+}
+
+/* Monaco diff viewer — LCS on main thread (diff worker is a noop in webview) */
+.monaco-editor .view-line.monaco-diff-added,
+.nx-monaco-diff-host .monaco-editor .view-line.monaco-diff-added,
+.cdr.monaco-diff-added {
+  background: var(
+    --vscode-diffEditor-insertedTextBackground,
+    rgba(46, 160, 67, 0.22)
+  ) !important;
+}
+.monaco-editor .view-line.monaco-diff-removed,
+.nx-monaco-diff-host .monaco-editor .view-line.monaco-diff-removed,
+.cdr.monaco-diff-removed {
+  background: var(
+    --vscode-diffEditor-removedTextBackground,
+    rgba(248, 81, 73, 0.22)
+  ) !important;
+}
+.monaco-editor .view-line.monaco-diff-changed,
+.nx-monaco-diff-host .monaco-editor .view-line.monaco-diff-changed,
+.cdr.monaco-diff-changed {
+  background: var(
+    --vscode-diffEditor-modifiedTextBackground,
+    rgba(187, 128, 9, 0.28)
+  ) !important;
 }
 
 /*

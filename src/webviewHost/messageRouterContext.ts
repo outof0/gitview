@@ -16,6 +16,7 @@ import { createWorktreeHandlers } from "./handlers/worktrees";
 import { createReviewHandlers } from "./handlers/review";
 import { createOperationRecoveryHandlers } from "./handlers/operationRecovery";
 import type { MessageRouterDeps } from "./messageRouterTypes";
+import { createSyncOperationCoordinator } from "../services/syncOperationCoordinator";
 import { withLiveTrustedField } from "./messageRouterTrust";
 
 export type MessageRouterContext = {
@@ -43,7 +44,15 @@ export function createMessageRouterContext(
   blameCache: Map<string, BlameCacheEntry> =
     deps.blameCache ?? new Map<string, BlameCacheEntry>(),
 ): MessageRouterContext {
-  const live = withLiveTrustedField(deps, deps);
+  const live = withLiveTrustedField(
+    {
+      ...deps,
+      syncOperationCoordinator:
+        deps.syncOperationCoordinator ??
+        createSyncOperationCoordinator({ logger: deps.logger }),
+    },
+    deps,
+  );
   const statusApi = createStatusApi(live.execGit);
   const mutations = createMutationHandlers(live);
   const branches = createBranchHandlers(
@@ -78,6 +87,7 @@ export function createMessageRouterContext(
         workspaceFolders: live.workspaceFolders,
         postMessage: live.postMessage,
         getCrlfWarningsEnabled: live.getCrlfWarningsEnabled,
+        openDiffInEditor: live.openDiffInEditor,
       },
       deps,
     ),

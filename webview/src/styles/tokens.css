@@ -164,11 +164,135 @@
   --nx-menu-pad-y: 4px;
   --nx-menu-radius: 2px;
   --nx-section-gap: 2px;
+
+  --nx-chrome-bg: var(--vscode-sideBar-background, #252526);
+  --nx-chrome-fg: var(--vscode-editor-foreground, #cccccc);
+
+  /* Component aliases always resolve through the active VS Code theme. */
+  --nx-bg: var(--vscode-editor-background, #18181b);
+  --nx-panel: var(
+    --vscode-panel-background,
+    var(--vscode-editor-background, #202126)
+  );
+  --nx-panel2: var(
+    --vscode-editorWidget-background,
+    var(--vscode-sideBar-background, #27282e)
+  );
+  --nx-border: var(
+    --vscode-editorGroup-border,
+    var(--vscode-panel-border, #35363d)
+  );
+  --nx-text: var(--vscode-foreground, var(--vscode-editor-foreground, #e8e8ea));
+  --nx-muted: var(--vscode-descriptionForeground, #9b9ca3);
+  --nx-faint: var(
+    --vscode-disabledForeground,
+    var(--vscode-descriptionForeground, #707178)
+  );
+  --nx-orange: var(--vscode-button-background, #f15a29);
+  --nx-blue: var(--vscode-focusBorder, #61afef);
+  --nx-green: var(
+    --vscode-gitDecoration-addedResourceForeground,
+    var(--vscode-testing-iconPassed, #48b57a)
+  );
+  --nx-red: var(--vscode-errorForeground, #e06c75);
+  --nx-status-added: var(
+    --vscode-gitDecoration-addedResourceForeground,
+    #81b88b
+  );
+  --nx-status-modified: var(
+    --vscode-gitDecoration-modifiedResourceForeground,
+    #e2c08d
+  );
+  --nx-status-deleted: var(
+    --vscode-gitDecoration-deletedResourceForeground,
+    #c74e39
+  );
+  --nx-status-untracked: var(
+    --vscode-gitDecoration-untrackedResourceForeground,
+    #73c991
+  );
+  --nx-status-ignored: var(
+    --vscode-gitDecoration-ignoredResourceForeground,
+    #8c8c8c
+  );
+  --nx-status-conflict: var(
+    --vscode-gitDecoration-conflictingResourceForeground,
+    #e4676b
+  );
+  --nx-status-renamed: var(
+    --vscode-gitDecoration-renamedResourceForeground,
+    var(--vscode-gitDecoration-modifiedResourceForeground, #e2c08d)
+  );
+}
+
+.nx-file-status-added {
+  color: var(--nx-status-added);
+}
+.nx-file-status-modified,
+.nx-file-status-renamed {
+  color: var(--nx-status-modified);
+}
+.nx-file-status-deleted {
+  color: var(--nx-status-deleted);
+}
+.nx-file-status-untracked {
+  color: var(--nx-status-untracked);
+}
+.nx-file-status-ignored {
+  color: var(--nx-status-ignored);
+}
+.nx-file-status-conflict {
+  color: var(--nx-status-conflict);
 }
 
 /* Light themes — softer tints on bright editor backgrounds */
 body.vscode-light,
 .vscode-light {
+  --background: var(--vscode-editor-background, #ffffff);
+  --foreground: var(--vscode-editor-foreground, #3b3b3b);
+  --secondary: var(--vscode-button-secondaryBackground, rgba(0, 0, 0, 0.08));
+  --secondary-foreground: var(
+    --vscode-button-secondaryForeground,
+    var(--vscode-editor-foreground, #3b3b3b)
+  );
+  --secondary-hover: var(
+    --vscode-button-secondaryHoverBackground,
+    rgba(0, 0, 0, 0.12)
+  );
+  --input: var(--vscode-input-background, #ffffff);
+  --input-foreground: var(--vscode-input-foreground, #3b3b3b);
+  --list-hover: var(--vscode-list-hoverBackground, rgba(0, 0, 0, 0.05));
+  --toolbar-hover: var(--vscode-toolbar-hoverBackground, rgba(0, 0, 0, 0.06));
+  --nx-chrome-bg: var(--vscode-sideBar-background, #f3f3f3);
+  --nx-chrome-fg: var(--vscode-editor-foreground, #3b3b3b);
+  --nx-status-added: var(
+    --vscode-gitDecoration-addedResourceForeground,
+    #587c0c
+  );
+  --nx-status-modified: var(
+    --vscode-gitDecoration-modifiedResourceForeground,
+    #895503
+  );
+  --nx-status-deleted: var(
+    --vscode-gitDecoration-deletedResourceForeground,
+    #ad0707
+  );
+  --nx-status-untracked: var(
+    --vscode-gitDecoration-untrackedResourceForeground,
+    #007100
+  );
+  --nx-status-ignored: var(
+    --vscode-gitDecoration-ignoredResourceForeground,
+    #8e8e90
+  );
+  --nx-status-conflict: var(
+    --vscode-gitDecoration-conflictingResourceForeground,
+    #ad0707
+  );
+  --nx-status-renamed: var(
+    --vscode-gitDecoration-renamedResourceForeground,
+    var(--vscode-gitDecoration-modifiedResourceForeground, #895503)
+  );
   --nx-added-soft: color-mix(
     in srgb,
     var(--vscode-gitDecoration-addedResourceForeground, #22863a) 16%,

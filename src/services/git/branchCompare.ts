@@ -2,6 +2,7 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import type { BranchCompareFile, BranchCompareMode } from "../../shared/types/branch";
 import type { WorkspaceDiffDocument } from "../../shared/types/diff";
+import { assertSafeGitOperand } from "../../shared/lib/gitOperand";
 import { isValidRepoRelativePath } from "../blameRefs";
 import { resolveRepoRelativePath } from "../../util/repoPath";
 import { stripGitConflictMarkers } from "../../util/stripGitConflictMarkers";
@@ -38,6 +39,32 @@ async function readBlobAtRef(
   try {
     const { stdout } = await execGit(repoRoot, ["show", `${ref}:${relativePath}`]);
     return stdout;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Same blob as `readBlobAtRef`, but as raw bytes.
+ *
+ * `readBlobAtRef` decodes stdout as UTF-8, which replaces every byte that is not
+ * valid UTF-8 with U+FFFD. Writing that string back to disk produces a file that
+ * differs from the blob — silently corrupting any binary the user applies from a
+ * branch. Always use this when the content is going back to disk.
+ */
+async function readBlobBytesAtRef(
+  execGit: GitExecFn,
+  repoRoot: string,
+  ref: string,
+  relativePath: string,
+): Promise<Buffer | null> {
+  try {
+    const { stdoutBuffer } = await execGit(
+      repoRoot,
+      ["show", `${ref}:${relativePath}`],
+      { encoding: "buffer" },
+    );
+    return stdoutBuffer ?? null;
   } catch {
     return null;
   }
@@ -263,6 +290,12 @@ export function createBranchCompareApi(
     relativePath: string,
     mode: BranchCompareMode,
   ): Promise<void> {
+    // Defence in depth. The protocol validator already rejects operands starting
+    // with "-", but an unvalidated ref here turns `git checkout <ref> -- <path>`
+    // into `git checkout --force -- <path>`, which discards local edits with no
+    // confirmation at all. Never trust the caller on a destructive command.
+    assertSafeGitOperand(selectedRef, "branch ref");
+
     const resolved = resolveRepoRelativePath(repoRoot, relativePath);
     if (!resolved.ok) {
       throw new Error(resolved.message);
@@ -275,7 +308,7 @@ export function createBranchCompareApi(
       return;
     }
 
-    const blob = await readBlobAtRef(
+    const blob = await readBlobBytesAtRef(
       execGit,
       repoRoot,
       selectedRef,

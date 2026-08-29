@@ -38,7 +38,15 @@ export function WorkspaceBranchComparePanel({
     >
       <div className="shrink-0 flex items-center gap-2 px-3 py-2 border-b border-border">
         <span className="text-[12px] font-semibold flex-1 truncate">{title}</span>
-        {selectedFilePath && onApplyFile && (
+        {selectedFilePath && onApplyFile && diffDocument?.binary && (
+          <span
+            className="text-[11px] text-[var(--vscode-descriptionForeground)]"
+            data-testid="branch-compare-apply-unavailable"
+          >
+            Binary file — apply not available
+          </span>
+        )}
+        {selectedFilePath && onApplyFile && !diffDocument?.binary && (
           <button
             type="button"
             className="h-7 px-2 text-[11px] rounded-vscode border border-border hover:bg-list-hover disabled:opacity-40"

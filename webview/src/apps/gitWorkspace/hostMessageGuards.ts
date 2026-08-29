@@ -11,6 +11,7 @@ import type {
 import type { WorkspaceDiffDocument } from "@gitview/shared/types/diff";
 import type { LogSnapshot } from "@gitview/shared/types/log";
 import type { RepositorySnapshot } from "@gitview/shared/types/repository";
+import { isRepositorySnapshotPayload } from "@gitview/shared/types/repositoryShell";
 import type { ShelfListSnapshot } from "@gitview/shared/types/shelf";
 import type { StashListSnapshot } from "@gitview/shared/types/stash";
 import type { StatusSnapshot } from "@gitview/shared/types/status";
@@ -18,13 +19,31 @@ import type { TagListSnapshot } from "@gitview/shared/types/tag";
 import type { WorktreeListSnapshot } from "@gitview/shared/types/worktree";
 import type { ReviewDetailsSnapshot, ReviewListSnapshot } from "@gitview/shared/types/review";
 import type { GitWorkspaceSettings } from "@gitview/shared/types/gitWorkspaceSettings";
+import {
+  isSyncOperationEvent,
+  type SyncOperationEvent,
+} from "@gitview/shared/types/sync";
 
 export function isRepoSnapshot(value: unknown): value is { type: "repo.snapshot"; payload: RepositorySnapshot } {
   return (
     typeof value === "object" &&
     value !== null &&
     (value as { type?: string }).type === "repo.snapshot" &&
-    (value as { protocolVersion?: number }).protocolVersion === PROTOCOL_VERSION
+    (value as { protocolVersion?: number }).protocolVersion === PROTOCOL_VERSION &&
+    isRepositorySnapshotPayload((value as { payload?: unknown }).payload)
+  );
+}
+
+export function isSyncOperationMessage(
+  value: unknown,
+): value is { type: "sync.operation"; payload: SyncOperationEvent } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    (value as { type?: string }).type === "sync.operation" &&
+    (value as { protocolVersion?: number }).protocolVersion ===
+      PROTOCOL_VERSION &&
+    isSyncOperationEvent((value as { payload?: unknown }).payload)
   );
 }
 
@@ -167,20 +186,6 @@ export function isDiffResult(value: unknown): value is { type: "diff.result"; pa
     (value as { type?: string }).type === "diff.result" &&
     (value as { protocolVersion?: number }).protocolVersion === PROTOCOL_VERSION
   );
-}
-
-export function isDestructiveRollbackError(err: unknown): string[] | null {
-  if (!(err instanceof Error)) {
-    return null;
-  }
-  if (!err.message.includes("requires confirmation")) {
-    return null;
-  }
-  const match = err.message.match(/paths['":\s]+\[([^\]]+)\]/i);
-  if (match?.[1]) {
-    return match[1].split(",").map((p) => p.trim().replace(/^['"]|['"]$/g, ""));
-  }
-  return [];
 }
 
 export function isOpenDialogRequest(

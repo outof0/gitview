@@ -87,15 +87,15 @@ export function BranchesPopup({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-start justify-center pt-12 bg-black/40"
+      className="fixed inset-0 z-[60] flex items-center justify-center p-2 bg-[color-mix(in_srgb,var(--vscode-editor-background)_60%,transparent)]"
       data-testid="branches-popup"
       onClick={onClose}
     >
       <div
-        className="w-[min(420px,92vw)] max-h-[70vh] flex flex-col rounded-vscode border border-border bg-[var(--vscode-editor-background)] shadow-lg"
+        className="w-[min(420px,92vw)] h-[min(520px,calc(100vh-1rem))] max-h-[calc(100vh-1rem)] flex flex-col rounded-vscode border border-border bg-[var(--vscode-editorWidget-background,var(--vscode-editor-background))] shadow-lg overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
+        <div className="shrink-0 flex items-center gap-2 px-3 py-2 border-b border-border">
           <GitBranch size={16} aria-hidden />
           <span className="text-[13px] font-semibold flex-1">Branches</span>
           <button
@@ -117,36 +117,60 @@ export function BranchesPopup({
           </button>
         </div>
 
-        <div className="px-3 py-2 border-b border-border">
-          <input
-            type="search"
-            className="w-full h-7 px-2 text-[12px] rounded-vscode border border-border bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)]"
-            placeholder="Filter branches…"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            data-testid="branches-filter"
-          />
-          <label className="mt-2 flex items-center gap-2 text-[11px] text-[var(--vscode-descriptionForeground)]">
-            <input
-              type="checkbox"
-              checked={smartCheckout}
-              onChange={(e) => setSmartCheckout(e.target.checked)}
-              data-testid="smart-checkout-toggle"
-            />
-            Smart Checkout (stash &amp; restore local changes)
-          </label>
-          <label className="mt-1 flex items-center gap-2 text-[11px] text-[var(--vscode-descriptionForeground)]">
-            <input
-              type="checkbox"
-              checked={forceCheckout}
-              onChange={(e) => setForceCheckout(e.target.checked)}
-              data-testid="force-checkout-toggle"
-            />
-            Force checkout (discard conflicting local changes)
-          </label>
-        </div>
-
         <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="px-3 py-2 border-b border-border">
+            <input
+              type="search"
+              className="w-full h-7 px-2 text-[12px] rounded-vscode border border-border bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)]"
+              placeholder="Filter branches…"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              data-testid="branches-filter"
+            />
+            <label className="mt-2 flex items-center gap-2 text-[11px] text-[var(--vscode-descriptionForeground)]">
+              <input
+                type="checkbox"
+                checked={smartCheckout}
+                onChange={(e) => setSmartCheckout(e.target.checked)}
+                data-testid="smart-checkout-toggle"
+              />
+              Smart Checkout (stash &amp; restore local changes)
+            </label>
+            <label className="mt-1 flex items-center gap-2 text-[11px] text-[var(--vscode-descriptionForeground)]">
+              <input
+                type="checkbox"
+                checked={forceCheckout}
+                onChange={(e) => setForceCheckout(e.target.checked)}
+                data-testid="force-checkout-toggle"
+              />
+              Force checkout (discard conflicting local changes)
+            </label>
+          </div>
+
+          <div className="mt-2 flex items-center gap-2 px-3">
+            <input
+              type="text"
+              className="flex-1 h-7 px-2 text-[12px] rounded-vscode border border-border bg-[var(--vscode-input-background)]"
+              placeholder="New branch name"
+              value={newBranchName}
+              onChange={(e) => setNewBranchName(e.target.value)}
+              data-testid="new-branch-input"
+            />
+            <button
+              type="button"
+              className="h-7 px-2 flex items-center gap-1 text-[11px] rounded-vscode border border-border hover:bg-list-hover disabled:opacity-40"
+              disabled={!newBranchName.trim() || busy}
+              onClick={() => {
+                onCreate(newBranchName.trim());
+                setNewBranchName("");
+              }}
+              data-testid="create-branch-button"
+            >
+              <Plus size={14} aria-hidden />
+              Create
+            </button>
+          </div>
+
           {loading && (
             <div className="p-3 text-[12px] text-[var(--vscode-descriptionForeground)]">
               Loading branches…
@@ -191,30 +215,6 @@ export function BranchesPopup({
               No branches match your filter.
             </div>
           )}
-        </div>
-
-        <div className="shrink-0 flex items-center gap-2 px-3 py-2 border-t border-border">
-          <input
-            type="text"
-            className="flex-1 h-7 px-2 text-[12px] rounded-vscode border border-border bg-[var(--vscode-input-background)]"
-            placeholder="New branch name"
-            value={newBranchName}
-            onChange={(e) => setNewBranchName(e.target.value)}
-            data-testid="new-branch-input"
-          />
-          <button
-            type="button"
-            className="h-7 px-2 flex items-center gap-1 text-[11px] rounded-vscode border border-border hover:bg-list-hover disabled:opacity-40"
-            disabled={!newBranchName.trim() || busy}
-            onClick={() => {
-              onCreate(newBranchName.trim());
-              setNewBranchName("");
-            }}
-            data-testid="create-branch-button"
-          >
-            <Plus size={14} aria-hidden />
-            Create
-          </button>
         </div>
       </div>
     </div>

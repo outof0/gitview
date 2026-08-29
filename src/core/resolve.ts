@@ -306,6 +306,17 @@ export function manualEdit(block: ChangeBlock, text: string): ChangeBlock {
   );
 }
 
+/** Apply a deterministic synthesized result without attributing it to a side. */
+export function resolveAutomatically(
+  block: ChangeBlock,
+  text: string,
+): ChangeBlock {
+  if (block.kind !== "conflict" || block.status !== "unresolved") {
+    return block;
+  }
+  return withResult(block, text, "resolved", false, null);
+}
+
 // True when every conflict block has been resolved.
 export function allConflictsResolved(blocks: ChangeBlock[]): boolean {
   return blocks

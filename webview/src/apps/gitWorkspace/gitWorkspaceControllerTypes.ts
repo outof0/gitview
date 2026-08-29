@@ -1,5 +1,6 @@
 import type { MutableRefObject } from "react";
 import type { BranchEntry } from "@gitview/shared/types/branch";
+import type { ConfirmationSubmission } from "@gitview/shared/types/confirmation";
 import type { DiffLineSelection } from "@gitview/shared/types/diff";
 import type { ResetMode } from "@gitview/shared/types/log";
 import type { Repository } from "@gitview/shared/types/repository";
@@ -7,6 +8,7 @@ import type { ProtocolClient } from "../../protocol/client";
 import type {
   GitWorkspaceActions,
   GitWorkspaceState,
+  GitWorkspaceSyncOperation,
 } from "../../stores/gitWorkspaceStoreTypes";
 
 /**
@@ -21,6 +23,7 @@ export type GitWorkspaceCoreApi = {
   refreshing: boolean;
   syncing: boolean;
   setSyncing: (syncing: boolean) => void;
+  syncOperation: GitWorkspaceSyncOperation | null;
   reviewSelectedCommitSha: string | null;
   setReviewSelectedCommitSha: (sha: string | null) => void;
   activeRepo: Repository | null;
@@ -45,15 +48,21 @@ export type GitWorkspaceCommitLogApi = {
     sha: string,
     action: "squash" | "fixup" | "drop",
     confirmed?: boolean,
+    confirmation?: ConfirmationSubmission,
   ) => Promise<void>;
   handleDropSelected: (
     sha: string,
     path: string,
     selection: { hunkIndexes?: number[]; lines?: DiffLineSelection[] },
-    confirmed?: boolean,
+    confirmation?: ConfirmationSubmission,
   ) => Promise<void>;
   handleDeleteBranch: (name: string, force?: boolean) => Promise<void>;
-  handleReset: (sha: string, mode: ResetMode, confirmed?: boolean) => Promise<void>;
+  handleReset: (
+    sha: string,
+    mode: ResetMode,
+    confirmed?: boolean,
+    confirmation?: ConfirmationSubmission,
+  ) => Promise<void>;
 };
 
 export type GitWorkspaceBranchApi = {
@@ -64,15 +73,20 @@ export type GitWorkspaceBranchApi = {
 };
 
 export type GitWorkspaceSyncApi = {
+  handleFetch: () => Promise<void>;
+  handlePull: (strategy: "merge" | "rebase" | "ff_only") => Promise<void>;
+  handleCancelSync: (operationId: string) => Promise<void>;
   handlePush: () => Promise<void>;
   usesSyncBranchCheckout: () => boolean;
   handleBranchCheckout: (
     ref: string,
     opts?: { smart?: boolean; force?: boolean },
     confirmed?: boolean,
+    confirmation?: ConfirmationSubmission,
   ) => Promise<void>;
   confirmPushUpstream: () => Promise<void>;
   handleUpdateAllRoots: () => Promise<void>;
+  handleRetrySyncRoot: (repoId: string) => Promise<void>;
   loadReviews: () => Promise<void>;
   handleApplyNonConflicting: () => void;
 };
@@ -84,11 +98,13 @@ export type GitWorkspaceAuxApi = {
   loadWorktrees: () => Promise<void>;
   handleRemoveWorktree: (
     path: string,
-    force?: boolean,
-    confirmed?: boolean,
+    confirmation?: ConfirmationSubmission,
   ) => Promise<void>;
   handleCopyHash: (sha: string) => Promise<void>;
-  handleRollback: (paths: string[], confirmed?: boolean) => Promise<void>;
+  handleRollback: (
+    paths: string[],
+    confirmation?: ConfirmationSubmission,
+  ) => Promise<void>;
 };
 
 export type GitWorkspaceController = GitWorkspaceState &

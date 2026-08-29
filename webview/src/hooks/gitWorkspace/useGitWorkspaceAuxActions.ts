@@ -1,7 +1,11 @@
 import { useCallback } from "react";
-import { useGitWorkspaceStore } from "../../stores/gitWorkspaceStore";
-import { isDestructiveRollbackError } from "../../apps/gitWorkspace/hostMessageGuards";
+import {
+  isConfirmationEvidence,
+  type ConfirmationSubmission,
+} from "@gitview/shared/types/confirmation";
 import type { GitWorkspaceAuxApi } from "../../apps/gitWorkspace/gitWorkspaceControllerTypes";
+import { isErrorCode } from "../../lib/errorCode";
+import { useGitWorkspaceStore } from "../../stores/gitWorkspaceStore";
 import type { GitWorkspaceDeps } from "./gitWorkspaceDeps";
 
 export function useGitWorkspaceAuxActions(deps: GitWorkspaceDeps): GitWorkspaceAuxApi {
@@ -71,26 +75,30 @@ export function useGitWorkspaceAuxActions(deps: GitWorkspaceDeps): GitWorkspaceA
   }, [activeRepo, setWorktreesLoading]);
 
   const handleRemoveWorktree = useCallback(
-    async (path: string, force = false, confirmed = false) => {
+    async (path: string, confirmation?: ConfirmationSubmission) => {
       if (!activeRepo) {
         return;
       }
       setSyncing(true);
+      useGitWorkspaceStore.getState().setError(null);
       try {
-        await clientRef.current.removeWorktree(
-          activeRepo.id,
-          path,
-          force,
-          confirmed,
-        );
+        await clientRef.current.removeWorktree(activeRepo.id, path, confirmation);
         closeDialog("worktreeRemove");
       } catch (err) {
         const message = err instanceof Error ? err.message : "Remove worktree failed";
+        const details = (err as { details?: { confirmation?: unknown } }).details;
+        const nextConfirmation = isConfirmationEvidence(details?.confirmation)
+          ? details.confirmation
+          : undefined;
         if (
-          !force &&
-          message.toLowerCase().includes("requires confirmation")
+          nextConfirmation?.action === "remove_dirty_worktree" &&
+          (isErrorCode(err, "CONFIRMATION_REQUIRED") ||
+            isErrorCode(err, "CONFIRMATION_STALE"))
         ) {
-          openDialog("worktreeRemove", { path, forceRequired: true });
+          openDialog("worktreeRemove", { confirmation: nextConfirmation });
+          if (isErrorCode(err, "CONFIRMATION_STALE")) {
+            useGitWorkspaceStore.getState().setError(message);
+          }
         } else {
           useGitWorkspaceStore.getState().setError(message);
         }
@@ -117,23 +125,32 @@ export function useGitWorkspaceAuxActions(deps: GitWorkspaceDeps): GitWorkspaceA
   }, [setWorkspaceNotification]);
 
   const handleRollback = useCallback(
-    async (paths: string[], confirmed?: boolean) => {
+    async (paths: string[], confirmation?: ConfirmationSubmission) => {
       if (!activeRepo) {
         return;
       }
       setSyncing(true);
       useGitWorkspaceStore.getState().setError(null);
       try {
-        await clientRef.current.rollbackFiles(activeRepo.id, paths, confirmed);
+        await clientRef.current.rollbackFiles(activeRepo.id, paths, confirmation);
         closeDialog("rollbackConfirm");
       } catch (err) {
-        const pending = isDestructiveRollbackError(err);
-        if (pending) {
-          openDialog("rollbackConfirm", { paths });
+        const message = err instanceof Error ? err.message : "Rollback failed";
+        const details = (err as { details?: { confirmation?: unknown } }).details;
+        const nextConfirmation = isConfirmationEvidence(details?.confirmation)
+          ? details.confirmation
+          : undefined;
+        if (
+          nextConfirmation?.action === "rollback" &&
+          (isErrorCode(err, "CONFIRMATION_REQUIRED") ||
+            isErrorCode(err, "CONFIRMATION_STALE"))
+        ) {
+          openDialog("rollbackConfirm", { confirmation: nextConfirmation });
+          if (isErrorCode(err, "CONFIRMATION_STALE")) {
+            useGitWorkspaceStore.getState().setError(message);
+          }
         } else {
-          useGitWorkspaceStore.getState().setError(
-            err instanceof Error ? err.message : "Rollback failed",
-          );
+          useGitWorkspaceStore.getState().setError(message);
         }
       } finally {
         setSyncing(false);

@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
+import { isSyncOperationActive } from "@gitview/shared/types/sync";
 import type { GitWorkspaceCoreApi } from "../../apps/gitWorkspace/gitWorkspaceControllerTypes";
 import { createProtocolClient } from "../../protocol/client";
 import { useGitWorkspaceStore } from "../../stores/gitWorkspaceStore";
@@ -11,7 +12,7 @@ export function useGitWorkspaceCore(store: StoreSlice): GitWorkspaceCoreApi {
   const { postMessage } = useVsCodeApi();
   const clientRef = useRef(createProtocolClient(postMessage));
   const [refreshing, setRefreshing] = useState(false);
-  const [syncing, setSyncing] = useState(false);
+  const [mutationPending, setMutationPending] = useState(false);
   const [reviewSelectedCommitSha, setReviewSelectedCommitSha] = useState<string | null>(null);
   const { repoSnapshot } = store;
 
@@ -21,19 +22,27 @@ export function useGitWorkspaceCore(store: StoreSlice): GitWorkspaceCoreApi {
     }
     return repoSnapshot.repositories.find((repo) => repo.id === repoSnapshot.activeRepoId) ?? null;
   }, [repoSnapshot]);
+  const syncOperation = useMemo(
+    () =>
+      activeRepo ? store.syncOperationForRepository(activeRepo.id) : null,
+    [activeRepo, store.syncOperationForRepository, store.syncOperations],
+  );
+  const syncing =
+    mutationPending ||
+    Boolean(syncOperation && isSyncOperationActive(syncOperation.event));
 
   const runMutation = useCallback(async (fn: () => Promise<unknown>) => {
     if (!activeRepo) {
       return;
     }
-    setSyncing(true);
+    setMutationPending(true);
     useGitWorkspaceStore.getState().setError(null);
     try {
       await fn();
     } catch (err) {
       useGitWorkspaceStore.getState().setError(err instanceof Error ? err.message : "Git operation failed");
     } finally {
-      setSyncing(false);
+      setMutationPending(false);
     }
   }, [activeRepo]);
 
@@ -53,7 +62,8 @@ export function useGitWorkspaceCore(store: StoreSlice): GitWorkspaceCoreApi {
     clientRef,
     refreshing,
     syncing,
-    setSyncing,
+    setSyncing: setMutationPending,
+    syncOperation,
     reviewSelectedCommitSha,
     setReviewSelectedCommitSha,
     activeRepo,

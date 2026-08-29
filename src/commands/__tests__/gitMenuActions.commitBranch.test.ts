@@ -142,7 +142,6 @@ describe("gitMenuActions commit and branch", () => {
   });
 
   it.each([
-    ["gitCreateBranch", gitCreateBranch, "createBranch"],
     ["gitMerge", gitMerge, "merge"],
     ["gitRebase", gitRebase, "rebase"],
     ["gitCommit", gitCommit, "commit"],

@@ -21,6 +21,23 @@ export function createShelfApi(
   const hunkPatch = createHunkPatchApi(execGit);
   const staging = createStagingApi(execGit);
 
+  /**
+   * Best-effort compensation for a failed shelve: put the shelved content back
+   * in the working tree. Never throws — a failed rollback must not mask the
+   * original error, and the operator still has the patch text in that error.
+   */
+  async function restoreShelvedPatch(
+    repoRoot: string,
+    patchContent: string,
+  ): Promise<void> {
+    try {
+      await patchApi.applyPatch(repoRoot, patchContent);
+    } catch {
+      // The tree stays as the failed shelve left it; the patch is still
+      // recoverable from the error surfaced to the caller.
+    }
+  }
+
   async function listShelves(
     repoRoot: string,
     repoId: string,
@@ -74,15 +91,31 @@ export function createShelfApi(
       patch: patchContent,
     };
 
-    const stored = await shelfStorage.add(repoRoot, record);
-
+    // The working tree is rolled back BEFORE the entry is persisted. Writing the
+    // record first left a half-state behind: a shelf entry existed while the tree
+    // was only partially cleaned, and neither side could be trusted.
+    //
+    // Persisting afterwards inverts the risk (the tree is clean but the record is
+    // missing), so every failure path below re-applies the captured patch. The
+    // shelved change is therefore never destroyed without a shelf entry that can
+    // restore it.
     await staging.unstageFiles(repoRoot, opts.paths);
-    await staging.rollbackTrackedFiles(repoRoot, opts.paths);
-    if (untrackedPaths.length > 0) {
-      await staging.removeUnversionedFiles(repoRoot, untrackedPaths);
+    try {
+      await staging.rollbackTrackedFiles(repoRoot, opts.paths);
+      if (untrackedPaths.length > 0) {
+        await staging.removeUnversionedFiles(repoRoot, untrackedPaths);
+      }
+    } catch (error) {
+      await restoreShelvedPatch(repoRoot, patchContent);
+      throw error;
     }
 
-    return stored;
+    try {
+      return await shelfStorage.add(repoRoot, record);
+    } catch (error) {
+      await restoreShelvedPatch(repoRoot, patchContent);
+      throw error;
+    }
   }
 
   async function unshelve(

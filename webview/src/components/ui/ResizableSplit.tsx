@@ -82,6 +82,9 @@ export function ResizableSplit({
     };
 
     const onUp = () => {
+      if (!dragging.current) {
+        return;
+      }
       dragging.current = false;
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
@@ -89,9 +92,13 @@ export function ResizableSplit({
 
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
+    window.addEventListener("mouseleave", onUp);
+    window.addEventListener("blur", onUp);
     return () => {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("mouseleave", onUp);
+      window.removeEventListener("blur", onUp);
     };
   }, [direction, minFirstPercent, minSecondPercent, persist]);
 

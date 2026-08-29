@@ -1,5 +1,9 @@
 import { useCallback } from "react";
 import type { CommitCheckIssue } from "@gitview/shared/types/commitCheck";
+import {
+  isConfirmationEvidence,
+  type ConfirmationSubmission,
+} from "@gitview/shared/types/confirmation";
 import type { DiffLineSelection } from "@gitview/shared/types/diff";
 import type { ResetMode } from "@gitview/shared/types/log";
 import { useGitWorkspaceStore } from "../../stores/gitWorkspaceStore";
@@ -106,6 +110,7 @@ export function useGitWorkspaceCommitLogActions(
       sha: string,
       action: "squash" | "fixup" | "drop",
       confirmed = false,
+      confirmation?: ConfirmationSubmission,
     ) => {
       if (!activeRepo) {
         return;
@@ -114,7 +119,7 @@ export function useGitWorkspaceCommitLogActions(
       useGitWorkspaceStore.getState().setError(null);
       try {
         if (action === "drop") {
-          await clientRef.current.dropCommit(activeRepo.id, sha, confirmed);
+          await clientRef.current.dropCommit(activeRepo.id, sha, confirmation);
         } else {
           await clientRef.current.rewriteCommit(
             activeRepo.id,
@@ -127,7 +132,21 @@ export function useGitWorkspaceCommitLogActions(
         await loadLog();
       } catch (err) {
         const message = err instanceof Error ? err.message : "Rewrite failed";
-        if (message.toLowerCase().includes("requires confirmation")) {
+        const details = (err as { details?: { confirmation?: unknown } }).details;
+        const nextConfirmation = isConfirmationEvidence(details?.confirmation)
+          ? details.confirmation
+          : undefined;
+        if (
+          action === "drop" &&
+          nextConfirmation?.action === "drop_commit" &&
+          (isErrorCode(err, "CONFIRMATION_REQUIRED") ||
+            isErrorCode(err, "CONFIRMATION_STALE"))
+        ) {
+          openDialog("rewrite", { sha, action, confirmation: nextConfirmation });
+          if (isErrorCode(err, "CONFIRMATION_STALE")) {
+            useGitWorkspaceStore.getState().setError(message);
+          }
+        } else if (isErrorCode(err, "CONFIRMATION_REQUIRED")) {
           openDialog("rewrite", { sha, action });
         } else {
           useGitWorkspaceStore.getState().setError(message);
@@ -144,7 +163,7 @@ export function useGitWorkspaceCommitLogActions(
       sha: string,
       path: string,
       selection: { hunkIndexes?: number[]; lines?: DiffLineSelection[] },
-      confirmed = false,
+      confirmation?: ConfirmationSubmission,
     ) => {
       if (!activeRepo) {
         return;
@@ -154,7 +173,7 @@ export function useGitWorkspaceCommitLogActions(
       try {
         await clientRef.current.dropSelectedChanges(activeRepo.id, sha, path, {
           ...selection,
-          confirmed,
+          confirmation,
         });
         closeDialog("dropSelected");
         await loadLog();
@@ -163,8 +182,24 @@ export function useGitWorkspaceCommitLogActions(
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : "Drop selected failed";
-        if (message.toLowerCase().includes("requires confirmation")) {
-          openDialog("dropSelected", { sha, path, ...selection });
+        const details = (err as { details?: { confirmation?: unknown } }).details;
+        const nextConfirmation = isConfirmationEvidence(details?.confirmation)
+          ? details.confirmation
+          : undefined;
+        if (
+          nextConfirmation?.action === "drop_selected" &&
+          (isErrorCode(err, "CONFIRMATION_REQUIRED") ||
+            isErrorCode(err, "CONFIRMATION_STALE"))
+        ) {
+          openDialog("dropSelected", {
+            sha,
+            path,
+            ...selection,
+            confirmation: nextConfirmation,
+          });
+          if (isErrorCode(err, "CONFIRMATION_STALE")) {
+            useGitWorkspaceStore.getState().setError(message);
+          }
         } else {
           useGitWorkspaceStore.getState().setError(message);
         }
@@ -208,7 +243,12 @@ export function useGitWorkspaceCommitLogActions(
   );
 
   const handleReset = useCallback(
-    async (sha: string, mode: ResetMode, confirmed = false) => {
+    async (
+      sha: string,
+      mode: ResetMode,
+      confirmed = false,
+      confirmation?: ConfirmationSubmission,
+    ) => {
       if (!activeRepo) {
         return;
       }
@@ -220,12 +260,31 @@ export function useGitWorkspaceCommitLogActions(
           sha,
           mode,
           confirmed,
+          confirmation,
         );
         closeDialog("reset");
         await loadLog();
       } catch (err) {
         const message = err instanceof Error ? err.message : "Reset failed";
-        if (message.toLowerCase().includes("requires confirmation")) {
+        const details = (err as { details?: { confirmation?: unknown } }).details;
+        const nextConfirmation = isConfirmationEvidence(details?.confirmation)
+          ? details.confirmation
+          : undefined;
+        if (
+          mode === "hard" &&
+          nextConfirmation?.action === "hard_reset" &&
+          (isErrorCode(err, "CONFIRMATION_REQUIRED") ||
+            isErrorCode(err, "CONFIRMATION_STALE"))
+        ) {
+          openDialog("reset", {
+            sha,
+            mode,
+            confirmation: nextConfirmation,
+          });
+          if (isErrorCode(err, "CONFIRMATION_STALE")) {
+            useGitWorkspaceStore.getState().setError(message);
+          }
+        } else if (isErrorCode(err, "CONFIRMATION_REQUIRED")) {
           openDialog("reset", { sha, mode });
         } else {
           useGitWorkspaceStore.getState().setError(message);

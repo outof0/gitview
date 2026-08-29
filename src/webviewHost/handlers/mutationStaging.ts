@@ -1,6 +1,8 @@
-import type { GitFileStatus } from "../../shared/types/status";
+import { requireRollbackConfirmation } from "../../application/mutationPreconditions";
 import { createError } from "../../shared/errors/codes";
 import { createHostError, createHostResponse } from "../../shared/protocol";
+import type { ConfirmationSubmission } from "../../shared/types/confirmation";
+import type { GitFileStatus } from "../../shared/types/status";
 import type { CommitCheckKind } from "../../shared/types/commitCheck";
 import { validateRepoRelativePaths } from "../validatePaths";
 import { gitCommandError, type MutationHandlerContext } from "./mutationHelpers";
@@ -74,7 +76,7 @@ export function createStagingMutationHandlers(ctx: MutationHandlerContext) {
       requestId: string,
       repoId: string,
       paths: unknown,
-      confirmed: boolean,
+      confirmation: ConfirmationSubmission | undefined,
       statusFiles: GitFileStatus[],
     ) {
       const repo = await validateRepoMutation(requestId, repoId);
@@ -99,24 +101,19 @@ export function createStagingMutationHandlers(ctx: MutationHandlerContext) {
       const needsConfirm =
         unversioned.length > 0 ||
         (confirmDestructive && tracked.length > 0);
-      if (needsConfirm && !confirmed) {
-        const kind =
-          unversioned.length > 0 && tracked.length === 0
-            ? "unversioned files"
-            : unversioned.length > 0
-              ? "local changes (including unversioned files)"
-              : "tracked local changes";
-        deps.postMessage(
-          createHostError(
-            requestId,
-            createError(
-              "DESTRUCTIVE_ACTION_DENIED",
-              `Rollback of ${kind} requires confirmation.`,
-              { details: { paths: validated.paths } },
-            ),
-          ),
+      if (needsConfirm || confirmation) {
+        const confirmationCheck = requireRollbackConfirmation(
+          repo,
+          validated.paths,
+          unversioned,
+          confirmation,
         );
-        return;
+        if (!confirmationCheck.ok) {
+          deps.postMessage(
+            createHostError(requestId, confirmationCheck.error),
+          );
+          return;
+        }
       }
 
       try {
@@ -172,9 +169,23 @@ export function createStagingMutationHandlers(ctx: MutationHandlerContext) {
         checkPaths = validated.paths;
       }
 
+      if (!checkPaths?.length) {
+        try {
+          checkPaths = await staging.listStagedPaths(repo.rootPath);
+        } catch (err) {
+          deps.postMessage(
+            createHostError(
+              requestId,
+              createError("GIT_COMMAND_FAILED", gitCommandError(err)),
+            ),
+          );
+          return;
+        }
+      }
+
       const result = await deps.commitCheckService.runChecks(
         repo.rootPath,
-        checkPaths ?? [],
+        checkPaths,
         { kinds, applyFixes: false },
       );
       deps.postMessage(createHostResponse(requestId, "commit.checks", result));

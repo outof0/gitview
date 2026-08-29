@@ -9,7 +9,6 @@ import { GitWorkspacePopups } from "./GitWorkspacePopups";
 
 /** Branch pickers render empty unless the list was fetched at least once. */
 const NEEDS_BRANCH_LIST: readonly GitWorkspaceDialogId[] = [
-  "createBranch",
   "merge",
   "rebase",
 ];

@@ -7,6 +7,7 @@ import {
 import { createRepositoryService } from "./services/repositoryService";
 import { createProtectionService } from "./services/protectionService";
 import { createRefreshCoordinator } from "./services/watchers/refreshCoordinator";
+import { createSyncOperationCoordinator } from "./services/syncOperationCoordinator";
 import { createBranchFavoriteStorage } from "./storage/branchFavoriteStorage";
 import { createChangelistStorage } from "./storage/changelistStorage";
 import { createShelfStorage } from "./storage/shelfStorage";
@@ -133,6 +134,7 @@ export function activateGitView(
     getTrusted: () => vscode.workspace.isTrusted,
     getSettings: readGitWorkspaceSettings,
   });
+  const syncOperationCoordinator = createSyncOperationCoordinator({ logger });
   const commandRuntime: GitCommandRuntime = {
     gitService: git,
     shelfStorage,
@@ -231,6 +233,7 @@ export function activateGitView(
     repositoryService,
     protectionService,
     refreshCoordinator,
+    syncOperationCoordinator,
     changelistStorage,
     branchFavoriteStorage,
     shelfStorage,
@@ -254,6 +257,7 @@ export function activateGitView(
       gitChangeSubscription?.dispose();
       folderListener.dispose();
       unsubscribeBlameInvalidation();
+      syncOperationCoordinator.dispose();
       refreshCoordinator.dispose();
       logger.info("extension.activation.disposed");
       outputChannel.dispose();

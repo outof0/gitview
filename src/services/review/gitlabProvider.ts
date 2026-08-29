@@ -1,29 +1,30 @@
-import type { GitExecFn } from "../git/types";
 import type { Repository } from "../../shared/types/repository";
 import type {
   ReviewDetailsSnapshot,
   ReviewFilters,
   ReviewItem,
-  ReviewProviderInfo,
   ReviewSuggestion,
 } from "../../shared/types/review";
 import { applySuggestionToFile } from "./applySuggestion";
 import { createGitlabApi } from "./gitlabApi";
-import {
-  gitlabApiBaseUrl,
-  parseGitlabRemoteUrl,
-} from "./gitlabRemote";
+import { gitlabApiBaseUrl, parseGitlabRemoteUrl } from "./gitlabRemote";
 import { detectHostedRemote, readOriginRemoteUrl } from "./remoteDetect";
-import type { ReviewFetch } from "./reviewFetch";
+import {
+  describeReviewProvider,
+  requireReviewApi,
+  type ReviewProviderContext,
+  type ReviewProviderSpec,
+} from "./providerShared";
 
-export type GitlabProviderContext = {
-  execGit: GitExecFn;
-  getAccessToken?: (providerId: string) => Promise<string | null>;
-  getGitlabApiBaseUrl?: () => string;
-  fetchFn?: ReviewFetch;
+const GITLAB_SPEC: ReviewProviderSpec = {
+  id: "gitlab",
+  displayName: "GitLab",
+  noRemoteReason: "No GitLab remote configured for this repository.",
+  tokenHintReason:
+    "Connect a GitLab token via Command Palette: GitView: Set GitLab Review Token…",
 };
 
-async function resolveGitlabApi(ctx: GitlabProviderContext, repo: Repository) {
+async function resolveGitlabApi(ctx: ReviewProviderContext, repo: Repository) {
   const remoteUrl = await readOriginRemoteUrl(ctx.execGit, repo.rootPath);
   if (!remoteUrl || detectHostedRemote(remoteUrl) !== "gitlab") {
     return null;
@@ -36,48 +37,32 @@ async function resolveGitlabApi(ctx: GitlabProviderContext, repo: Repository) {
   if (!token) {
     return { coords, api: null, token: null };
   }
+  // `null` means the remote host is not one the token may be sent to, so no
+  // client is built at all — see `gitlabApiBaseUrl`.
+  const apiBaseUrl = gitlabApiBaseUrl(
+    coords.host,
+    ctx.getGitlabApiBaseUrl?.(),
+  );
+  if (!apiBaseUrl) {
+    return null;
+  }
   const api = createGitlabApi({
     token,
-    apiBaseUrl: gitlabApiBaseUrl(coords.host, ctx.getGitlabApiBaseUrl?.()),
+    apiBaseUrl,
     fetchFn: ctx.fetchFn,
   });
   return { coords, api, token };
 }
 
 export async function describeGitlabProvider(
-  ctx: GitlabProviderContext,
+  ctx: ReviewProviderContext,
   repo: Repository,
-): Promise<ReviewProviderInfo> {
-  const resolved = await resolveGitlabApi(ctx, repo);
-  if (!resolved) {
-    return {
-      id: "gitlab",
-      displayName: "GitLab",
-      available: false,
-      authRequired: false,
-      unavailableReason: "No GitLab remote configured for this repository.",
-    };
-  }
-  if (!resolved.token || !resolved.api) {
-    return {
-      id: "gitlab",
-      displayName: "GitLab",
-      available: true,
-      authRequired: true,
-      unavailableReason:
-        "Connect a GitLab token via Command Palette: GitView: Set GitLab Review Token…",
-    };
-  }
-  return {
-    id: "gitlab",
-    displayName: "GitLab",
-    available: true,
-    authRequired: false,
-  };
+) {
+  return describeReviewProvider(await resolveGitlabApi(ctx, repo), GITLAB_SPEC);
 }
 
 export async function listGitlabReviews(
-  ctx: GitlabProviderContext,
+  ctx: ReviewProviderContext,
   repo: Repository,
   filters: ReviewFilters,
 ): Promise<{ items: ReviewItem[]; authRequired: boolean; unavailableReason?: string }> {
@@ -106,7 +91,7 @@ export async function listGitlabReviews(
 }
 
 export async function openGitlabReview(
-  ctx: GitlabProviderContext,
+  ctx: ReviewProviderContext,
   repo: Repository,
   reviewId: string,
 ): Promise<ReviewDetailsSnapshot | null> {
@@ -176,7 +161,7 @@ export async function openGitlabReview(
 }
 
 export async function createGitlabReview(
-  ctx: GitlabProviderContext,
+  ctx: ReviewProviderContext,
   repo: Repository,
   opts: {
     title: string;
@@ -185,15 +170,12 @@ export async function createGitlabReview(
     body?: string;
   },
 ): Promise<ReviewItem> {
-  const resolved = await resolveGitlabApi(ctx, repo);
-  if (!resolved?.api || !resolved.coords) {
-    throw new Error("GitLab provider is not authenticated.");
-  }
-  return resolved.api.createMergeRequest(resolved.coords, opts);
+  const { coords, api } = requireReviewApi(await resolveGitlabApi(ctx, repo), GITLAB_SPEC);
+  return api.createMergeRequest(coords, opts);
 }
 
 export async function createGitlabLineComment(
-  ctx: GitlabProviderContext,
+  ctx: ReviewProviderContext,
   repo: Repository,
   reviewId: string,
   opts: {
@@ -202,12 +184,9 @@ export async function createGitlabLineComment(
     body: string;
   },
 ): Promise<{ commentId: string }> {
-  const resolved = await resolveGitlabApi(ctx, repo);
-  if (!resolved?.api || !resolved.coords) {
-    throw new Error("GitLab provider is not authenticated.");
-  }
+  const { coords, api } = requireReviewApi(await resolveGitlabApi(ctx, repo), GITLAB_SPEC);
   const iid = Number.parseInt(reviewId, 10);
-  const mr = await resolved.api.getMergeRequestRaw(resolved.coords, iid);
+  const mr = await api.getMergeRequestRaw(coords, iid);
   const baseSha = mr.diff_refs?.base_sha;
   const startSha = mr.diff_refs?.start_sha;
   const headSha = mr.diff_refs?.head_sha;
@@ -216,7 +195,7 @@ export async function createGitlabLineComment(
       "Merge request diff refs are unavailable for line comments.",
     );
   }
-  return resolved.api.createMergeRequestLineComment(resolved.coords, iid, {
+  return api.createMergeRequestLineComment(coords, iid, {
     ...opts,
     baseSha,
     startSha,
@@ -225,38 +204,29 @@ export async function createGitlabLineComment(
 }
 
 export async function submitGitlabReview(
-  ctx: GitlabProviderContext,
+  ctx: ReviewProviderContext,
   repo: Repository,
   reviewId: string,
   event: "APPROVE" | "REQUEST_CHANGES" | "COMMENT",
   body?: string,
 ): Promise<void> {
-  const resolved = await resolveGitlabApi(ctx, repo);
-  if (!resolved?.api || !resolved.coords) {
-    throw new Error("GitLab provider is not authenticated.");
-  }
+  const { coords, api } = requireReviewApi(await resolveGitlabApi(ctx, repo), GITLAB_SPEC);
   const iid = Number.parseInt(reviewId, 10);
-  await resolved.api.submitReview(resolved.coords, iid, event, body);
+  await api.submitReview(coords, iid, event, body);
 }
 
 export async function applyGitlabSuggestion(
-  ctx: GitlabProviderContext,
+  ctx: ReviewProviderContext,
   repo: Repository,
   reviewId: string,
   suggestionId: string,
   cachedSuggestions?: ReviewSuggestion[],
 ): Promise<{ path: string }> {
-  const resolved = await resolveGitlabApi(ctx, repo);
-  if (!resolved?.api || !resolved.coords) {
-    throw new Error("GitLab provider is not authenticated.");
-  }
+  const { coords, api } = requireReviewApi(await resolveGitlabApi(ctx, repo), GITLAB_SPEC);
   const iid = Number.parseInt(reviewId, 10);
   let suggestions = cachedSuggestions;
   if (!suggestions) {
-    const fetched = await resolved.api.getMergeRequestDiscussions(
-      resolved.coords,
-      iid,
-    );
+    const fetched = await api.getMergeRequestDiscussions(coords, iid);
     suggestions = fetched.suggestions;
   }
   const suggestion = suggestions.find((entry) => entry.id === suggestionId);
@@ -274,57 +244,45 @@ export async function applyGitlabSuggestion(
 }
 
 export async function mergeGitlabReview(
-  ctx: GitlabProviderContext,
+  ctx: ReviewProviderContext,
   repo: Repository,
   reviewId: string,
   method: "merge" | "squash" | "rebase" = "merge",
 ): Promise<void> {
-  const resolved = await resolveGitlabApi(ctx, repo);
-  if (!resolved?.api || !resolved.coords) {
-    throw new Error("GitLab provider is not authenticated.");
-  }
+  const { coords, api } = requireReviewApi(await resolveGitlabApi(ctx, repo), GITLAB_SPEC);
   const iid = Number.parseInt(reviewId, 10);
-  await resolved.api.mergeMergeRequest(resolved.coords, iid, method);
+  await api.mergeMergeRequest(coords, iid, method);
 }
 
 export async function closeGitlabReview(
-  ctx: GitlabProviderContext,
+  ctx: ReviewProviderContext,
   repo: Repository,
   reviewId: string,
 ): Promise<void> {
-  const resolved = await resolveGitlabApi(ctx, repo);
-  if (!resolved?.api || !resolved.coords) {
-    throw new Error("GitLab provider is not authenticated.");
-  }
+  const { coords, api } = requireReviewApi(await resolveGitlabApi(ctx, repo), GITLAB_SPEC);
   const iid = Number.parseInt(reviewId, 10);
-  await resolved.api.closeMergeRequest(resolved.coords, iid);
+  await api.closeMergeRequest(coords, iid);
 }
 
 export async function reopenGitlabReview(
-  ctx: GitlabProviderContext,
+  ctx: ReviewProviderContext,
   repo: Repository,
   reviewId: string,
 ): Promise<void> {
-  const resolved = await resolveGitlabApi(ctx, repo);
-  if (!resolved?.api || !resolved.coords) {
-    throw new Error("GitLab provider is not authenticated.");
-  }
+  const { coords, api } = requireReviewApi(await resolveGitlabApi(ctx, repo), GITLAB_SPEC);
   const iid = Number.parseInt(reviewId, 10);
-  await resolved.api.reopenMergeRequest(resolved.coords, iid);
+  await api.reopenMergeRequest(coords, iid);
 }
 
 export async function deleteGitlabMergedSourceBranch(
-  ctx: GitlabProviderContext,
+  ctx: ReviewProviderContext,
   repo: Repository,
   reviewId: string,
 ): Promise<{ branch: string }> {
-  const resolved = await resolveGitlabApi(ctx, repo);
-  if (!resolved?.api || !resolved.coords) {
-    throw new Error("GitLab provider is not authenticated.");
-  }
+  const { coords, api } = requireReviewApi(await resolveGitlabApi(ctx, repo), GITLAB_SPEC);
   const iid = Number.parseInt(reviewId, 10);
-  const mr = await resolved.api.getMergeRequestRaw(resolved.coords, iid);
-  const capabilities = resolved.api.getMergeRequestCapabilities(mr);
+  const mr = await api.getMergeRequestRaw(coords, iid);
+  const capabilities = api.getMergeRequestCapabilities(mr);
   if (!capabilities.canDeleteSourceBranch) {
     throw new Error(
       capabilities.deleteSourceBranchBlockedReason ??
@@ -335,22 +293,19 @@ export async function deleteGitlabMergedSourceBranch(
   if (!branch) {
     throw new Error("Merge request has no source branch to delete.");
   }
-  await resolved.api.deleteSourceBranch(resolved.coords, branch);
+  await api.deleteSourceBranch(coords, branch);
   return { branch };
 }
 
 export async function checkoutGitlabReviewBranch(
-  ctx: GitlabProviderContext,
+  ctx: ReviewProviderContext,
   repo: Repository,
   reviewId: string,
 ): Promise<{ branch: string }> {
-  const resolved = await resolveGitlabApi(ctx, repo);
-  if (!resolved?.api || !resolved.coords) {
-    throw new Error("GitLab provider is not authenticated.");
-  }
+  const { coords, api } = requireReviewApi(await resolveGitlabApi(ctx, repo), GITLAB_SPEC);
   const iid = Number.parseInt(reviewId, 10);
-  const mr = await resolved.api.getMergeRequestRaw(resolved.coords, iid);
-  const capabilities = resolved.api.getMergeRequestCapabilities(mr);
+  const mr = await api.getMergeRequestRaw(coords, iid);
+  const capabilities = api.getMergeRequestCapabilities(mr);
   if (!capabilities.canCheckoutBranch) {
     throw new Error(
       capabilities.checkoutBranchBlockedReason ??

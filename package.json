@@ -2,7 +2,7 @@
   "name": "gitview",
   "displayName": "GitView",
   "description": "See Git clearly. 3-way merge, history, branches, changes and diffs for VS Code.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "gitview",
   "license": "MIT",
   "icon": "icon.png",
@@ -62,14 +62,28 @@
           "title": "GitView",
           "icon": "$(git-branch)"
         }
+      ],
+      "panel": [
+        {
+          "id": "gitViewPanel",
+          "title": "Git",
+          "icon": "$(git-branch)"
+        }
       ]
     },
     "views": {
       "gitView": [
         {
           "type": "webview",
+          "id": "gitView.launcher",
+          "name": "Git"
+        }
+      ],
+      "gitViewPanel": [
+        {
+          "type": "webview",
           "id": "gitView.workspace",
-          "name": "Git Workspace"
+          "name": "Git"
         }
       ]
     },
@@ -243,6 +257,12 @@
         "key": "alt+shift+m",
         "mac": "cmd+alt+shift+m",
         "when": "git.mergeChangesCount != 0 && editorTextFocus && resourceScheme == file && git.activeResourceHasMergeConflicts"
+      },
+      {
+        "command": "gitView.gitShowDiff",
+        "key": "ctrl+d",
+        "mac": "cmd+d",
+        "when": "explorerViewletFocus && explorerResourceIsFolder == false && resourceScheme == file"
       }
     ],
     "menus": {
@@ -271,6 +291,13 @@
           "command": "gitView.open",
           "group": "navigation@0",
           "when": "resource in git.mergeChanges && !isInDiffEditor && !isMergeEditor && resourceScheme == file"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "gitView.openGit",
+          "when": "view == gitView.workspace",
+          "group": "navigation"
         }
       ],
       "commandPalette": [
@@ -751,7 +778,7 @@
     "watch:ext": "tsc -watch -p ./tsconfig.json",
     "watch:webview": "pnpm --filter gitview-webview run watch",
     "dev:playground": "pnpm --filter gitview-webview run dev:playground",
-    "typecheck": "tsc --noEmit -p ./tsconfig.json && pnpm --filter gitview-webview run typecheck",
+    "typecheck": "tsc --noEmit -p ./tsconfig.json && tsc --noEmit -p ./tsconfig.e2e.json && pnpm --filter gitview-webview run typecheck",
     "lint": "oxlint src webview/src e2e scripts",
     "format": "prettier --write .",
     "test": "pnpm run test:unit",
@@ -790,7 +817,7 @@
       "brace-expansion@5.0.6": "5.0.9",
       "diff@7.0.0": "8.0.3",
       "js-yaml": "4.3.1",
-      "nanoid": "3.3.17",
+      "nanoid": "3.3.18",
       "serialize-javascript@6.0.2": "7.0.5",
       "undici": "7.29.0"
     },

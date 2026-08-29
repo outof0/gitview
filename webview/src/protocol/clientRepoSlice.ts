@@ -1,11 +1,18 @@
 import type { CommitCreatePayload } from "@gitview/shared/protocol";
 import type { CommitCheckKind } from "@gitview/shared/types/commitCheck";
+import type { ConfirmationSubmission } from "@gitview/shared/types/confirmation";
 import type { ProtocolRequestFn } from "./clientCore";
 
 export function createProtocolClientRepoMethods(request: ProtocolRequestFn) {
   return {
     ready: (surface: string) =>
       request("webview.ready", { surface }),
+    openFolder: () => request("workspace.openFolder", {}),
+    cloneRepository: () => request("workspace.clone", {}),
+    manageWorkspaceTrust: () => request("workspace.manageTrust", {}),
+    collapsePanel: () => request("workspace.collapsePanel", {}),
+    addRemote: (repoId: string) =>
+      request("repository.addRemote", { repoId }),
     refreshRepos: (repoId?: string) =>
       request("repo.refresh", { repoId }),
     listStatus: (repoId: string, includeIgnored?: boolean) =>
@@ -14,11 +21,11 @@ export function createProtocolClientRepoMethods(request: ProtocolRequestFn) {
       request("changes.stage", { repoId, paths }),
     unstageFiles: (repoId: string, paths: string[]) =>
       request("changes.unstage", { repoId, paths }),
-    rollbackFiles: (repoId: string, paths: string[], confirmed?: boolean) =>
-      request(
-        "changes.rollback",
-        { repoId, paths, confirmed },
-      ),
+    rollbackFiles: (
+      repoId: string,
+      paths: string[],
+      confirmation?: ConfirmationSubmission,
+    ) => request("changes.rollback", { repoId, paths, confirmation }),
     createCommit: (payload: CommitCreatePayload) =>
       request("commit.create", payload),
     runCommitChecks: (
@@ -28,6 +35,8 @@ export function createProtocolClientRepoMethods(request: ProtocolRequestFn) {
     ) =>
       request("commit.checks", { repoId, paths, kinds }),
     fetch: (repoId: string) => request("sync.fetch", { repoId }),
+    cancelSync: (operationId: string) =>
+      request("sync.cancel", { operationId }),
     pull: (repoId: string, strategy?: "merge" | "rebase" | "ff_only") =>
       request("sync.pull", { repoId, strategy }),
     push: (
@@ -42,6 +51,8 @@ export function createProtocolClientRepoMethods(request: ProtocolRequestFn) {
       request("sync.updateAllRoots", { strategy }),
     openDiff: (repoId: string, path: string, staged?: boolean) =>
       request("diff.open", { repoId, path, staged }),
+    openDiffInEditor: (preview: import("@gitview/shared/types/diff").StandaloneDiffPreview, workspaceRoot?: string) =>
+      request("diff.openInEditor", { preview, workspaceRoot }),
     /** Open Annotate from a Git Compare / diff line (focusLine is 1-based). */
     annotateFromDiff: (relativePath: string, focusLine?: number) =>
       request(

@@ -98,8 +98,8 @@ export async function gitCreateBranch(
     return;
   }
 
-  if (presentation?.openPanelDialog) {
-    await presentation.openPanelDialog({ dialog: "createBranch" });
+  if (presentation?.openCreateBranchDialog) {
+    await presentation.openCreateBranchDialog({ workspaceRoot: repoRoot });
     return;
   }
 
@@ -134,6 +134,13 @@ export async function gitCheckoutBranch(
   const repoRoot = await resolveRepoRoot(resource, workspaceRoot, runtime);
   if (!repoRoot) {
     warnNoGitRepository("Branches");
+    return;
+  }
+
+  if (presentation?.openBranchesDialog) {
+    await presentation.openBranchesDialog({
+      workspaceRoot: workspaceRoot ?? "",
+    });
     return;
   }
 

@@ -76,6 +76,21 @@ export function ConflictMergeView({
                 : `All ${surface.totalChanges} changes resolved`}
             </span>
             <div className="flex-1" />
+            {surface.unresolvedSimpleConflicts > 0 && (
+              <button
+                type="button"
+                className="btn-vscode-secondary h-6 px-2 text-[11px] inline-flex items-center gap-1"
+                onClick={() =>
+                  useGitViewStore.getState().resolveSimpleConflicts()
+                }
+                title="Magic Merge — Resolve simple conflicts"
+                aria-label="Magic Merge: Resolve simple conflicts"
+                data-testid="conflict-merge-magic"
+              >
+                <span aria-hidden="true">✦</span>
+                Magic Merge
+              </button>
+            )}
             <button
               type="button"
               className="h-6 px-3 text-[11px] rounded-vscode bg-[var(--vscode-button-background)] text-[var(--vscode-button-foreground)] disabled:opacity-50"

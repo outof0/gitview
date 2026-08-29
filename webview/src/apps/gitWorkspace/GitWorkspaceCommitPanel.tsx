@@ -30,7 +30,7 @@ export function GitWorkspaceCommitPanel({ ctx }: { ctx: GitWorkspaceController }
   } = ctx;
 
   return (
-    <>
+    <div className="max-[280px]:hidden">
         <CommitPanel
         files={committableFiles()}
         commitScope={commitScope}
@@ -72,6 +72,6 @@ export function GitWorkspaceCommitPanel({ ctx }: { ctx: GitWorkspaceController }
           })
         }
         />
-    </>
+    </div>
   );
 }

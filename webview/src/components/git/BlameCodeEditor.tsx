@@ -257,6 +257,8 @@ export function BlameCodeEditor({
     let scrollDisposable: Monaco.IDisposable | null = null;
     let editor: Monaco.editor.IStandaloneCodeEditor | null = null;
     let model: Monaco.editor.ITextModel | null = null;
+    let resizeObserver: ResizeObserver | null = null;
+    let layoutFrame: number | null = null;
 
     void loadMonaco()
       .then((monaco) => {
@@ -313,6 +315,11 @@ export function BlameCodeEditor({
           },
         });
         editorRef.current = editor;
+        if (typeof ResizeObserver !== "undefined") {
+          resizeObserver = new ResizeObserver(() => editor?.layout());
+          resizeObserver.observe(monacoHostRef.current);
+        }
+        layoutFrame = window.requestAnimationFrame(() => editor?.layout());
         setMonacoReady(true);
         refreshGutterFromModel();
         updateSaveState("clean");
@@ -353,6 +360,10 @@ export function BlameCodeEditor({
       disposed = true;
       changeDisposable?.dispose();
       scrollDisposable?.dispose();
+      resizeObserver?.disconnect();
+      if (layoutFrame !== null) {
+        window.cancelAnimationFrame(layoutFrame);
+      }
       editor?.dispose();
       model?.dispose();
       editorRef.current = null;
@@ -496,7 +507,7 @@ export function BlameCodeEditor({
   return (
     <div
       ref={hostRef}
-      className="nx-editor nx-blame-editor flex-1 min-h-0 relative h-full min-h-full flex flex-col bg-vscode-editor-bg font-editor text-[12.5px] leading-5 overflow-hidden"
+      className="nx-editor nx-blame-editor flex-1 min-h-0 relative h-full flex flex-col bg-vscode-editor-bg font-editor text-[12.5px] leading-5 overflow-hidden"
       style={gridStyle}
       data-testid="blame-editor"
       data-language={language}
@@ -613,7 +624,7 @@ export function BlameCodeEditor({
         {/* Monaco: real editor — edit + syntax highlight */}
         <div
           ref={monacoHostRef}
-          className="flex-1 min-w-0 min-h-0 h-full"
+          className="flex-1 min-w-0 min-h-px h-full self-stretch"
           data-testid="blame-monaco"
           data-language={language}
         />

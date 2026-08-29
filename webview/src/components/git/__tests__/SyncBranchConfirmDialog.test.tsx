@@ -19,12 +19,14 @@ describe("SyncBranchConfirmDialog", () => {
             name: "repo-a",
             available: true,
             currentBranch: "main",
+            targetSha: "abc",
           },
           {
             repoId: "b",
             name: "repo-b",
             available: false,
             currentBranch: "develop",
+            targetSha: null,
             unavailableReason: 'Branch "shared-branch" is not available in this repository.',
           },
         ]}

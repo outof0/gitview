@@ -8,12 +8,20 @@ type RootUpdateResult = {
 type UpdateAllRootsDialogProps = {
   open: boolean;
   results: RootUpdateResult[];
+  activeRepoId?: string | null;
+  retryingRepoIds?: string[];
+  onRetryRoot?: (repoId: string) => void;
+  onShowChanges?: () => void;
   onClose: () => void;
 };
 
 export function UpdateAllRootsDialog({
   open,
   results,
+  activeRepoId = null,
+  retryingRepoIds = [],
+  onRetryRoot,
+  onShowChanges,
   onClose,
 }: UpdateAllRootsDialogProps) {
   if (!open) {
@@ -46,9 +54,36 @@ export function UpdateAllRootsDialog({
                   Updated successfully
                 </div>
               ) : (
-                <div className="text-[var(--vscode-errorForeground)]">
-                  {result.error ?? "Update failed"}
-                </div>
+                <>
+                  <div className="text-[var(--vscode-errorForeground)]">
+                    {result.error ?? "Update failed"}
+                  </div>
+                  <div className="mt-1.5 flex flex-wrap justify-end gap-1.5">
+                    {result.repoId === activeRepoId && onShowChanges ? (
+                      <button
+                        type="button"
+                        className="btn-vscode-secondary h-[var(--nx-row-h)] px-2 text-[11px]"
+                        onClick={onShowChanges}
+                        data-testid={`update-root-show-changes-${result.repoId}`}
+                      >
+                        Show Changes
+                      </button>
+                    ) : null}
+                    {onRetryRoot ? (
+                      <button
+                        type="button"
+                        className="btn-vscode h-[var(--nx-row-h)] px-2 text-[11px]"
+                        onClick={() => onRetryRoot(result.repoId)}
+                        disabled={retryingRepoIds.includes(result.repoId)}
+                        data-testid={`update-root-retry-${result.repoId}`}
+                      >
+                        {retryingRepoIds.includes(result.repoId)
+                          ? "Retrying…"
+                          : "Retry Root"}
+                      </button>
+                    ) : null}
+                  </div>
+                </>
               )}
             </li>
           ))}

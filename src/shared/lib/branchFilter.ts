@@ -1,4 +1,4 @@
-import { isOptionLikeBranchRef } from "../types/messageGuards";
+import { isOptionLikeBranchRef } from "../../types/messageGuards";
 
 export type BranchFilterError = {
   ok: false;

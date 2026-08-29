@@ -12,6 +12,7 @@ export const DEMO_CONFLICT_FILES = [
     relativePath: "src/components/Button.tsx",
     stageCode: "UD",
     conflictCount: 3,
+    changeDigest: null,
   },
   { relativePath: "README.md", stageCode: "UD", conflictCount: 1 },
   { relativePath: "src/long.ts", stageCode: "UU", conflictCount: 1 },

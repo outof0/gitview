@@ -41,18 +41,33 @@ function createExec(executable: () => string, logger: Logger): GitExecFn {
     const startedAt = Date.now();
     const operation = args[0] ?? "unknown";
     try {
+      const wantsBuffer = opts?.encoding === "buffer";
       const result = await execFileAsync(executable(), ["--no-pager", ...args], {
         cwd: repoRoot,
         maxBuffer: opts?.maxBuffer ?? 10 * 1024 * 1024,
         timeout: opts?.timeoutMs ?? DEFAULT_GIT_TIMEOUT_MS,
         signal: opts?.signal,
         env: { ...process.env, ...stableLocaleEnv, ...opts?.env },
+        encoding: wantsBuffer ? "buffer" : "utf8",
       });
       logger.debug("git.command.completed", {
         operation,
         durationMs: Date.now() - startedAt,
       });
-      return { stdout: result.stdout, stderr: result.stderr };
+      if (wantsBuffer) {
+        // stderr stays text so `classifyGitError` keeps working unchanged.
+        return {
+          stdout: "",
+          stderr: Buffer.isBuffer(result.stderr)
+            ? result.stderr.toString("utf8")
+            : result.stderr,
+          stdoutBuffer: result.stdout as Buffer,
+        };
+      }
+      return {
+        stdout: result.stdout as string,
+        stderr: result.stderr as string,
+      };
     } catch (error) {
       logger.warn("git.command.failed", {
         operation,

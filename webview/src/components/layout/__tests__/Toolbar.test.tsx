@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { buildMergeDocument } from "../../../../../src/core/mergeDocument";
 import { Toolbar } from "../Toolbar";
 import { useGitViewStore } from "../../../stores/gitViewStore";
 
@@ -9,6 +10,10 @@ beforeEach(() => {
     whitespacePolicy: "doNotIgnore",
     highlightingMode: "words",
     showBase: false,
+    activeDocument: null,
+    undoStack: [],
+    redoStack: [],
+    statusMessage: null,
   });
 });
 
@@ -26,6 +31,18 @@ function renderToolbar(props?: Partial<Parameters<typeof Toolbar>[0]>) {
       {...props}
     />,
   );
+}
+
+function buildMagicMergeDocument() {
+  return buildMergeDocument({
+    repoRoot: "/r",
+    relativePath: "magic.txt",
+    absolutePath: "/r/magic.txt",
+    base: "This is a simple conflict that can be resolved.\n",
+    ours: "Below is a simple conflict that can be resolved.\n",
+    theirs: "This is a simple conflict that can be resolved automatically.\n",
+    worktree: "Below is a simple conflict that can be resolved.\n",
+  });
 }
 
 describe("Toolbar", () => {
@@ -69,16 +86,46 @@ describe("Toolbar", () => {
     ).toBeNull();
   });
 
-  it("hides resolve-simple when no both_same unresolved", () => {
+  it("hides Magic Merge when no simple conflict is resolvable", () => {
     renderToolbar({ unresolvedSimpleConflicts: 0 });
-    expect(screen.queryByLabelText("Resolve simple conflicts")).toBeNull();
+    expect(
+      screen.queryByLabelText("Magic Merge: Resolve simple conflicts"),
+    ).toBeNull();
+  });
+
+  it("labels Magic Merge clearly and resolves a simple conflict", () => {
+    const doc = buildMagicMergeDocument();
+    useGitViewStore.setState({ activeDocument: doc });
+    renderToolbar({
+      remainingConflicts: 1,
+      totalChanges: 1,
+      unresolvedNonConflicting: 0,
+      unresolvedSimpleConflicts: 1,
+    });
+
+    const button = screen.getByRole("button", {
+      name: "Magic Merge: Resolve simple conflicts",
+    });
+    expect(button.getAttribute("title")).toBe(
+      "Magic Merge — Resolve simple conflicts",
+    );
+    fireEvent.click(button);
+
+    const conflict = useGitViewStore
+      .getState()
+      .activeDocument?.blocks.find((block) => block.kind === "conflict");
+    expect(conflict?.resultText).toBe(
+      "Below is a simple conflict that can be resolved automatically.",
+    );
   });
 
   it("opens the Whitespace dropdown and selects a policy", () => {
     renderToolbar();
     fireEvent.click(screen.getByTitle("Whitespace policy"));
     fireEvent.click(screen.getByText("Ignore whitespaces"));
-    expect(useGitViewStore.getState().whitespacePolicy).toBe("ignoreWhitespaces");
+    expect(useGitViewStore.getState().whitespacePolicy).toBe(
+      "ignoreWhitespaces",
+    );
   });
 
   it("opens the Highlighting dropdown and selects a mode", () => {

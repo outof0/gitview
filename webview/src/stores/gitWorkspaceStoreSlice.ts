@@ -11,6 +11,11 @@ import type { StashListSnapshot } from "@gitview/shared/types/stash";
 import type { GitFileStatus, StatusSnapshot } from "@gitview/shared/types/status";
 import type { TagListSnapshot } from "@gitview/shared/types/tag";
 import type { WorktreeListSnapshot } from "@gitview/shared/types/worktree";
+import {
+  isSyncOperationActive,
+  type SyncOperationEvent,
+  type SyncOperationKind,
+} from "@gitview/shared/types/sync";
 import type {
   ReviewDetailsSnapshot,
   ReviewFilters,
@@ -32,6 +37,27 @@ function defaultCommitScope(files: GitFileStatus[]): Set<string> {
   return new Set(
     [...groups.changes, ...groups.unversioned].map((file) => file.path),
   );
+}
+
+const MAX_RECENT_SYNC_OPERATIONS = 20;
+
+function trimSyncOperations(
+  operations: GitWorkspaceState["syncOperations"],
+): GitWorkspaceState["syncOperations"] {
+  const terminalCount = operations.filter(
+    ({ event }) => !isSyncOperationActive(event),
+  ).length;
+  let toRemove = terminalCount - MAX_RECENT_SYNC_OPERATIONS;
+  if (toRemove <= 0) {
+    return operations;
+  }
+  return operations.filter(({ event }) => {
+    if (toRemove > 0 && !isSyncOperationActive(event)) {
+      toRemove -= 1;
+      return false;
+    }
+    return true;
+  });
 }
 
 export function createGitWorkspaceStoreSlice(set: SetState, get: GetState) {
@@ -64,13 +90,34 @@ export function createGitWorkspaceStoreSlice(set: SetState, get: GetState) {
     setNativeFocusSurface: (surface: GitWorkspaceState["nativeFocusSurface"]) =>
       set({ nativeFocusSurface: surface }),
     setError: (error: string | null) => set({ error }),
-    applyRepoSnapshot: (snapshot: RepositorySnapshot) =>
+    applyRepoSnapshot: (snapshot: RepositorySnapshot) => {
+      const activeRepoChanged =
+        get().repoSnapshot?.activeRepoId !== snapshot.activeRepoId;
       set({
         repoSnapshot: snapshot,
         loading: false,
-        error: null,
-      }),
+        ...(activeRepoChanged
+          ? {
+              statusSnapshot: null,
+              selectedFilePath: null,
+              diffDocument: null,
+              diffError: null,
+              commitScope: new Set<string>(),
+              branchSnapshot: null,
+              branchCompareSnapshot: null,
+              blameSnapshot: null,
+              logSnapshot: null,
+              reviewSnapshot: null,
+              reviewDetails: null,
+            }
+          : {}),
+      });
+    },
     applyStatusSnapshot: (snapshot: StatusSnapshot) => {
+      const repoSnapshot = get().repoSnapshot;
+      if (repoSnapshot && snapshot.repoId !== repoSnapshot.activeRepoId) {
+        return;
+      }
       const prevScope = get().commitScope;
       const activeList =
         snapshot.mode === "changelist"
@@ -89,6 +136,64 @@ export function createGitWorkspaceStoreSlice(set: SetState, get: GetState) {
         statusSnapshot: snapshot,
         commitScope,
       });
+    },
+    applySyncOperation: (event: SyncOperationEvent) => {
+      const operations = get().syncOperations;
+      const index = operations.findIndex(
+        (operation) => operation.event.operationId === event.operationId,
+      );
+      if (index >= 0) {
+        const current = operations[index];
+        if (!current || event.sequence <= current.event.sequence) {
+          return;
+        }
+        const next = [...operations];
+        next[index] = { event, outcomeUnknown: false };
+        set({ syncOperations: trimSyncOperations(next) });
+        return;
+      }
+      set({
+        syncOperations: trimSyncOperations([
+          ...operations,
+          { event, outcomeUnknown: false },
+        ]),
+      });
+    },
+    markSyncOperationOutcomeUnknown: (operationId: string) => {
+      const operations = get().syncOperations;
+      const index = operations.findIndex(
+        (operation) => operation.event.operationId === operationId,
+      );
+      const current = operations[index];
+      if (!current || !isSyncOperationActive(current.event)) {
+        return;
+      }
+      const next = [...operations];
+      next[index] = { ...current, outcomeUnknown: true };
+      set({ syncOperations: next });
+    },
+    dismissSyncOperation: (operationId: string) =>
+      set({
+        syncOperations: get().syncOperations.filter(
+          (operation) => operation.event.operationId !== operationId,
+        ),
+      }),
+    syncOperationForRepository: (
+      repoId: string,
+      operation?: SyncOperationKind,
+    ) => {
+      const matches = get().syncOperations.filter(
+        ({ event }) =>
+          event.repoIds.includes(repoId) &&
+          (operation === undefined || event.operation === operation),
+      );
+      for (let index = matches.length - 1; index >= 0; index -= 1) {
+        const match = matches[index];
+        if (match && isSyncOperationActive(match.event)) {
+          return match;
+        }
+      }
+      return matches.at(-1) ?? null;
     },
     applyBranchSnapshot: (snapshot: BranchListSnapshot) =>
       set({ branchSnapshot: snapshot, branchesLoading: false }),

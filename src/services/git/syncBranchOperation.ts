@@ -13,15 +13,20 @@ export function createSyncBranchOperationApi(execGit: GitExecFn) {
     const targets: SyncBranchTarget[] = [];
     for (const repo of repos) {
       const entries = await branches.listBranchEntries(repo.rootPath, repo.id);
-      const isRemoteRef = ref.includes("/");
-      const available = isRemoteRef
-        ? entries.some((entry) => entry.remote && entry.fullName === ref)
-        : entries.some((entry) => !entry.remote && entry.name === ref);
+      // Look the ref up instead of classifying it by spelling. A local branch
+      // with a slash in its name (`feature/login`) used to be searched for among
+      // remotes only, and was reported as unavailable in every repository.
+      // Local wins when both exist — that is what the user means.
+      const target =
+        entries.find((entry) => !entry.remote && entry.name === ref) ??
+        entries.find((entry) => entry.remote && entry.fullName === ref);
+      const available = target?.headSha != null;
       targets.push({
         repoId: repo.id,
         name: repo.name,
         available,
         currentBranch: repo.currentBranch,
+        targetSha: target?.headSha ?? null,
         unavailableReason: available
           ? undefined
           : `Branch "${ref}" is not available in this repository.`,
@@ -35,7 +40,7 @@ export function createSyncBranchOperationApi(execGit: GitExecFn) {
     ref: string,
     opts?: CheckoutOptions,
   ): Promise<void> {
-    if (ref.includes("/")) {
+    if ((await branches.resolveRefKind(repoRoot, ref)) === "remote") {
       await branches.checkoutRemoteAsTracking(repoRoot, ref, opts);
       return;
     }
@@ -46,8 +51,9 @@ export function createSyncBranchOperationApi(execGit: GitExecFn) {
     repos: Repository[],
     ref: string,
     opts?: CheckoutOptions,
+    plannedTargets?: SyncBranchTarget[],
   ): Promise<SyncBranchResult[]> {
-    const targets = await planTargets(repos, ref);
+    const targets = plannedTargets ?? (await planTargets(repos, ref));
     const applicable = targets.filter((target) => target.available);
     const repoById = new Map(repos.map((repo) => [repo.id, repo]));
     const results: SyncBranchResult[] = [];

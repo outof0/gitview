@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { GIT_PANEL_SURFACES, PROTOCOL_VERSION } from "@gitview/shared/protocol";
+import type { SyncOperationEvent } from "@gitview/shared/types/sync";
 import { GitWorkspaceApp } from "../GitWorkspaceApp";
 import { useGitWorkspaceStore } from "../../stores/gitWorkspaceStore";
 
@@ -11,7 +12,6 @@ const posted: unknown[] = [];
 const DIALOG_TEST_IDS: Record<string, string> = {
   stash: "stash-changes-dialog",
   unstash: "unstash-dialog",
-  createBranch: "create-branch-dialog",
   merge: "merge-branch-dialog",
   rebase: "rebase-onto-dialog",
   commit: "commit-dialog",
@@ -25,6 +25,18 @@ function sendOpenDialog(dialog: string) {
         protocolVersion: PROTOCOL_VERSION,
         type: "git.openDialog",
         payload: { dialog },
+      },
+    }),
+  );
+}
+
+function sendSyncOperation(payload: SyncOperationEvent) {
+  window.dispatchEvent(
+    new MessageEvent("message", {
+      data: {
+        protocolVersion: PROTOCOL_VERSION,
+        type: "sync.operation",
+        payload,
       },
     }),
   );
@@ -47,6 +59,7 @@ afterEach(() => {
     dialogs: {},
     branchesOpen: false,
     nativeFocusSurface: null,
+    syncOperations: [],
   });
 });
 
@@ -74,9 +87,9 @@ describe("native Git submenu → panel dialog", () => {
       expect(screen.getByTestId("stash-changes-dialog")).toBeTruthy();
     });
 
-    sendOpenDialog("createBranch");
+    sendOpenDialog("merge");
     await waitFor(() => {
-      expect(screen.getByTestId("create-branch-dialog")).toBeTruthy();
+      expect(screen.getByTestId("merge-branch-dialog")).toBeTruthy();
     });
     expect(screen.queryByTestId("stash-changes-dialog")).toBeNull();
   });
@@ -94,21 +107,21 @@ describe("native Git submenu → panel dialog", () => {
     });
     expect(screen.queryByTestId("unstash-dialog")).toBeNull();
 
-    sendOpenDialog("createBranch");
+    sendOpenDialog("merge");
     await waitFor(() => {
-      expect(screen.getByTestId("create-branch-dialog")).toBeTruthy();
+      expect(screen.getByTestId("merge-branch-dialog")).toBeTruthy();
     });
     expect(screen.queryByTestId("branches-popup")).toBeNull();
   });
 
   it("hides the workspace behind a menu-opened dialog until it closes", async () => {
     render(<GitWorkspaceApp />);
-    sendOpenDialog("createBranch");
+    sendOpenDialog("merge");
     await waitFor(() => {
       expect(screen.getByTestId("git-native-dialog-backdrop")).toBeTruthy();
     });
 
-    useGitWorkspaceStore.getState().closeDialog("createBranch");
+    useGitWorkspaceStore.getState().closeDialog("merge");
     await waitFor(() => {
       expect(screen.queryByTestId("git-native-dialog-backdrop")).toBeNull();
     });
@@ -116,12 +129,42 @@ describe("native Git submenu → panel dialog", () => {
 
   it("leaves the workspace visible for a dialog opened in the panel itself", async () => {
     render(<GitWorkspaceApp />);
-    useGitWorkspaceStore.getState().openDialog("createBranch", {
-      startPoint: "",
+    useGitWorkspaceStore.getState().openDialog("merge", {
+      ref: "",
     });
     await waitFor(() => {
-      expect(screen.getByTestId("create-branch-dialog")).toBeTruthy();
+      expect(screen.getByTestId("merge-branch-dialog")).toBeTruthy();
     });
     expect(screen.queryByTestId("git-native-dialog-backdrop")).toBeNull();
+  });
+});
+
+describe("sync lifecycle subscription", () => {
+  it("applies host lifecycle events to the workspace store", async () => {
+    render(<GitWorkspaceApp />);
+    sendSyncOperation({
+      operationId: "sync-1",
+      requestId: "fetch-1",
+      operation: "fetch",
+      repoIds: ["repo-1"],
+      sequence: 2,
+      timestamp: 1,
+      state: "running",
+      phase: "fetching",
+      cancellable: true,
+    });
+
+    await waitFor(() => {
+      expect(useGitWorkspaceStore.getState().syncOperations).toMatchObject([
+        {
+          outcomeUnknown: false,
+          event: {
+            operationId: "sync-1",
+            state: "running",
+            sequence: 2,
+          },
+        },
+      ]);
+    });
   });
 });

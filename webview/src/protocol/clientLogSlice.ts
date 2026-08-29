@@ -1,4 +1,5 @@
 import type { GitMenuActionPayload } from "@gitview/types";
+import type { ConfirmationSubmission } from "@gitview/shared/types/confirmation";
 import type { DiffLineSelection } from "@gitview/shared/types/diff";
 import type { LogQueryFilters, ResetMode } from "@gitview/shared/types/log";
 import type { ProtocolRequestFn } from "./clientCore";
@@ -6,7 +7,7 @@ import type { ProtocolRequestFn } from "./clientCore";
 export function createProtocolClientLogMethods(request: ProtocolRequestFn) {
   return {
     queryLog: (repoId: string, opts?: LogQueryFilters) =>
-      request("log.query", { repoId, ...opts }),
+      request("log.query", { repoId, ...opts }, 60_000),
     logFileDiff: (
       repoId: string,
       sha: string,
@@ -71,6 +72,7 @@ export function createProtocolClientLogMethods(request: ProtocolRequestFn) {
         hunkIndexes?: number[];
         lines?: DiffLineSelection[];
         confirmed?: boolean;
+        confirmation?: ConfirmationSubmission;
       },
     ) =>
       request(
@@ -82,10 +84,11 @@ export function createProtocolClientLogMethods(request: ProtocolRequestFn) {
       sha: string,
       mode: ResetMode,
       confirmed?: boolean,
+      confirmation?: ConfirmationSubmission,
     ) =>
       request(
         "log.reset",
-        { repoId, sha, mode, confirmed },
+        { repoId, sha, mode, confirmed, confirmation },
       ),
     undoLastCommit: (repoId: string, confirmed?: boolean) =>
       request(
@@ -97,11 +100,11 @@ export function createProtocolClientLogMethods(request: ProtocolRequestFn) {
         "log.createBranchFromCommit",
         { repoId, name, sha },
       ),
-    dropCommit: (repoId: string, sha: string, confirmed?: boolean) =>
-      request(
-        "log.dropCommit",
-        { repoId, sha, confirmed },
-      ),
+    dropCommit: (
+      repoId: string,
+      sha: string,
+      confirmation?: ConfirmationSubmission,
+    ) => request("log.dropCommit", { repoId, sha, confirmation }),
     editCommitMessage: (
       repoId: string,
       sha: string,
@@ -117,11 +120,15 @@ export function createProtocolClientLogMethods(request: ProtocolRequestFn) {
       sha: string,
       action: "squash" | "fixup" | "drop",
       confirmed?: boolean,
+      confirmation?: ConfirmationSubmission,
     ) =>
-      request(
-        "log.rewrite",
-        { repoId, sha, action, confirmed },
-      ),
+      request("log.rewrite", {
+        repoId,
+        sha,
+        action,
+        confirmed,
+        confirmation,
+      }),
     extractChanges: (repoId: string, sha: string, paths?: string[]) =>
       request(
         "log.extractChanges",

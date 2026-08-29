@@ -1,22 +1,35 @@
+import type { ConfirmationSubmission } from "@gitview/shared/types/confirmation";
 import type { ProtocolRequestFn } from "./clientCore";
 
 export function createProtocolClientBranchMethods(request: ProtocolRequestFn) {
   return {
     listBranches: (repoId: string) =>
-      request("branch.list", { repoId }),
+      request("branch.list", { repoId }, 60_000),
     checkoutBranch: (
       repoId: string,
       ref: string,
-      opts?: { smart?: boolean; force?: boolean },
+      opts?: {
+        smart?: boolean;
+        force?: boolean;
+        confirmation?: ConfirmationSubmission;
+      },
     ) =>
-      request(
-        "branch.checkout",
-        { repoId, ref, smart: opts?.smart, force: opts?.force },
-      ),
+      request("branch.checkout", {
+        repoId,
+        ref,
+        smart: opts?.smart,
+        force: opts?.force,
+        confirmation: opts?.confirmation,
+      }),
     syncBranchOperation: (
       repoId: string,
       ref: string,
-      opts?: { smart?: boolean; force?: boolean; confirmed?: boolean },
+      opts?: {
+        smart?: boolean;
+        force?: boolean;
+        confirmed?: boolean;
+        confirmation?: ConfirmationSubmission;
+      },
     ) =>
       request(
         "branch.syncOperation",
@@ -26,6 +39,7 @@ export function createProtocolClientBranchMethods(request: ProtocolRequestFn) {
           smart: opts?.smart,
           force: opts?.force,
           confirmed: opts?.confirmed,
+          confirmation: opts?.confirmation,
         },
       ),
     createBranch: (

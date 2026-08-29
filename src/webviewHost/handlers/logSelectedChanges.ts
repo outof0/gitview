@@ -1,5 +1,9 @@
-import { validateMutationPreconditions } from "../../application/mutationPreconditions";
+import {
+  requireDropSelectedConfirmation,
+  validateMutationPreconditions,
+} from "../../application/mutationPreconditions";
 import { createError } from "../../shared/errors/codes";
+import type { ConfirmationSubmission } from "../../shared/types/confirmation";
 import {
   createHostError,
   createHostResponse,
@@ -208,7 +212,7 @@ export function createLogSelectedChangesHandlers(apis: LogHandlerApis) {
       filePath: unknown,
       hunkIndexes?: number[],
       lines?: unknown[],
-      confirmed = false,
+      confirmation?: ConfirmationSubmission,
     ) {
       const repo = await resolveRepo(repoId);
       const protectedCheck = deps.protectionService.checkDestructiveAction(
@@ -229,18 +233,6 @@ export function createLogSelectedChangesHandlers(apis: LogHandlerApis) {
           createHostError(
             requestId,
             createError("INVALID_REQUEST", "Commit SHA is required."),
-          ),
-        );
-        return;
-      }
-      if (confirmDestructiveEnabled(deps) && !confirmed) {
-        deps.postMessage(
-          createHostError(
-            requestId,
-            createError(
-              "CONFIRMATION_REQUIRED",
-              "Dropping selected changes rewrites HEAD and requires confirmation.",
-            ),
           ),
         );
         return;
@@ -266,6 +258,19 @@ export function createLogSelectedChangesHandlers(apis: LogHandlerApis) {
         return;
       }
       const path = validated.paths[0]!;
+      if (confirmDestructiveEnabled(deps)) {
+        const confirmationCheck = requireDropSelectedConfirmation(
+          repo,
+          sha.trim(),
+          path,
+          selection,
+          confirmation,
+        );
+        if (!confirmationCheck.ok) {
+          deps.postMessage(createHostError(requestId, confirmationCheck.error));
+          return;
+        }
+      }
       try {
         await selectedChanges.dropSelectedFromHead(
           repo.rootPath,

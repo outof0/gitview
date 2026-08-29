@@ -41,6 +41,7 @@ export function GitCommitList({
   currentSha = null,
   highlightCurrentBranch = false,
   currentBranchHeadSha = null,
+  compactRows = false,
   loading,
   emptyLabel = "No commits found.",
 }: GitCommitListProps) {
@@ -152,6 +153,7 @@ export function GitCommitList({
             }
             issueTrackerBaseUrl={issueTrackerBaseUrl}
             blameDensity={blameDensity}
+            compact={compactRows}
             graphWidth={graphDensity && graphLayout ? graphLayout.width : null}
             selectedRef={selectedRef}
             onSelect={onSelect}

@@ -9,6 +9,7 @@ import { applyGitViewMonacoTheme } from "../../lib/monacoTheme";
 import { detectLanguage } from "../merge/syntax";
 import { getMonacoIfLoaded, loadMonaco } from "../merge/monacoSetup";
 import { cn } from "../../lib/cn";
+import { diffLines } from "../../../../src/core/lcs";
 
 export type DiffEditorContextMenuEvent = {
   x: number;
@@ -81,7 +82,11 @@ function toDiffEditorOptions(
     ignoreTrimWhitespace: options.trimWhitespace,
     diffWordWrap: options.softWrap ? "on" : "off",
     hideUnchangedRegions: { enabled: options.collapseUnchanged },
-  };
+    // `advanced` needs a real web worker (editorWorker) — our vscode-webview
+    // uses a noop blob worker to avoid CSP, so `getLineChanges()` stays null
+    // and the diff never paints. `legacy` runs on the main thread.
+    diffAlgorithm: "legacy",
+  } as Monaco.editor.IDiffEditorOptions;
 }
 
 /**
@@ -113,11 +118,115 @@ function readMirroredGutter(
   };
 }
 
+function fallbackDiffCount(left: string, right: string): number {
+  if (left === right) {
+    return 0;
+  }
+  if (left === "" || right === "") {
+    return 1;
+  }
+  const l = left.split("\n");
+  const r = right.split("\n");
+  let count = 0;
+  let i = 0;
+  const max = Math.max(l.length, r.length);
+  while (i < max) {
+    if (l[i] === r[i]) {
+      i += 1;
+      continue;
+    }
+    count += 1;
+    while (i < max && l[i] !== r[i]) {
+      i += 1;
+    }
+  }
+  return count || 1;
+}
+
+function applyDiffDecorations(
+  monaco: typeof import("monaco-editor/editor"),
+  originalCollection: import("monaco-editor/editor").editor.IEditorDecorationsCollection | null,
+  modifiedCollection: import("monaco-editor/editor").editor.IEditorDecorationsCollection | null,
+  left: string,
+  right: string,
+): number {
+  try {
+    const a = left.split("\n");
+    const b = right.split("\n");
+    const ops = diffLines(a, b);
+    const orig: import("monaco-editor/editor").editor.IModelDeltaDecoration[] = [];
+    const mod: import("monaco-editor/editor").editor.IModelDeltaDecoration[] = [];
+    for (const op of ops) {
+      if (op.type === "delete") {
+        for (let i = op.aStart; i < op.aEnd; i += 1) {
+          orig.push({
+            range: new monaco.Range(i + 1, 1, i + 1, 1),
+            options: {
+              isWholeLine: true,
+              className: "monaco-diff-removed",
+              marginClassName: "monaco-diff-removed",
+            },
+          });
+        }
+      } else if (op.type === "insert") {
+        for (let j = op.bStart; j < op.bEnd; j += 1) {
+          mod.push({
+            range: new monaco.Range(j + 1, 1, j + 1, 1),
+            options: {
+              isWholeLine: true,
+              className: "monaco-diff-added",
+              marginClassName: "monaco-diff-added",
+            },
+          });
+        }
+      } else if (op.type === "replace") {
+        for (let i = op.aStart; i < op.aEnd; i += 1) {
+          orig.push({
+            range: new monaco.Range(i + 1, 1, i + 1, 1),
+            options: {
+              isWholeLine: true,
+              className: "monaco-diff-changed",
+              marginClassName: "monaco-diff-changed",
+            },
+          });
+        }
+        for (let j = op.bStart; j < op.bEnd; j += 1) {
+          mod.push({
+            range: new monaco.Range(j + 1, 1, j + 1, 1),
+            options: {
+              isWholeLine: true,
+              className: "monaco-diff-changed",
+              marginClassName: "monaco-diff-changed",
+            },
+          });
+        }
+      }
+    }
+    originalCollection?.set(orig);
+    modifiedCollection?.set(mod);
+    return ops.filter((op) => op.type !== "equal").length;
+  } catch {
+    // Diff too large — highlight whole file as single hunk
+    const leftEmpty = left === "";
+    const rightEmpty = right === "";
+    if (!leftEmpty || !rightEmpty) {
+      // Clear and fallback to single hunk count
+      originalCollection?.set([]);
+      modifiedCollection?.set([]);
+    }
+    return fallbackDiffCount(left, right);
+  }
+}
+
 /** The strip owns the pane's right edge, so Monaco's gutter and slider stand down. */
 function originalPaneOptions(sideBySide: boolean): Monaco.editor.IEditorOptions {
   return {
     lineNumbers: sideBySide ? "off" : "on",
-    scrollbar: { vertical: sideBySide ? "hidden" : "auto" },
+    scrollbar: {
+      vertical: sideBySide ? "hidden" : "auto",
+      verticalScrollbarSize: 10,
+      horizontalScrollbarSize: 10,
+    },
   };
 }
 
@@ -139,6 +248,8 @@ export function MonacoDiffViewer({
   const editorRef = useRef<Monaco.editor.IStandaloneDiffEditor | null>(null);
   const originalModelRef = useRef<Monaco.editor.ITextModel | null>(null);
   const modifiedModelRef = useRef<Monaco.editor.ITextModel | null>(null);
+  const originalDecorationsRef = useRef<Monaco.editor.IEditorDecorationsCollection | null>(null);
+  const modifiedDecorationsRef = useRef<Monaco.editor.IEditorDecorationsCollection | null>(null);
   const onContextMenuRef = useRef(onEditorContextMenu);
   onContextMenuRef.current = onEditorContextMenu;
   const onDiffCountChangeRef = useRef(onDiffCountChange);
@@ -218,7 +329,10 @@ export function MonacoDiffViewer({
       readOnly,
       originalEditable: false,
       enableSplitViewResizing: true,
-      renderOverviewRuler: true,
+      renderOverviewRuler: false,
+      overviewRulerLanes: 0,
+      overviewRulerBorder: false,
+      hideCursorInOverviewRuler: true,
       renderIndicators: true,
       renderMarginRevertIcon: false,
       automaticLayout: true,
@@ -243,14 +357,13 @@ export function MonacoDiffViewer({
       scrollbar: {
         vertical: "auto",
         horizontal: "auto",
+        verticalScrollbarSize: 10,
+        horizontalScrollbarSize: 10,
         useShadows: false,
       },
       renderGutterMenu: false,
       ...toDiffEditorOptions(optionsRef.current),
     });
-
-    editor.setModel({ original, modified });
-    editorRef.current = editor;
 
     const bindContextMenu = (
       sideEditor: Monaco.editor.ICodeEditor,
@@ -280,11 +393,120 @@ export function MonacoDiffViewer({
       disposables.push(bindContextMenu(editor.getOriginalEditor(), "left"));
       disposables.push(bindContextMenu(editor.getModifiedEditor(), "right"));
     }
+    // Main-thread diff decorations — do not rely on Monaco's worker (noop in
+    // vscode-webview). This guarantees highlight for M/A/D even when
+    // `getLineChanges()` stays null.
+    const origEditor = editor.getOriginalEditor() as unknown as {
+      createDecorationsCollection?: () => Monaco.editor.IEditorDecorationsCollection;
+      deltaDecorations?: (
+        oldDecorations: string[],
+        newDecorations: Monaco.editor.IModelDeltaDecoration[],
+      ) => string[];
+    };
+    const modEditor = editor.getModifiedEditor() as unknown as {
+      createDecorationsCollection?: () => Monaco.editor.IEditorDecorationsCollection;
+      deltaDecorations?: (
+        oldDecorations: string[],
+        newDecorations: Monaco.editor.IModelDeltaDecoration[],
+      ) => string[];
+    };
+    const makeCollection = (
+      ed: typeof origEditor,
+    ): Monaco.editor.IEditorDecorationsCollection => {
+      if (typeof ed.createDecorationsCollection === "function") {
+        return ed.createDecorationsCollection();
+      }
+      let ids: string[] = [];
+      return {
+        set: (decorations: Monaco.editor.IModelDeltaDecoration[]) => {
+          ids = ed.deltaDecorations?.(ids, decorations) ?? [];
+        },
+        clear: () => {
+          if (ids.length) {
+            ed.deltaDecorations?.(ids, []);
+            ids = [];
+          }
+        },
+        dispose: () => {
+          if (ids.length) {
+            ed.deltaDecorations?.(ids, []);
+            ids = [];
+          }
+        },
+      } as unknown as Monaco.editor.IEditorDecorationsCollection;
+    };
+    originalDecorationsRef.current = makeCollection(origEditor);
+    modifiedDecorationsRef.current = makeCollection(modEditor);
+    const applyOwnDiff = (left: string, right: string) => {
+      const count = applyDiffDecorations(
+        monaco,
+        originalDecorationsRef.current,
+        modifiedDecorationsRef.current,
+        left,
+        right,
+      );
+      onDiffCountChangeRef.current?.(count);
+      return count;
+    };
+    const notifyDiffCount = () => {
+      const changes = editor.getLineChanges();
+      if (changes !== null && changes !== undefined) {
+        // Prefer Monaco's count when available, but keep our decorations as
+        // fallback — they are already applied via applyOwnDiff.
+        onDiffCountChangeRef.current?.(changes.length);
+        return true;
+      }
+      return false;
+    };
     disposables.push(
       editor.onDidUpdateDiff(() => {
-        onDiffCountChangeRef.current?.(editor.getLineChanges()?.length ?? 0);
+        notifyDiffCount();
       }),
     );
+
+    editor.setModel({ original, modified });
+    editorRef.current = editor;
+    // Apply our diff immediately so highlight and count appear even if Monaco's
+    // worker never responds. This also fixes the "1 difference" but no color.
+    applyOwnDiff(leftText, rightText);
+    // Still poll Monaco's native diff to keep count in sync if it later reports.
+    let pollId: number | null = null;
+    let rafId: number | null = null;
+    const cancelPoll = () => {
+      if (pollId !== null) {
+        window.clearInterval(pollId);
+        pollId = null;
+      }
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+    };
+    disposables.push({ dispose: cancelPoll });
+    const schedulePoll = () => {
+      if (notifyDiffCount()) {
+        cancelPoll();
+        return;
+      }
+      let attempts = 0;
+      pollId = window.setInterval(() => {
+        attempts += 1;
+        if (notifyDiffCount()) {
+          cancelPoll();
+          return;
+        }
+        if (attempts > 40) {
+          cancelPoll();
+        }
+      }, 50);
+      rafId = window.requestAnimationFrame(() => {
+        if (notifyDiffCount()) {
+          cancelPoll();
+        }
+      });
+    };
+    queueMicrotask(schedulePoll);
+    requestAnimationFrame(schedulePoll);
 
     const originalEditor = editor.getOriginalEditor();
     const syncGutter = () => {
@@ -308,10 +530,28 @@ export function MonacoDiffViewer({
     }
     disposables.push(editor.onDidUpdateDiff(syncGutter));
 
+    const host = hostRef.current;
+    const resizeObserver =
+      typeof ResizeObserver === "function" && host
+        ? new ResizeObserver(() => {
+            editor.layout();
+          })
+        : null;
+    resizeObserver?.observe(host);
+    requestAnimationFrame(() => {
+      editor.layout();
+      syncGutter();
+    });
+
     return () => {
+      resizeObserver?.disconnect();
       for (const d of disposables) {
         d.dispose();
       }
+      originalDecorationsRef.current?.clear();
+      modifiedDecorationsRef.current?.clear();
+      originalDecorationsRef.current = null;
+      modifiedDecorationsRef.current = null;
       editor.dispose();
       editorRef.current = null;
       original.dispose();
@@ -331,11 +571,14 @@ export function MonacoDiffViewer({
     if (!editor || !original || !modified || !monacoApi) {
       return;
     }
+    let textChanged = false;
     if (original.getValue() !== leftText) {
       original.setValue(leftText);
+      textChanged = true;
     }
     if (modified.getValue() !== rightText) {
       modified.setValue(rightText);
+      textChanged = true;
     }
     const lang = language ?? "plaintext";
     if (original.getLanguageId() !== lang) {
@@ -346,6 +589,72 @@ export function MonacoDiffViewer({
     }
     monacoApi.editor.setTheme(applyGitViewMonacoTheme(monacoApi, themeKind));
     editor.layout();
+    if (textChanged) {
+      applyDiffDecorations(
+        monacoApi,
+        originalDecorationsRef.current,
+        modifiedDecorationsRef.current,
+        leftText,
+        rightText,
+      );
+    }
+    // Text changed → Monaco recomputes diff async. getLineChanges() is null
+    // until then, so poll until onDidUpdateDiff fires, otherwise toolbar
+    // stays "Comparing…" when clicking rapidly between files (same language).
+    if (textChanged && onDiffCountChangeRef.current) {
+      let attempts = 0;
+      let interval: number | null = null;
+      let raf: number | null = null;
+      const tryNotify = () => {
+        const changes = editor.getLineChanges();
+        if (changes !== null && changes !== undefined) {
+          onDiffCountChangeRef.current?.(changes.length);
+          return true;
+        }
+        return false;
+      };
+      if (tryNotify()) {
+        return undefined;
+      }
+      interval = window.setInterval(() => {
+        attempts += 1;
+        if (tryNotify()) {
+          if (interval !== null) {
+            window.clearInterval(interval);
+          }
+          if (raf !== null) {
+            window.cancelAnimationFrame(raf);
+          }
+          return;
+        }
+        if (attempts > 40) {
+          if (interval !== null) {
+            window.clearInterval(interval);
+          }
+          if (raf !== null) {
+            window.cancelAnimationFrame(raf);
+          }
+          onDiffCountChangeRef.current?.(fallbackDiffCount(leftText, rightText));
+        }
+      }, 50);
+      raf = window.requestAnimationFrame(() => {
+        if (tryNotify()) {
+          if (interval !== null) {
+            window.clearInterval(interval);
+          }
+          window.cancelAnimationFrame(raf!);
+        }
+      });
+      return () => {
+        if (interval !== null) {
+          window.clearInterval(interval);
+        }
+        if (raf !== null) {
+          window.cancelAnimationFrame(raf);
+        }
+      };
+    }
+    return undefined;
   }, [leftText, rightText, language, monacoApi, themeKind]);
 
   const { sideBySide, trimWhitespace, collapseUnchanged, softWrap } = options;

@@ -32,6 +32,11 @@ type CoreRequestType = Extract<WebviewToHost, { type: string }>["type"];
  */
 const ROUTES = {
   "webview.ready": dispatchRepo,
+  "workspace.openFolder": dispatchRepo,
+  "workspace.clone": dispatchRepo,
+  "workspace.manageTrust": dispatchRepo,
+  "workspace.collapsePanel": dispatchRepo,
+  "repository.addRemote": dispatchRepo,
   "repo.refresh": dispatchRepo,
   "status.list": dispatchRepo,
 
@@ -44,6 +49,7 @@ const ROUTES = {
   "sync.pull": dispatchChanges,
   "sync.push": dispatchChanges,
   "sync.updateAllRoots": dispatchChanges,
+  "sync.cancel": dispatchChanges,
 
   "branch.list": dispatchBranches,
   "branch.checkout": dispatchBranches,
@@ -64,6 +70,8 @@ const ROUTES = {
   "operation.skip": dispatchDiff,
   "operation.abort": dispatchDiff,
   "diff.open": dispatchDiff,
+  "diff.openInEditor": dispatchDiff,
+  "diff.numstat": dispatchDiff,
   "diff.annotate": null,
   "changelist.create": dispatchDiff,
   "changelist.activate": dispatchDiff,

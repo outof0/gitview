@@ -1,7 +1,44 @@
 import * as vscode from "vscode";
 import { activateGitView } from "./activation";
-import { openGitWorkspace } from "./commands/openGitWorkspace";
-import { openGitView } from "./commands/openGitView";
+
+// Suppress noisy deprecations and non-critical telemetry failures that surface
+// as "Exception has occurred" in the Debug Console when running the
+// Extension Development Host (e.g. `url.parse()` DEP0169 and
+// `Missing dataLength in event` from Application Insights).
+if (typeof process !== "undefined" && typeof process.on === "function") {
+  try {
+    process.on("warning", (warning: unknown) => {
+      const w = warning as { message?: string; code?: string; name?: string };
+      const msg = String(w.message ?? w);
+      const code = String(w.code ?? "");
+      if (msg.includes("url.parse()") || code === "DEP0169" || msg.includes("DEP0169")) {
+        return;
+      }
+      // Re-emit other warnings so they remain visible
+      // eslint-disable-next-line no-console
+      console.warn(warning as never);
+    });
+  } catch {}
+  try {
+    const ignoreDataLength = (err: unknown): boolean => {
+      const msg = err instanceof Error ? err.message : String(err);
+      return msg.includes("Missing dataLength in event");
+    };
+    process.on("uncaughtException", (err) => {
+      if (ignoreDataLength(err)) {
+        return;
+      }
+      throw err;
+    });
+    process.on("unhandledRejection", (reason) => {
+      if (ignoreDataLength(reason)) {
+        return;
+      }
+    });
+  } catch {}
+}
+import { openGitWorkspace } from "./webview/openGitWorkspace";
+import { openGitView } from "./webview/openGitView";
 import {
   gitAdd,
   gitAnnotateBlame,

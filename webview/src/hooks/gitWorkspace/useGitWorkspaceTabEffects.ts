@@ -13,8 +13,7 @@ export function useGitWorkspaceTabEffects(
   const { activeRepo } = deps.core;
   const {
     workspaceTab,
-    logSnapshot,
-    logLoading,
+    logFilters,
     stashSnapshot,
     shelfSnapshot,
     amend,
@@ -28,15 +27,20 @@ export function useGitWorkspaceTabEffects(
   const { loadLog, loadBlame } = loaders;
   const { loadReviews } = sync;
   const { loadStashes, loadShelves } = aux;
+  const repoId = activeRepo?.id;
 
   useEffect(() => {
-    if (workspaceTab === "log" && activeRepo && !logSnapshot && !logLoading) {
-      void loadLog();
+    if (workspaceTab !== "log" || !repoId) {
+      return;
     }
-  }, [workspaceTab, activeRepo, logSnapshot, logLoading, loadLog]);
+    const timer = window.setTimeout(() => {
+      void loadLog();
+    }, 200);
+    return () => window.clearTimeout(timer);
+  }, [workspaceTab, repoId, logFilters, loadLog]);
 
   useEffect(() => {
-    if (workspaceTab === "temporary" && activeRepo) {
+    if (workspaceTab === "temporary" && repoId) {
       if (!stashSnapshot) {
         void loadStashes();
       }
@@ -44,7 +48,7 @@ export function useGitWorkspaceTabEffects(
         void loadShelves();
       }
     }
-  }, [workspaceTab, activeRepo, stashSnapshot, shelfSnapshot, loadStashes, loadShelves]);
+  }, [workspaceTab, repoId, stashSnapshot, shelfSnapshot, loadStashes, loadShelves]);
 
   useEffect(() => {
     if (protectedBranch && amend) {
@@ -53,14 +57,14 @@ export function useGitWorkspaceTabEffects(
   }, [protectedBranch, amend, setAmend]);
 
   useEffect(() => {
-    if (workspaceTab === "blame" && activeRepo && selectedFilePath) {
+    if (workspaceTab === "blame" && repoId && selectedFilePath) {
       void loadBlame();
     }
-  }, [workspaceTab, activeRepo, selectedFilePath, loadBlame]);
+  }, [workspaceTab, repoId, selectedFilePath, loadBlame]);
 
   useEffect(() => {
-    if (workspaceTab === "review" && activeRepo && !reviewSnapshot && !reviewLoading) {
+    if (workspaceTab === "review" && repoId && !reviewSnapshot && !reviewLoading) {
       void loadReviews();
     }
-  }, [workspaceTab, activeRepo, reviewSnapshot, reviewLoading, loadReviews]);
+  }, [workspaceTab, repoId, reviewSnapshot, reviewLoading, loadReviews]);
 }

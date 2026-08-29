@@ -9,6 +9,10 @@ export type WorktreeEntry = {
   isMain: boolean;
 };
 
+export type WorktreeRemovalTarget = WorktreeEntry & {
+  dirty: boolean;
+};
+
 export type WorktreeListSnapshot = {
   repoId: string;
   worktrees: WorktreeEntry[];

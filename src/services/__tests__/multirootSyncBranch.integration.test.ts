@@ -44,6 +44,7 @@ async function initRepo(root: string, name: string): Promise<Repository> {
     ahead: null,
     behind: null,
     conflictCount: 0,
+    changeDigest: null,
     dirty: false,
     trusted: true,
     protectedBranch: false,

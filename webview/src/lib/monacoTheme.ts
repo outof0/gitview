@@ -17,6 +17,29 @@ export function pickMonacoTheme(kind: ThemeKind): string {
 
 let themesRegistered = false;
 
+function themeBase(kind: ThemeKind): "vs" | "vs-dark" | "hc-black" | "hc-light" {
+  switch (kind) {
+    case "light":
+      return "vs";
+    case "high-contrast-light":
+      return "hc-light";
+    case "high-contrast":
+      return "hc-black";
+    default:
+      return "vs-dark";
+  }
+}
+
+function vscodeColor(name: string, fallback: string): string {
+  if (typeof document === "undefined") {
+    return fallback;
+  }
+  return (
+    getComputedStyle(document.documentElement).getPropertyValue(name).trim() ||
+    fallback
+  );
+}
+
 /**
  * Register Monaco themes that keep rich syntax colors but never paint
  * per-line content backgrounds (only selection / find may tint).
@@ -110,6 +133,56 @@ export function applyGitViewMonacoTheme(
 ): string {
   registerGitViewMonacoThemes(monaco);
   const id = pickMonacoTheme(kind);
+  const light = kind === "light" || kind === "high-contrast-light";
+  const background = vscodeColor(
+    "--vscode-editor-background",
+    light ? "#ffffff" : "#1e1e1e",
+  );
+  const foreground = vscodeColor(
+    "--vscode-editor-foreground",
+    light ? "#3b3b3b" : "#d4d4d4",
+  );
+  monaco.editor.defineTheme(id, {
+    base: themeBase(kind),
+    inherit: true,
+    rules: [],
+    colors: {
+      "editor.background": background,
+      "editor.foreground": foreground,
+      "editorGutter.background": vscodeColor(
+        "--vscode-editorGutter-background",
+        background,
+      ),
+      "editorLineNumber.foreground": vscodeColor(
+        "--vscode-editorLineNumber-foreground",
+        light ? "#767676" : "#858585",
+      ),
+      "editorLineNumber.activeForeground": vscodeColor(
+        "--vscode-editorLineNumber-activeForeground",
+        foreground,
+      ),
+      "editorCursor.foreground": vscodeColor(
+        "--vscode-editorCursor-foreground",
+        foreground,
+      ),
+      "editor.selectionBackground": vscodeColor(
+        "--vscode-editor-selectionBackground",
+        light ? "#add6ff" : "#264f78",
+      ),
+      "editor.inactiveSelectionBackground": vscodeColor(
+        "--vscode-editor-inactiveSelectionBackground",
+        light ? "#e5ebf1" : "#3a3d41",
+      ),
+      "editor.selectionHighlightBackground": vscodeColor(
+        "--vscode-editor-selectionHighlightBackground",
+        "#00000000",
+      ),
+      "editor.lineHighlightBackground": "#00000000",
+      "editor.lineHighlightBorder": "#00000000",
+      "editorIndentGuide.background1": "#00000000",
+      "editorIndentGuide.activeBackground1": "#00000000",
+    },
+  });
   monaco.editor.setTheme(id);
   return id;
 }

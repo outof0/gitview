@@ -1,4 +1,6 @@
 import { isGitMenuAction } from "../../types/gitMenu";
+import { isConfirmationSubmission } from "../types/confirmation";
+import { isSafeGitOperand } from "../lib/gitOperand";
 import type { WebviewToHost } from "./webviewToHost";
 import { PROTOCOL_VERSION } from "./base";
 import type { ExtensionWebviewRequest } from "./extensions";
@@ -14,6 +16,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 const stringValue: Validator = (value) => typeof value === "string";
+const nonEmptyString: Validator = (value) =>
+  typeof value === "string" && value.length > 0;
+const gitOperand: Validator = isSafeGitOperand;
+/**
+ * A git operand, or an explicit empty string — callers use `""` to mean "no ref,
+ * use the working tree". Still rejects anything starting with `-`, so an
+ * optional ref cannot be turned into a git option.
+ */
+const optionalGitOperand: Validator = (value) =>
+  value === "" || isSafeGitOperand(value);
 const booleanValue: Validator = (value) => typeof value === "boolean";
 const nonNegativeInteger: Validator = (value) =>
   typeof value === "number" && Number.isInteger(value) && value >= 0;
@@ -52,7 +64,10 @@ function shape(
       }
     }
     if (exact) {
-      const allowed = new Set([...Object.keys(required), ...Object.keys(optional)]);
+      const allowed = new Set([
+        ...Object.keys(required),
+        ...Object.keys(optional),
+      ]);
       return Object.keys(value).every((key) => allowed.has(key));
     }
     return true;
@@ -110,6 +125,15 @@ const selectedChanges = shape(
     confirmed: booleanValue,
   },
 );
+const dropSelectedChanges = shape(
+  { repoId: stringValue, sha: stringValue, path: stringValue },
+  {
+    hunkIndexes: nonNegativeIntegerArray,
+    lines: lineSelections,
+    confirmed: booleanValue,
+    confirmation: isConfirmationSubmission,
+  },
+);
 const reviewTarget = shape({
   repoId: stringValue,
   providerId: stringValue,
@@ -118,6 +142,11 @@ const reviewTarget = shape({
 
 const requestValidators = {
   "webview.ready": shape({ surface: stringValue }),
+  "workspace.openFolder": shape({}),
+  "workspace.clone": shape({}),
+  "workspace.manageTrust": shape({}),
+  "workspace.collapsePanel": emptyPayload,
+  "repository.addRemote": shape({ repoId: stringValue }),
   "repo.refresh": shape({}, { repoId: stringValue }),
   "status.list": shape(
     { repoId: stringValue },
@@ -127,7 +156,10 @@ const requestValidators = {
   "changes.unstage": repoPaths,
   "changes.rollback": shape(
     { repoId: stringValue, paths: stringArray },
-    { confirmed: booleanValue },
+    {
+      confirmed: booleanValue,
+      confirmation: isConfirmationSubmission,
+    },
   ),
   "commit.create": shape(
     { repoId: stringValue, message: stringValue },
@@ -151,61 +183,71 @@ const requestValidators = {
   ),
   "sync.push": shape(
     { repoId: stringValue },
-    { setUpstream: booleanValue, remote: stringValue },
+    { setUpstream: booleanValue, remote: gitOperand },
   ),
   "sync.updateAllRoots": shape(
     {},
     { strategy: oneOf("merge", "rebase", "ff_only") },
   ),
+  "sync.cancel": shape({ operationId: nonEmptyString }, {}, true),
   "branch.list": repoOnly,
   "branch.checkout": shape(
-    { repoId: stringValue, ref: stringValue },
-    { smart: booleanValue, force: booleanValue },
+    { repoId: stringValue, ref: gitOperand },
+    {
+      smart: booleanValue,
+      force: booleanValue,
+      confirmation: isConfirmationSubmission,
+    },
   ),
   "branch.syncOperation": shape(
-    { repoId: stringValue, ref: stringValue },
-    { smart: booleanValue, force: booleanValue, confirmed: booleanValue },
+    { repoId: stringValue, ref: gitOperand },
+    {
+      smart: booleanValue,
+      force: booleanValue,
+      confirmed: booleanValue,
+      confirmation: isConfirmationSubmission,
+    },
   ),
   "branch.create": shape(
-    { repoId: stringValue, name: stringValue },
-    { startPoint: stringValue, checkout: booleanValue, force: booleanValue },
+    { repoId: stringValue, name: gitOperand },
+    { startPoint: gitOperand, checkout: booleanValue, force: booleanValue },
   ),
   "branch.rename": shape({
     repoId: stringValue,
-    oldName: stringValue,
-    newName: stringValue,
+    oldName: gitOperand,
+    newName: gitOperand,
   }),
   "branch.delete": shape(
-    { repoId: stringValue, name: stringValue },
+    { repoId: stringValue, name: gitOperand },
     { force: booleanValue },
   ),
   "branch.push": shape(
-    { repoId: stringValue, name: stringValue },
-    { remote: stringValue, setUpstream: booleanValue },
+    { repoId: stringValue, name: gitOperand },
+    { remote: gitOperand, setUpstream: booleanValue },
   ),
   "branch.favorite": repoName,
   "branch.compareCurrent": shape(
-    { repoId: stringValue, ref: stringValue },
+    { repoId: stringValue, ref: gitOperand },
     { path: stringValue },
   ),
   "branch.compareWorkingTree": shape(
-    { repoId: stringValue, ref: stringValue },
+    { repoId: stringValue, ref: gitOperand },
     { path: stringValue },
   ),
   "branch.compareFile": shape({
     repoId: stringValue,
-    ref: stringValue,
+    ref: gitOperand,
     path: stringValue,
     mode: oneOf("current", "workingTree"),
   }),
   "branch.compareApplyFile": shape({
     repoId: stringValue,
-    ref: stringValue,
+    ref: gitOperand,
     path: stringValue,
     mode: oneOf("current", "workingTree"),
   }),
   "branch.merge": shape(
-    { repoId: stringValue, ref: stringValue },
+    { repoId: stringValue, ref: gitOperand },
     {
       noFf: booleanValue,
       squash: booleanValue,
@@ -215,10 +257,10 @@ const requestValidators = {
     },
   ),
   "branch.rebaseOnto": shape(
-    { repoId: stringValue, onto: stringValue },
+    { repoId: stringValue, onto: gitOperand },
     {
       interactive: booleanValue,
-      from: stringValue,
+      from: gitOperand,
       rebaseMerges: booleanValue,
     },
   ),
@@ -228,6 +270,10 @@ const requestValidators = {
   "diff.open": shape(
     { repoId: stringValue, path: stringValue },
     { staged: booleanValue },
+  ),
+  "diff.numstat": shape(
+    { repoId: stringValue },
+    { paths: stringArray, ref: optionalGitOperand },
   ),
   "diff.annotate": shape(
     { relativePath: stringValue },
@@ -272,7 +318,10 @@ const requestValidators = {
     path: stringValue,
   }),
   "git.menuAction": shape(
-    { repoId: stringValue, action: (value) => typeof value === "string" && isGitMenuAction(value) },
+    {
+      repoId: stringValue,
+      action: (value) => typeof value === "string" && isGitMenuAction(value),
+    },
     {
       relativePath: stringValue,
       commitSha: stringValue,
@@ -308,14 +357,17 @@ const requestValidators = {
   "log.revert": repoSha,
   "log.revertMultiple": repoShas,
   "log.revertSelected": selectedChanges,
-  "log.dropSelectedChanges": selectedChanges,
+  "log.dropSelectedChanges": dropSelectedChanges,
   "log.reset": shape(
     {
       repoId: stringValue,
       sha: stringValue,
       mode: oneOf("soft", "mixed", "hard", "keep"),
     },
-    { confirmed: booleanValue },
+    {
+      confirmed: booleanValue,
+      confirmation: isConfirmationSubmission,
+    },
   ),
   "log.undoLastCommit": shape(
     { repoId: stringValue },
@@ -328,7 +380,10 @@ const requestValidators = {
   }),
   "log.dropCommit": shape(
     { repoId: stringValue, sha: stringValue },
-    { confirmed: booleanValue },
+    {
+      confirmed: booleanValue,
+      confirmation: isConfirmationSubmission,
+    },
   ),
   "log.editMessage": shape(
     { repoId: stringValue, sha: stringValue, message: stringValue },
@@ -340,7 +395,10 @@ const requestValidators = {
       sha: stringValue,
       action: oneOf("squash", "fixup", "drop"),
     },
-    { confirmed: booleanValue },
+    {
+      confirmed: booleanValue,
+      confirmation: isConfirmationSubmission,
+    },
   ),
   "log.extractChanges": shape(
     { repoId: stringValue, sha: stringValue },
@@ -355,7 +413,7 @@ const requestValidators = {
   ),
   "blame.query": shape(
     { repoId: stringValue, path: stringValue },
-    { ref: stringValue },
+    { ref: optionalGitOperand },
   ),
   "file.write": shape({
     repoId: stringValue,
@@ -461,15 +519,15 @@ const requestValidators = {
   ),
   "tag.list": repoOnly,
   "tag.createAnnotated": shape(
-    { repoId: stringValue, name: stringValue },
-    { message: stringValue, sha: stringValue },
+    { repoId: stringValue, name: gitOperand },
+    { message: stringValue, sha: gitOperand },
   ),
-  "tag.checkout": repoName,
+  "tag.checkout": shape({ repoId: stringValue, name: gitOperand }),
   "tag.push": shape(
-    { repoId: stringValue, name: stringValue },
-    { remote: stringValue },
+    { repoId: stringValue, name: gitOperand },
+    { remote: gitOperand },
   ),
-  "tag.delete": repoName,
+  "tag.delete": shape({ repoId: stringValue, name: gitOperand }),
   "worktree.list": repoOnly,
   "worktree.add": shape(
     { repoId: stringValue, path: stringValue },
@@ -477,7 +535,11 @@ const requestValidators = {
   ),
   "worktree.remove": shape(
     { repoId: stringValue, path: stringValue },
-    { force: booleanValue, confirmed: booleanValue },
+    {
+      force: booleanValue,
+      confirmed: booleanValue,
+      confirmation: isConfirmationSubmission,
+    },
   ),
   "worktree.open": repoPath,
   "review.list": shape(
@@ -533,6 +595,19 @@ const requestValidators = {
     },
     { side: oneOf("LEFT", "RIGHT") },
   ),
+  "diff.openInEditor": shape(
+    {
+      preview: shape(
+        {
+          relativePath: stringValue,
+          title: stringValue,
+          diff: (value: unknown) => isRecord(value),
+        },
+        { repoId: stringValue },
+      ),
+    },
+    { workspaceRoot: stringValue },
+  ),
 } satisfies RequestValidatorMap;
 
 export const WEBVIEW_REQUEST_TYPES = Object.freeze(
@@ -564,7 +639,8 @@ export function parseWebviewRequestResult(
     };
   }
 
-  const requestId = typeof value.requestId === "string" ? value.requestId : null;
+  const requestId =
+    typeof value.requestId === "string" ? value.requestId : null;
   if (value.protocolVersion !== PROTOCOL_VERSION) {
     return {
       ok: false,
@@ -579,7 +655,8 @@ export function parseWebviewRequestResult(
       ok: false,
       requestId,
       code: "INVALID_REQUEST",
-      message: "Protocol request requires non-empty requestId and type strings.",
+      message:
+        "Protocol request requires non-empty requestId and type strings.",
     };
   }
   if (!Object.prototype.hasOwnProperty.call(requestValidators, value.type)) {

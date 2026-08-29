@@ -55,6 +55,8 @@ describe("WorkspaceDiffPanel unified view", () => {
       />,
     );
     expect(screen.getByTestId("git-diff-unified")).toBeTruthy();
+    expect(screen.getByTestId("diff-file-identity").textContent).toContain("app.ts");
+    expect(screen.getByTestId("diff-file-identity").textContent).toContain("src");
     expect(screen.getByText("old")).toBeTruthy();
     expect(screen.getByText("new")).toBeTruthy();
   });

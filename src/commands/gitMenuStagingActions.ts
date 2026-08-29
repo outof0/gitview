@@ -92,6 +92,13 @@ export async function gitCommit(
     return;
   }
 
+  if (presentation?.openCommitDialog) {
+    await presentation.openCommitDialog({
+      workspaceRoot: workspaceRoot ?? "",
+    });
+    return;
+  }
+
   if (presentation?.openPanelDialog) {
     await presentation.openPanelDialog({ dialog: "commit" });
     return;

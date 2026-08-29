@@ -1,8 +1,16 @@
+import type {
+  ConfirmationSubmission,
+  DropCommitConfirmationEvidence,
+} from "@gitview/shared/types/confirmation";
+import { TypedDestructiveConfirmDialog } from "./TypedDestructiveConfirmDialog";
+
 type RewriteHistoryConfirmDialogProps = {
   open: boolean;
   sha: string;
   action: "squash" | "fixup" | "drop";
-  onConfirm: () => void;
+  confirmation?: DropCommitConfirmationEvidence;
+  busy?: boolean;
+  onConfirm: (confirmation?: ConfirmationSubmission) => void;
   onCancel: () => void;
 };
 
@@ -16,44 +24,48 @@ export function RewriteHistoryConfirmDialog({
   open,
   sha,
   action,
+  confirmation,
+  busy,
   onConfirm,
   onCancel,
 }: RewriteHistoryConfirmDialogProps) {
-  if (!open) {
-    return null;
-  }
+  const confirmationKey = confirmation
+    ? [
+        confirmation.repoId,
+        confirmation.targetSha,
+        confirmation.repository.headSha,
+        confirmation.repository.currentBranch,
+        confirmation.repository.dirty,
+        confirmation.repository.conflictCount,
+        confirmation.repository.operation,
+      ].join(":")
+    : action;
 
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40"
-      data-testid="rewrite-history-dialog"
-    >
-      <div className="w-[min(420px,90vw)] rounded-vscode border border-border bg-[var(--vscode-editor-background)] p-4 shadow-lg">
-        <h3 className="text-[13px] font-semibold mb-2">{ACTION_LABELS[action]}</h3>
-        <p className="text-[12px] text-[var(--vscode-descriptionForeground)] mb-4">
+    <TypedDestructiveConfirmDialog
+      open={open}
+      title={ACTION_LABELS[action]}
+      description={
+        <>
           This rewrites history for commit{" "}
-          <span className="font-mono">{sha.slice(0, 7)}</span>. This action cannot be
-          undone on pushed branches without force-push.
-        </p>
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            className="h-7 px-3 text-[12px] rounded-vscode hover:bg-list-hover"
-            onClick={onCancel}
-            data-testid="rewrite-history-cancel"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="h-7 px-3 text-[12px] rounded-vscode bg-[var(--vscode-button-background)] text-[var(--vscode-button-foreground)] hover:opacity-90"
-            onClick={onConfirm}
-            data-testid="rewrite-history-confirm"
-          >
-            Confirm
-          </button>
-        </div>
-      </div>
-    </div>
+          <span className="font-mono">{sha.slice(0, 7)}</span>.
+        </>
+      }
+      expectedTypedValue={confirmation?.expectedTypedValue}
+      confirmationKey={confirmationKey}
+      confirmLabel={action === "drop" ? "Drop commit" : "Confirm"}
+      testId="rewrite-history-dialog"
+      cancelTestId="rewrite-history-cancel"
+      confirmTestId="rewrite-history-confirm"
+      inputTestId="rewrite-history-typed-value"
+      busy={busy}
+      warning="This action cannot be undone on pushed branches without force-push."
+      onCancel={onCancel}
+      onConfirm={(typedValue) =>
+        onConfirm(
+          confirmation ? { evidence: confirmation, typedValue } : undefined,
+        )
+      }
+    />
   );
 }

@@ -14,12 +14,17 @@ export type WorkspaceLogPanelProps = {
   diffError?: string | null;
   onSelectCommit: (sha: string, multi?: boolean) => void;
   onSelectFile: (path: string, status: string) => void;
+  onOpenFileDiff?: (path: string, status: string) => void;
   onRefresh: () => void;
   filters: LogQueryFilters;
   onFiltersChange: (filters: LogQueryFilters) => void;
   busy?: boolean;
   protectedBranch?: boolean;
   hasUpstream?: boolean;
+  branches?: string[];
+  authors?: string[];
+  pathOptions?: string[];
+  onBranchMenuOpen?: () => void;
   onCherryPick?: (sha: string) => void;
   onCherryPickMultiple?: (shas: string[]) => void;
   onRevert?: (sha: string) => void;

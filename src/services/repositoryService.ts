@@ -4,8 +4,14 @@ import * as path from "node:path";
 import type { OperationState } from "../shared/types/operation";
 import { NO_OPERATION } from "../shared/types/operation";
 import type { Repository, RepositorySnapshot } from "../shared/types/repository";
+import {
+  deriveRepositoryHeadState,
+  deriveRepositoryShellState,
+} from "../shared/types/repositoryShell";
 import type { GitFileStatus } from "../shared/types/status";
+import { computeChangeDigest } from "./git/changeDigest";
 import { createStatusApi, type ParsedBranchHeader } from "./git/status";
+import { listRemotes } from "./git/upstream";
 import type { GitExecFn } from "./git/types";
 import type { Logger } from "../observability/logger";
 import { NOOP_LOGGER, errorLogFields } from "../observability/logger";
@@ -241,7 +247,7 @@ export function createRepositoryService(
       gitDirByRoot.set(normalizedRoot, gitDirPath);
     }
 
-    const [headSha, operation, status] = await Promise.all([
+    const [headSha, operation, status, remotes] = await Promise.all([
       resolveHeadSha(deps.execGit, normalizedRoot),
       readOperation(gitDirPath),
       statusApi.getStatus(normalizedRoot, id).catch((error) => {
@@ -251,6 +257,7 @@ export function createRepositoryService(
         });
         return null;
       }),
+      listRemotes(deps.execGit, normalizedRoot),
     ]);
     if (status) {
       statusCache.set(id, status);
@@ -261,7 +268,15 @@ export function createRepositoryService(
     const statusBranch = status?.branch ?? null;
     const files = status?.files ?? [];
     const currentBranch = statusBranch?.currentBranch ?? null;
-    return {
+    const dirty = files.some((file) => file.kind !== "ignored");
+    // Content digest of the pending changes, used to make confirmation evidence
+    // go stale when the user edits files after a dangerous dialog opened. Only
+    // computed for a dirty tree — a clean one has nothing to go stale against,
+    // and this keeps the refresh hot path free of extra file reads.
+    const changeDigest = dirty
+      ? await computeChangeDigest(normalizedRoot, files).catch(() => null)
+      : null;
+    const repository: Repository = {
       id,
       rootPath: normalizedRoot,
       workspaceFolderPath,
@@ -277,11 +292,22 @@ export function createRepositoryService(
       ahead: statusBranch?.ahead ?? null,
       behind: statusBranch?.behind ?? null,
       conflictCount: files.filter((file) => file.conflicted).length,
-      dirty: files.some((file) => file.kind !== "ignored"),
+      dirty,
+      changeDigest,
       trusted,
       protectedBranch: deps.isProtectedBranch?.(currentBranch) ?? false,
       lastRefreshAt: Date.now(),
+      remoteState:
+        remotes.length === 0
+          ? { kind: "none" }
+          : {
+              kind: "available",
+              remotes,
+              upstream: statusBranch?.upstream ?? null,
+            },
     };
+    const headState = deriveRepositoryHeadState(repository);
+    return headState ? { ...repository, headState } : repository;
   }
 
   async function discoverRepositories(
@@ -412,13 +438,18 @@ export function createRepositoryService(
     repos: Repository[],
     activeRepoId: string | null,
   ): RepositorySnapshot {
+    const resolvedActiveRepoId =
+      repos.some((repo) => repo.id === activeRepoId)
+        ? activeRepoId
+        : repos[0]?.id ?? null;
     const branches = new Set(
       repos.map((repo) => repo.currentBranch).filter((branch): branch is string => Boolean(branch)),
     );
     return {
       repositories: repos,
-      activeRepoId,
+      activeRepoId: resolvedActiveRepoId,
       multiRootDiverged: repos.length > 1 && branches.size > 1,
+      shellState: deriveRepositoryShellState(repos, resolvedActiveRepoId),
     };
   }
 

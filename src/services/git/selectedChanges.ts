@@ -28,6 +28,7 @@ export function createSelectedChangesApi(
     try {
       const { stdout } = await execGit(repoRoot, [
         "diff",
+        "--binary",
         `${sha}^`,
         sha,
         "--",
@@ -77,6 +78,7 @@ export function createSelectedChangesApi(
     repoRoot: string,
     patchContent: string,
     reverse: boolean,
+    opts?: { checkOnly?: boolean },
   ): Promise<void> {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), "gitview-selected-"));
     const patchPath = path.join(dir, "selected.patch");
@@ -87,6 +89,9 @@ export function createSelectedChangesApi(
         "utf8",
       );
       const args = ["apply", "--cached"];
+      if (opts?.checkOnly) {
+        args.push("--check");
+      }
       if (reverse) {
         args.push("--reverse");
       }
@@ -143,18 +148,77 @@ export function createSelectedChangesApi(
     const fullPatch = await readCommitPatch(repoRoot, sha, relativePath);
     const selectedPatch = buildSelectedPatch(fullPatch, selection);
 
-    await execGit(repoRoot, ["reset", "--soft", "HEAD~1"]);
-    await applyCachedPatchInRepo(repoRoot, selectedPatch, true);
-
-    const trimmedMessage = message.trim();
+    // Capture the branch and index so a failure after `reset --soft` can be undone.
+    // `write-tree` records the index as a tree object without touching the working
+    // tree, so restoring the index later does not disturb local edits either.
+    const { stdout: revParse } = await execGit(repoRoot, ["rev-parse", "HEAD"]);
+    const originalHead = revParse.trim();
+    let originalIndexTree: string | null = null;
     try {
-      await execGit(repoRoot, ["commit", "-m", trimmedMessage]);
+      const { stdout } = await execGit(repoRoot, ["write-tree"]);
+      originalIndexTree = stdout.trim() || null;
     } catch {
-      // Dropping every hunk in the commit leaves the index identical to HEAD~1.
-      await execGit(repoRoot, ["commit", "--allow-empty", "-m", trimmedMessage]);
+      originalIndexTree = null;
     }
 
-    await execGit(repoRoot, ["restore", "--source=HEAD", "--", relativePath]);
+    // Dry-run both applications before mutating anything. `reset --soft` moves the
+    // branch only — index and working tree are untouched — so checking now is
+    // equivalent to checking after the reset. This is what makes the operation
+    // transactional: a patch that cannot be applied (typically because the file
+    // carries uncommitted local edits overlapping the selection) aborts here with
+    // history still intact, instead of failing halfway through a rewritten commit.
+    await patchApi.applyPatch(repoRoot, selectedPatch, {
+      reverse: true,
+      checkOnly: true,
+    });
+    await applyCachedPatchInRepo(repoRoot, selectedPatch, true, {
+      checkOnly: true,
+    });
+
+    try {
+      await execGit(repoRoot, ["reset", "--soft", "HEAD~1"]);
+      await applyCachedPatchInRepo(repoRoot, selectedPatch, true);
+
+      const trimmedMessage = message.trim();
+      try {
+        await execGit(repoRoot, ["commit", "-m", trimmedMessage]);
+      } catch {
+        // Dropping every hunk in the commit leaves the index identical to HEAD~1.
+        await execGit(
+          repoRoot,
+          ["commit", "--allow-empty", "-m", trimmedMessage],
+        );
+      }
+
+      // Reverse-apply to the working tree instead of restoring the file from HEAD.
+      // `git restore --source=HEAD` overwrote the whole file and destroyed
+      // uncommitted local edits; reverse-applying removes exactly the dropped
+      // hunks and leaves everything else the user typed untouched.
+      await patchApi.applyPatch(repoRoot, selectedPatch, { reverse: true });
+    } catch (error) {
+      await restoreHeadAndIndex(repoRoot, originalHead, originalIndexTree);
+      throw error;
+    }
+  }
+
+  /**
+   * Undo a partially applied drop: point the branch back at the original commit
+   * and rebuild the index from the tree captured before the mutation. Never
+   * touches the working tree, so local edits survive a failed drop.
+   */
+  async function restoreHeadAndIndex(
+    repoRoot: string,
+    originalHead: string,
+    originalIndexTree: string | null,
+  ): Promise<void> {
+    try {
+      await execGit(repoRoot, ["reset", "--soft", originalHead]);
+      if (originalIndexTree) {
+        await execGit(repoRoot, ["read-tree", originalIndexTree]);
+      }
+    } catch {
+      // Best effort: surface the original failure rather than the rollback's.
+    }
   }
 
   return {

@@ -1,4 +1,7 @@
-import type { GitFileStatus, GitFileStatusKind } from "../../shared/types/status";
+import type {
+  GitFileStatus,
+  GitFileStatusKind,
+} from "../../shared/types/status";
 import type { GitExecFn } from "./types";
 import { isUnmergedCode } from "./porcelain";
 
@@ -8,6 +11,7 @@ export type ParsedBranchHeader = {
   ahead: number | null;
   behind: number | null;
   isDetached: boolean;
+  isUnborn: boolean;
 };
 
 export type RawStatusEntry = {
@@ -25,6 +29,21 @@ function parseBranchHeader(line: string): ParsedBranchHeader {
       ahead: null,
       behind: null,
       isDetached: true,
+      isUnborn: false,
+    };
+  }
+
+  const unbornMatch = header.match(
+    /^(?:No commits yet on|Initial commit on) (.+)$/,
+  );
+  if (unbornMatch?.[1]) {
+    return {
+      currentBranch: unbornMatch[1],
+      upstream: null,
+      ahead: null,
+      behind: null,
+      isDetached: false,
+      isUnborn: true,
     };
   }
 
@@ -41,6 +60,7 @@ function parseBranchHeader(line: string): ParsedBranchHeader {
     ahead: aheadMatch ? Number(aheadMatch[1]) : upstream ? 0 : null,
     behind: behindMatch ? Number(behindMatch[1]) : upstream ? 0 : null,
     isDetached: false,
+    isUnborn: false,
   };
 }
 
@@ -160,7 +180,9 @@ export function createStatusApi(execGit: GitExecFn) {
     if (opts?.includeIgnored) {
       args.push("--ignored");
     }
-    const { stdout } = await execGit(repoRoot, args);
+    const { stdout } = await execGit(repoRoot, args, {
+      env: { GIT_OPTIONAL_LOCKS: "0" },
+    });
     const parsed = parsePorcelainV1Z(stdout);
     const files = parsed.entries
       .filter((e) => opts?.includeIgnored || e.xy !== "!!")

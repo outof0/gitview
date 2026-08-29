@@ -11,6 +11,10 @@ import {
 import type { ProtectionService } from "../../services/protectionService";
 import type { RepositoryService } from "../../services/repositoryService";
 import type { RefreshCoordinator } from "../../services/watchers/refreshCoordinator";
+import {
+  createSyncOperationCoordinator,
+  type SyncOperationCoordinator,
+} from "../../services/syncOperationCoordinator";
 import type { GitExecFn } from "../../services/git/types";
 import { gitCommandError } from "../../util/safeLog";
 import { isWorkspaceTrusted } from "../messageRouterTrust";
@@ -20,6 +24,7 @@ export type MutationHandlerDeps = {
   repositoryService: RepositoryService;
   protectionService: ProtectionService;
   refreshCoordinator: RefreshCoordinator;
+  syncOperationCoordinator?: SyncOperationCoordinator;
   commitCheckService?: CommitCheckService;
   trusted?: boolean;
   getTrusted?: () => boolean;
@@ -30,6 +35,8 @@ export type MutationHandlerDeps = {
 };
 
 export function createMutationHandlerContext(deps: MutationHandlerDeps) {
+  const syncOperationCoordinator =
+    deps.syncOperationCoordinator ?? createSyncOperationCoordinator();
   const staging = createStagingApi(deps.execGit);
   const commitApi = createCommitApi(deps.execGit);
   const sync = createSyncApi(deps.execGit);
@@ -108,7 +115,7 @@ export function createMutationHandlerContext(deps: MutationHandlerDeps) {
   }
 
   return {
-    deps,
+    deps: { ...deps, syncOperationCoordinator },
     staging,
     commitApi,
     sync,

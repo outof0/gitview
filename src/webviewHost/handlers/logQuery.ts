@@ -9,7 +9,7 @@ import {
 import type { CommitDetailResult, FileAtRevisionResult } from "../../shared/types/history";
 import type { LogQueryFilters } from "../../shared/types/log";
 import type { GitChangedFileStatus } from "../../types/blame";
-import { validateBranchFilter } from "../../webview/branchFilter";
+import { validateBranchFilter } from "../../shared/lib/branchFilter";
 import { validateRepoRelativePaths } from "../validatePaths";
 import {
   commitDiffToWorkspaceDocument,

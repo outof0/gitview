@@ -15,7 +15,11 @@ export function createPatchApi(execGit: GitExecFn) {
     repoRoot: string,
     paths: string[],
   ): Promise<string> {
-    const args = ["diff", "HEAD", "--"];
+    // `--binary` is mandatory: without it Git emits "Binary files differ" for
+    // binary paths and `git apply` cannot restore the blob, so unshelving
+    // silently loses the change. Binary patches are base64 text, so they still
+    // round-trip through the string-based storage.
+    const args = ["diff", "HEAD", "--binary", "--"];
     if (paths.length > 0) {
       args.push(...paths);
     } else {

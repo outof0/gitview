@@ -1,14 +1,16 @@
-import {
-  GitDialogShell,
-  gitDialogBtnPrimary,
-  gitDialogBtnSecondary,
-} from "../ui/GitDialogShell";
+import type {
+  ConfirmationSubmission,
+  DropSelectedConfirmationEvidence,
+} from "@gitview/shared/types/confirmation";
+import { TypedDestructiveConfirmDialog } from "./TypedDestructiveConfirmDialog";
 
 type DropSelectedConfirmDialogProps = {
   open: boolean;
   sha: string;
   path: string;
-  onConfirm: () => void;
+  confirmation?: DropSelectedConfirmationEvidence;
+  busy?: boolean;
+  onConfirm: (confirmation?: ConfirmationSubmission) => void;
   onCancel: () => void;
 };
 
@@ -16,41 +18,52 @@ export function DropSelectedConfirmDialog({
   open,
   sha,
   path,
+  confirmation,
+  busy,
   onConfirm,
   onCancel,
 }: DropSelectedConfirmDialogProps) {
+  const confirmationKey = confirmation
+    ? [
+        confirmation.repoId,
+        confirmation.targetSha,
+        confirmation.path,
+        JSON.stringify(confirmation.selection),
+        confirmation.repository.headSha,
+        confirmation.repository.currentBranch,
+        confirmation.repository.dirty,
+        confirmation.repository.conflictCount,
+        confirmation.repository.operation,
+      ].join(":")
+    : sha;
+
   return (
-    <GitDialogShell
+    <TypedDestructiveConfirmDialog
       open={open}
       title="Drop selected changes"
-      testId="drop-selected-dialog"
-      footer={
+      description={
         <>
-          <button
-            type="button"
-            className={gitDialogBtnSecondary}
-            onClick={onCancel}
-            data-testid="drop-selected-cancel"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className={gitDialogBtnPrimary}
-            onClick={onConfirm}
-            data-testid="drop-selected-confirm"
-          >
-            Confirm
-          </button>
+          Remove the selected changes from HEAD commit{" "}
+          <span className="font-mono text-foreground">{sha.slice(0, 7)}</span> in{" "}
+          <span className="font-mono text-foreground">{path}</span>. Other changes
+          in the commit are preserved via amend.
         </>
       }
-    >
-      <p className="m-0">
-        Remove the selected changes from HEAD commit{" "}
-        <span className="font-mono text-foreground">{sha.slice(0, 7)}</span> in{" "}
-        <span className="font-mono text-foreground">{path}</span>. Other changes in
-        the commit are preserved via amend.
-      </p>
-    </GitDialogShell>
+      expectedTypedValue={confirmation?.expectedTypedValue}
+      confirmationKey={confirmationKey}
+      confirmLabel="Drop changes"
+      testId="drop-selected-dialog"
+      cancelTestId="drop-selected-cancel"
+      confirmTestId="drop-selected-confirm"
+      inputTestId="drop-selected-typed-value"
+      busy={busy}
+      warning="This rewrites HEAD and cannot be undone on pushed branches without force-push."
+      onCancel={onCancel}
+      onConfirm={(typedValue) =>
+        onConfirm(
+          confirmation ? { evidence: confirmation, typedValue } : undefined,
+        )
+      }
+    />
   );
 }

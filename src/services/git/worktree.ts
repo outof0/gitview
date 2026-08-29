@@ -1,5 +1,8 @@
 import * as path from "node:path";
-import type { WorktreeEntry } from "../../shared/types/worktree";
+import type {
+  WorktreeEntry,
+  WorktreeRemovalTarget,
+} from "../../shared/types/worktree";
 import type { GitExecFn } from "./types";
 
 export function createWorktreeApi(execGit: GitExecFn) {
@@ -66,6 +69,28 @@ export function createWorktreeApi(execGit: GitExecFn) {
     return entries;
   }
 
+  async function resolveWorktreeRemovalTarget(
+    repoRoot: string,
+    requestedPath: string,
+    mainRoot = repoRoot,
+  ): Promise<WorktreeRemovalTarget | null> {
+    const entries = await listWorktrees(repoRoot, mainRoot);
+    const requested = path.resolve(requestedPath);
+    const target = entries.find((entry) => path.resolve(entry.path) === requested);
+    if (!target) {
+      return null;
+    }
+    if (target.bare || target.prunable) {
+      return { ...target, dirty: false };
+    }
+    const { stdout } = await execGit(target.path, [
+      "status",
+      "--porcelain=v1",
+      "-z",
+    ]);
+    return { ...target, dirty: stdout.length > 0 };
+  }
+
   async function addWorktree(
     repoRoot: string,
     worktreePath: string,
@@ -95,5 +120,10 @@ export function createWorktreeApi(execGit: GitExecFn) {
     await execGit(repoRoot, args);
   }
 
-  return { listWorktrees, addWorktree, removeWorktree };
+  return {
+    listWorktrees,
+    resolveWorktreeRemovalTarget,
+    addWorktree,
+    removeWorktree,
+  };
 }

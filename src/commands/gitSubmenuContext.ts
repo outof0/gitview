@@ -56,23 +56,14 @@ export function createGitSubmenuContextService(
     }
 
     const status = payload.statusByRepoId.get(activeRepo.id);
-    const [stashes, shelves, hasRemote, porcelain] = await Promise.all([
+    const [stashes, shelves, hasRemote] = await Promise.all([
       stashApi.listStashes(activeRepo.rootPath).catch(() => []),
       shelfApi.listShelves(activeRepo.rootPath, activeRepo.id).catch(() => []),
       hasGitRemote(deps.execGit, activeRepo.rootPath),
-      deps.execGit(activeRepo.rootPath, ["status", "--porcelain"]).catch(() => ({
-        stdout: "",
-        stderr: "",
-      })),
     ]);
 
-    const porcelainDirty = porcelain.stdout.trim().length > 0;
-    const repository = porcelainDirty
-      ? { ...activeRepo, dirty: true }
-      : activeRepo;
-
     const enablement = buildGitSubmenuEnablementContext({
-      repository,
+      repository: activeRepo,
       files: status?.files,
       stashCount: stashes.length,
       shelfCount: shelves.length,

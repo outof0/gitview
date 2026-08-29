@@ -59,6 +59,7 @@ export function conflictFixturePath(): string {
 /** Paths that must stay unmerged for merge-resolve integration tests. */
 export const REQUIRED_FIXTURE_UNMERGED_PATHS = [
   "file.txt",
+  "magic-merge.txt",
   "utils.js",
   "edge/aa-file.ts",
   "edge/ud-file.ts",

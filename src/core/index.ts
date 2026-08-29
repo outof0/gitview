@@ -8,3 +8,4 @@ export * from "./markersEngine";
 export * from "./serialize";
 export * from "./resolve";
 export * from "./mergeDocument";
+export * from "./magicMerge";

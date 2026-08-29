@@ -50,14 +50,18 @@ export function Toolbar({
   onPrev,
   onNext,
 }: ToolbarProps) {
-  const applyAllNonConflicting = useGitViewStore((s) => s.applyAllNonConflicting);
+  const applyAllNonConflicting = useGitViewStore(
+    (s) => s.applyAllNonConflicting,
+  );
   const applyAllNonConflictingLeft = useGitViewStore(
     (s) => s.applyAllNonConflictingLeft,
   );
   const applyAllNonConflictingRight = useGitViewStore(
     (s) => s.applyAllNonConflictingRight,
   );
-  const resolveSimpleConflicts = useGitViewStore((s) => s.resolveSimpleConflicts);
+  const resolveSimpleConflicts = useGitViewStore(
+    (s) => s.resolveSimpleConflicts,
+  );
   const whitespacePolicy = useGitViewStore((s) => s.whitespacePolicy);
   const setWhitespacePolicy = useGitViewStore((s) => s.setWhitespacePolicy);
   const highlightingMode = useGitViewStore((s) => s.highlightingMode);
@@ -128,14 +132,15 @@ export function Toolbar({
         </>
       )}
 
-      {/* Magic resolve — only when there are unresolved both_same blocks */}
+      {/* Magic Merge is offered only while a simple conflict can be resolved. */}
       {hasSimpleConflicts && (
         <>
           {(hasNavigation || hasNonConflicting) && <ToolbarSeparator />}
           <ToolbarIconButton
             onClick={resolveSimpleConflicts}
-            title="Resolve simple conflicts"
-            aria-label="Resolve simple conflicts"
+            title="Magic Merge — Resolve simple conflicts"
+            aria-label="Magic Merge: Resolve simple conflicts"
+            data-testid="magic-merge-button"
             className="text-sm text-[var(--vscode-charts-yellow,#d9a441)]"
           >
             ✦

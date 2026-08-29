@@ -45,6 +45,7 @@ describe("refreshCoordinator", () => {
           ahead: null,
           behind: null,
           conflictCount: 0,
+          changeDigest: null,
           dirty: false,
           trusted: true,
           protectedBranch: false,

@@ -35,6 +35,17 @@ describe("staging integration", () => {
     expect(unstaged?.kind).toBe("modified");
   });
 
+  it("lists the exact staged paths", async () => {
+    repo = await createTempGitRepo();
+    const staging = createStagingApi(execGit);
+
+    await writeRepoFile(repo.root, "staged.ts", "staged\n");
+    await writeRepoFile(repo.root, "working.ts", "working\n");
+    await staging.stageFiles(repo.root, ["staged.ts"]);
+
+    expect(await staging.listStagedPaths(repo.root)).toEqual(["staged.ts"]);
+  });
+
   it("rolls back tracked edits while keeping unrelated files", async () => {
     repo = await createTempGitRepo();
     const staging = createStagingApi(execGit);

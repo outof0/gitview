@@ -119,7 +119,7 @@ export async function dispatchLog(
           request.payload.path,
           request.payload.hunkIndexes,
           request.payload.lines,
-          request.payload.confirmed,
+          request.payload.confirmation,
         );
         return true;
 
@@ -130,6 +130,7 @@ export async function dispatchLog(
           request.payload.sha,
           request.payload.mode,
           request.payload.confirmed,
+          request.payload.confirmation,
         );
         return true;
 
@@ -155,7 +156,7 @@ export async function dispatchLog(
           request.requestId,
           request.payload.repoId,
           request.payload.sha,
-          request.payload.confirmed,
+          request.payload.confirmation,
         );
         return true;
 
@@ -176,6 +177,7 @@ export async function dispatchLog(
           request.payload.sha,
           request.payload.action,
           request.payload.confirmed,
+          request.payload.confirmation,
         );
         return true;
 

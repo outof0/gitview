@@ -136,7 +136,7 @@ export function UnstashChangesDialog({
         </>
       }
     >
-      <div className="flex-1 min-h-0 flex flex-col gap-2">
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-3">
           <label className="flex items-center gap-1.5">
             <span className="text-vscode-description">Apply into branch</span>

@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ExternalLink } from "lucide-react";
 import type { DiffLineSelection, WorkspaceDiffDocument } from "@gitview/shared/types/diff";
 import { changedFileStatusLabel } from "./changedFileStatus";
+import { splitWorkspacePath } from "../../lib/fileStatusTheme";
 import {
   lineSelectionKey,
 } from "../../lib/diffLineSelection";
@@ -10,6 +12,8 @@ import { WHITESPACE_LABELS, toFileDiffView } from "./workspaceDiffPanel/workspac
 import { SplitWithHunks } from "./workspaceDiffPanel/WorkspaceDiffSplitView";
 import { UnifiedWithHunks } from "./workspaceDiffPanel/WorkspaceDiffUnifiedView";
 import { MonacoDiffViewer } from "./MonacoDiffViewer";
+import { useVsCodeApi } from "../../hooks/useVsCodeApi";
+import { createProtocolClient } from "../../protocol/client";
 
 type WorkspaceDiffPanelProps = {
   document: WorkspaceDiffDocument | null;
@@ -73,6 +77,21 @@ export function WorkspaceDiffPanel({
   const setDiffViewMode = useGitWorkspaceStore((s) => s.setDiffViewMode);
   const setWhitespacePolicy = useGitWorkspaceStore((s) => s.setWhitespacePolicy);
   const diff = document ? toFileDiffView(document) : null;
+  const { postMessage } = useVsCodeApi();
+  const client = useMemo(() => createProtocolClient(postMessage), [postMessage]);
+  const handleOpenInEditor = useCallback(() => {
+    if (!document || !filePath || !diff || diff.binary) {
+      return;
+    }
+    const preview = {
+      relativePath: document.filePath,
+      title: document.filePath,
+      diff,
+      repoId: document.repoId,
+    } as const;
+    void client.openDiffInEditor(preview).catch(() => {});
+  }, [document, filePath, diff, client]);
+  const fileIdentity = filePath ? splitWorkspacePath(filePath) : null;
   const [selectedLineKeys, setSelectedLineKeys] = useState<Set<string>>(
     () => new Set(),
   );
@@ -162,9 +181,18 @@ export function WorkspaceDiffPanel({
       className={`flex-1 min-h-0 flex flex-col ${borderless ? "" : "border-l border-border"}`}
       data-testid="workspace-diff-panel"
     >
-      <div className="shrink-0 flex items-center gap-2 px-3 py-1.5 border-b border-border min-h-[32px]">
-        {filePath && (
-          <span className="text-[11px] font-mono truncate flex-1">{filePath}</span>
+      <div className="shrink-0 flex items-center gap-2 px-2.5 h-[38px] min-h-[38px] border-b border-border bg-[var(--vscode-editorGroupHeader-tabsBackground,var(--nx-chrome-bg,transparent))]">
+        {fileIdentity && (
+          <span className="min-w-0 flex-1 flex items-baseline gap-2" data-testid="diff-file-identity">
+            <span className="truncate text-[12px] font-semibold">
+              {fileIdentity.name}
+            </span>
+            {fileIdentity.dir ? (
+              <span className="truncate text-[9px] text-vscode-description">
+                {fileIdentity.dir}
+              </span>
+            ) : null}
+          </span>
         )}
         {diff && !diff.binary && diff.layout === "split" && (
           <>
@@ -209,6 +237,19 @@ export function WorkspaceDiffPanel({
             {stagedView ? "Staged" : "Working tree"}
           </button>
         )}
+        {document && filePath && diff && !diff.binary && (
+          <button
+            type="button"
+            className="h-6 px-2 text-[10px] rounded-vscode border border-border hover:bg-list-hover flex items-center gap-1"
+            onClick={handleOpenInEditor}
+            data-testid="diff-open-in-editor"
+            title="Open in Editor"
+            aria-label="Open in Editor"
+          >
+            <ExternalLink size={12} strokeWidth={1.75} aria-hidden />
+            Open in Editor
+          </button>
+        )}
       </div>
       <div className="flex-1 min-h-0 overflow-hidden">
         {loading && (
@@ -232,22 +273,22 @@ export function WorkspaceDiffPanel({
             available.
           </div>
         )}
-        {!loading && !error && diff && !diff.binary && diff.layout === "split" && diff.left && diff.right && (
+        {!loading && !error && diff && !diff.binary && diff.left && diff.right && (
           <div className="h-full min-h-0 flex flex-col" data-testid="git-diff-preview">
-            {diffViewMode === "unified" ? (
+            {diff.layout === "split" && diffViewMode === "unified" ? (
               <UnifiedWithHunks
                 left={diff.left}
                 right={diff.right}
                 {...hunkPanelProps}
               />
-            ) : showHunkActions || showLogActions ? (
+            ) : diff.layout === "split" && (showHunkActions || showLogActions) ? (
               <SplitWithHunks
                 left={diff.left}
                 right={diff.right}
                 {...hunkPanelProps}
               />
             ) : (
-              // Compare / branch-compare: full Monaco (syntax + native scroll sync)
+              // Compare / branch-compare / added or deleted file: full Monaco (syntax + native scroll sync)
               <MonacoDiffViewer
                 leftText={diff.left.text}
                 rightText={diff.right.text}
@@ -256,6 +297,17 @@ export function WorkspaceDiffPanel({
                 filePath={filePath}
               />
             )}
+          </div>
+        )}
+        {!loading && !error && diff && !diff.binary && diff.layout === "single" && ((diff.left && !diff.right) || (!diff.left && diff.right)) && (
+          <div className="h-full min-h-0 flex flex-col" data-testid="git-diff-preview">
+            <MonacoDiffViewer
+              leftText={diff.left?.text ?? ""}
+              rightText={diff.right?.text ?? ""}
+              leftLabel={diff.left?.label ?? "Empty"}
+              rightLabel={diff.right?.label ?? "Deleted"}
+              filePath={filePath}
+            />
           </div>
         )}
       </div>

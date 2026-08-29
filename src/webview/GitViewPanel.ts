@@ -131,6 +131,7 @@ function createRouter(context: vscode.ExtensionContext, gitView: GitViewContext)
     repositoryService: gitView.repositoryService,
     protectionService: gitView.protectionService,
     refreshCoordinator: gitView.refreshCoordinator,
+    syncOperationCoordinator: gitView.syncOperationCoordinator,
     changelistStorage: gitView.changelistStorage,
     branchFavoriteStorage: gitView.branchFavoriteStorage,
     shelfStorage: gitView.shelfStorage,

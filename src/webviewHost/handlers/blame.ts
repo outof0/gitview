@@ -12,7 +12,10 @@ import {
 } from "../../shared/protocol";
 import type { BlameSnapshot } from "../../shared/types/blame";
 import type { RepositoryService } from "../../services/repositoryService";
-import { validateRepoRelativePaths } from "../validatePaths";
+import {
+  validateRepoRelativePaths,
+  validateRepoRelativeRealPaths,
+} from "../validatePaths";
 import type { BlameCacheEntry, GitExecFn } from "../../services/git/types";
 
 export type BlameHandlerDeps = {
@@ -127,7 +130,11 @@ export function createBlameHandlers(deps: BlameHandlerDeps) {
         return;
       }
 
-      const validated = validateRepoRelativePaths(repo.rootPath, [filePath]);
+      // Symlink-aware: a lexical containment check lets `link -> /outside`
+      // through and the write then lands outside the repository.
+      const validated = await validateRepoRelativeRealPaths(repo.rootPath, [
+        filePath,
+      ]);
       if (!validated.ok) {
         deps.postMessage(
           createHostError(
@@ -139,18 +146,21 @@ export function createBlameHandlers(deps: BlameHandlerDeps) {
       }
       const relPath = validated.paths[0]!;
       const absolutePath = path.join(repo.rootPath, relPath);
+      // Where the path actually points. Writing here instead of to
+      // `absolutePath` is what stops a symlink from redirecting the write.
+      const writePath = validated.realPaths[0] ?? absolutePath;
 
       try {
         let eol: "lf" | "crlf" = "lf";
         let hasFinalNewline = true;
         try {
-          const existing = await files.readFile(absolutePath);
+          const existing = await files.readFile(writePath);
           eol = existing.eol;
           hasFinalNewline = existing.hasFinalNewline;
         } catch {
           /* new / unreadable file — defaults */
         }
-        await files.writeFile(absolutePath, content, { eol, hasFinalNewline });
+        await files.writeFile(writePath, content, { eol, hasFinalNewline });
         deps.blameCache.delete(blameCacheKey(repo.rootPath, relPath));
 
         // Keep any open VS Code buffer in sync without focusing a new tab.

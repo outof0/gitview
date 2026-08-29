@@ -237,6 +237,19 @@ export function createFakeMonaco() {
             },
           ],
           getTopForLineNumber: (line: number) => (line - 1) * 20,
+          createDecorationsCollection: () => ({
+            set: (decorations: unknown[]) => {
+              el.setAttribute(
+                "data-fake-decorations",
+                String((decorations as unknown[]).length),
+              );
+            },
+            clear: () => {
+              el.removeAttribute("data-fake-decorations");
+            },
+            dispose: () => {},
+          }),
+          deltaDecorations: () => [],
         });
         return {
           setModel: (m: {

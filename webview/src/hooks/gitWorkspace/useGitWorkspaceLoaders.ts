@@ -15,7 +15,6 @@ export function useGitWorkspaceLoaders(deps: GitWorkspaceDeps): GitWorkspaceLoad
     selectedFilePath,
     setBlameLoading,
     setBlameError,
-    logFilters,
     setLogLoading,
     setLogError,
     selectFile,
@@ -81,14 +80,15 @@ export function useGitWorkspaceLoaders(deps: GitWorkspaceDeps): GitWorkspaceLoad
     if (!activeRepo) {
       return;
     }
+    const filters = useGitWorkspaceStore.getState().logFilters;
     setLogLoading(true);
     setLogError(null);
     try {
-      await clientRef.current.queryLog(activeRepo.id, logFilters);
+      await clientRef.current.queryLog(activeRepo.id, filters);
     } catch (err) {
       setLogError(err instanceof Error ? err.message : "Failed to load log");
     }
-  }, [activeRepo, logFilters, setLogError, setLogLoading]);
+  }, [activeRepo, setLogError, setLogLoading]);
 
   const loadLogFileDiff = useCallback(
     async (sha: string, path: string, status: string) => {

@@ -2,16 +2,22 @@ type PushUpstreamDialogProps = {
   open: boolean;
   branchName: string;
   remote: string;
+  busy?: boolean;
+  cancelling?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  onCancelPush?: () => void;
 };
 
 export function PushUpstreamDialog({
   open,
   branchName,
   remote,
+  busy = false,
+  cancelling = false,
   onConfirm,
   onCancel,
+  onCancelPush,
 }: PushUpstreamDialogProps) {
   if (!open) {
     return null;
@@ -35,19 +41,21 @@ export function PushUpstreamDialog({
         <div className="flex justify-end gap-2">
           <button
             type="button"
-            className="h-7 px-3 text-[12px] rounded-vscode hover:bg-list-hover"
-            onClick={onCancel}
+            className="h-7 px-3 text-[12px] rounded-vscode hover:bg-list-hover disabled:opacity-50"
+            onClick={busy ? onCancelPush : onCancel}
+            disabled={busy && (!onCancelPush || cancelling)}
             data-testid="push-upstream-cancel"
           >
-            Cancel
+            {cancelling ? "Cancelling…" : busy ? "Cancel push" : "Cancel"}
           </button>
           <button
             type="button"
-            className="h-7 px-3 text-[12px] rounded-vscode bg-[var(--vscode-button-background)] text-[var(--vscode-button-foreground)] hover:opacity-90"
+            className="h-7 px-3 text-[12px] rounded-vscode bg-[var(--vscode-button-background)] text-[var(--vscode-button-foreground)] hover:opacity-90 disabled:opacity-50"
             onClick={onConfirm}
+            disabled={busy}
             data-testid="push-upstream-confirm"
           >
-            Push and set upstream
+            {busy ? "Pushing…" : "Push and set upstream"}
           </button>
         </div>
       </div>

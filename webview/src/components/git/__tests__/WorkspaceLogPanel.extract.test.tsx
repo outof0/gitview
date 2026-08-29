@@ -42,6 +42,7 @@ describe("WorkspaceLogPanel extract changes", () => {
       />,
     );
 
+    fireEvent.contextMenu(screen.getByTestId("git-commit-abc1234"));
     fireEvent.click(screen.getByTestId("log-extract-changes"));
     expect(onExtractChanges).toHaveBeenCalledWith(snapshot.commits[0]!.sha);
   });

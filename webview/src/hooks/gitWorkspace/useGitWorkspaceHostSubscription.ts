@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { normalizeGitWorkspaceSettings } from "@gitview/shared/types/gitWorkspaceSettings";
 import { PANEL_DIALOG_PAYLOADS } from "../../stores/gitWorkspaceDialogs";
 import { useGitWorkspaceStore } from "../../stores/gitWorkspaceStore";
@@ -19,6 +19,7 @@ import {
   isDiffResult,
   isGitSettings,
   isOpenDialogRequest,
+  isSyncOperationMessage,
 } from "../../apps/gitWorkspace/hostMessageGuards";
 import type { GitWorkspaceDeps } from "./gitWorkspaceDeps";
 
@@ -33,6 +34,7 @@ export function useGitWorkspaceHostSubscription(
   const {
     applyRepoSnapshot,
     applyStatusSnapshot,
+    applySyncOperation,
     applyBranchSnapshot,
     applyLogSnapshot,
     applyBlameSnapshot,
@@ -55,6 +57,10 @@ export function useGitWorkspaceHostSubscription(
     openExclusiveDialog,
     setNativeFocusSurface,
   } = deps.store;
+  const refreshRef = useRef(refresh);
+  refreshRef.current = refresh;
+  const openBranchesRef = useRef(openBranches);
+  openBranchesRef.current = openBranches;
 
   useEffect(() => {
     const client = clientRef.current;
@@ -77,6 +83,8 @@ export function useGitWorkspaceHostSubscription(
         applyRepoSnapshot(event.data.payload);
       } else if (isStatusSnapshot(event.data)) {
         applyStatusSnapshot(event.data.payload);
+      } else if (isSyncOperationMessage(event.data)) {
+        applySyncOperation(event.data.payload);
       } else if (isBranchSnapshot(event.data)) {
         applyBranchSnapshot(event.data.payload);
       } else if (isLogSnapshot(event.data)) {
@@ -107,7 +115,7 @@ export function useGitWorkspaceHostSubscription(
         const surface = event.data.payload.dialog;
         if (surface === "branches") {
           closeAllDialogs();
-          openBranches();
+          openBranchesRef.current();
         } else {
           openExclusiveDialog(surface, PANEL_DIALOG_PAYLOADS[surface]);
         }
@@ -120,7 +128,7 @@ export function useGitWorkspaceHostSubscription(
     window.addEventListener("message", onMessage);
     void client.ready("gitWorkspace").then((response) => {
       applySettings(response.settings);
-      return refresh();
+      return refreshRef.current();
     });
 
     return () => window.removeEventListener("message", onMessage);
@@ -135,13 +143,12 @@ export function useGitWorkspaceHostSubscription(
     applyShelfSnapshot,
     applyStashSnapshot,
     applyStatusSnapshot,
+    applySyncOperation,
     applyTagSnapshot,
     applyWorktreeSnapshot,
     clientRef,
     closeAllDialogs,
-    openBranches,
     openExclusiveDialog,
-    refresh,
     setDiffDocument,
     setDiffViewMode,
     setIssueTrackerBaseUrl,

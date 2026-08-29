@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import type { GitViewContext } from "../application/gitViewContext";
-import { openGitWorkspacePanel } from "../webview/gitWorkspacePanel";
+import { openGitWorkspacePanel } from "./gitWorkspacePanel";
 
 export async function openGitWorkspace(
   context: vscode.ExtensionContext,

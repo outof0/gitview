@@ -43,7 +43,9 @@ describe("WorkspaceLogPanel rewrite actions", () => {
       />,
     );
 
+    fireEvent.contextMenu(screen.getByTestId("git-commit-abc1234"));
     fireEvent.click(screen.getByTestId("log-squash-commit"));
+    fireEvent.contextMenu(screen.getByTestId("git-commit-abc1234"));
     fireEvent.click(screen.getByTestId("log-fixup-commit"));
     expect(onRewriteCommit).toHaveBeenCalledWith(sha, "squash");
     expect(onRewriteCommit).toHaveBeenCalledWith(sha, "fixup");

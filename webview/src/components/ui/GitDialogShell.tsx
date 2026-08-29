@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
 import { cn } from "../../lib/cn";
 
 type GitDialogSize = "default" | "wide" | "xl";
@@ -14,6 +14,7 @@ type GitDialogShellProps = {
   wide?: boolean;
   /** "xl" fills the viewport for list + diff layouts and lets children scroll. */
   size?: GitDialogSize;
+  onCancel?: () => void;
 };
 
 const SIZE_CLASSES: Record<GitDialogSize, string> = {
@@ -36,13 +37,69 @@ export function GitDialogShell({
   className,
   wide = false,
   size,
+  onCancel,
 }: GitDialogShellProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const frame = requestAnimationFrame(() => {
+      const dialog = dialogRef.current;
+      const initial =
+        dialog?.querySelector<HTMLElement>(
+          '[data-dialog-initial-focus="true"]',
+        ) ??
+        dialog?.querySelector<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        );
+      (initial ?? dialog)?.focus();
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      if (previousFocus?.isConnected) {
+        previousFocus.focus();
+      }
+    };
+  }, [open]);
+
   if (!open) {
     return null;
   }
 
   const resolvedSize: GitDialogSize = size ?? (wide ? "wide" : "default");
   const isXl = resolvedSize === "xl";
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape" && onCancel) {
+      event.preventDefault();
+      event.stopPropagation();
+      onCancel();
+      return;
+    }
+    if (event.key !== "Tab") {
+      return;
+    }
+    const focusable = [...(
+      dialogRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ) ?? []
+    )];
+    if (focusable.length === 0) {
+      event.preventDefault();
+      dialogRef.current?.focus();
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable.at(-1);
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last?.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first?.focus();
+    }
+  };
 
   return (
     <div
@@ -50,9 +107,12 @@ export function GitDialogShell({
       role="presentation"
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={title}
+        tabIndex={-1}
+        onKeyDown={handleKeyDown}
         data-testid={testId}
         className={cn(
           "rounded-vscode border border-border shadow-lg",

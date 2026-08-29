@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { RepositorySnapshot } from "@gitview/shared/types/repository";
+import type { SyncOperationEvent } from "@gitview/shared/types/sync";
 import type {
   GitFileStatus,
   GitFileStatusKind,
@@ -43,6 +44,23 @@ function status(
     refreshedAt: 0,
     ...overrides,
   };
+}
+
+function syncEvent(
+  overrides: Partial<SyncOperationEvent> = {},
+): SyncOperationEvent {
+  return {
+    operationId: "sync-1",
+    requestId: "fetch-1",
+    operation: "fetch",
+    repoIds: ["r1"],
+    sequence: 1,
+    timestamp: 1,
+    state: "accepted",
+    phase: "preparing",
+    cancellable: true,
+    ...overrides,
+  } as SyncOperationEvent;
 }
 
 const repoSnapshot: RepositorySnapshot = {
@@ -154,6 +172,143 @@ describe("gitWorkspaceStore slice", () => {
     expect(state.activeRepository()?.id).toBe("r2");
     expect(state.loading).toBe(false);
     expect(state.error).toBeNull();
+  });
+
+  it("preserves mutation errors during background repository refresh", () => {
+    const store = useGitWorkspaceStore.getState();
+    store.setError("Repository state changed");
+
+    store.applyRepoSnapshot(repoSnapshot);
+
+    expect(useGitWorkspaceStore.getState().error).toBe(
+      "Repository state changed",
+    );
+  });
+
+  it("rejects status for a repository that is not active", () => {
+    const store = useGitWorkspaceStore.getState();
+    store.applyRepoSnapshot(repoSnapshot);
+    store.applyStatusSnapshot(status([file("stale.ts")], { repoId: "r1" }));
+
+    expect(useGitWorkspaceStore.getState().statusSnapshot).toBeNull();
+  });
+
+  it("applies only newer lifecycle events for each sync operation", () => {
+    const store = useGitWorkspaceStore.getState();
+    store.applySyncOperation(syncEvent());
+    store.applySyncOperation(
+      syncEvent({ state: "running", phase: "fetching", sequence: 2 }),
+    );
+    store.markSyncOperationOutcomeUnknown("sync-1");
+    store.applySyncOperation(
+      syncEvent({ state: "running", phase: "refreshing", sequence: 2 }),
+    );
+    store.applySyncOperation(syncEvent({ sequence: 1 }));
+
+    let operation = useGitWorkspaceStore
+      .getState()
+      .syncOperationForRepository("r1", "fetch");
+    expect(operation).toMatchObject({
+      outcomeUnknown: true,
+      event: { state: "running", phase: "fetching", sequence: 2 },
+    });
+
+    store.applySyncOperation(
+      syncEvent({
+        state: "completed",
+        sequence: 3,
+        outcome: { kind: "success" },
+      }),
+    );
+    operation = useGitWorkspaceStore
+      .getState()
+      .syncOperationForRepository("r1", "fetch");
+    expect(operation).toMatchObject({
+      outcomeUnknown: false,
+      event: { state: "completed", sequence: 3 },
+    });
+  });
+
+  it("keeps cancellation requested and rejected operations active until confirmation", () => {
+    const store = useGitWorkspaceStore.getState();
+    store.applySyncOperation(
+      syncEvent({ state: "running", phase: "fetching", sequence: 2 }),
+    );
+    store.applySyncOperation(
+      syncEvent({
+        state: "cancel_requested",
+        phase: "fetching",
+        sequence: 3,
+      }),
+    );
+    expect(
+      store.syncOperationForRepository("r1", "fetch")?.event.state,
+    ).toBe("cancel_requested");
+
+    store.applySyncOperation(
+      syncEvent({
+        state: "cancel_rejected",
+        phase: "refreshing",
+        reason: "not_cancellable",
+        message: "Refresh cannot be cancelled.",
+        cancellable: false,
+        sequence: 4,
+      }),
+    );
+    expect(
+      store.syncOperationForRepository("r1", "fetch")?.event.state,
+    ).toBe("cancel_rejected");
+
+    store.applySyncOperation(
+      syncEvent({
+        state: "cancel_confirmed",
+        outcome: { kind: "cancelled", message: "Cancelled." },
+        sequence: 5,
+      }),
+    );
+    expect(
+      store.syncOperationForRepository("r1", "fetch")?.event.state,
+    ).toBe("cancel_confirmed");
+  });
+
+  it("does not let a late terminal event replace a newer active operation", () => {
+    const store = useGitWorkspaceStore.getState();
+    store.applySyncOperation(
+      syncEvent({ state: "running", phase: "fetching", sequence: 2 }),
+    );
+    store.applySyncOperation(
+      syncEvent({
+        operationId: "sync-2",
+        requestId: "fetch-2",
+        sequence: 1,
+        timestamp: 2,
+      }),
+    );
+    store.applySyncOperation(
+      syncEvent({
+        state: "failed",
+        sequence: 3,
+        outcome: { kind: "offline", message: "Offline." },
+      }),
+    );
+
+    expect(
+      store.syncOperationForRepository("r1", "fetch")?.event.operationId,
+    ).toBe("sync-2");
+  });
+
+  it("clears repository-dependent state when the active repository changes", () => {
+    const store = useGitWorkspaceStore.getState();
+    store.applyRepoSnapshot({ ...repoSnapshot, activeRepoId: "r1" });
+    store.applyStatusSnapshot(status([file("a.ts")]));
+    store.selectFile("a.ts");
+
+    store.applyRepoSnapshot(repoSnapshot);
+
+    const state = useGitWorkspaceStore.getState();
+    expect(state.statusSnapshot).toBeNull();
+    expect(state.selectedFilePath).toBeNull();
+    expect([...state.commitScope]).toEqual([]);
   });
 
   it("opens and closes dialogs by id", () => {

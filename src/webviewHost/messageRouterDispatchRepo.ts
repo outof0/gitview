@@ -39,10 +39,78 @@ export async function dispatchRepo(
       );
       return true;
 
+    case "workspace.collapsePanel": {
+      if (!deps.executeWorkspaceCommand) {
+        deps.postMessage(
+          createHostError(
+            request.requestId,
+            createError("NOT_IMPLEMENTED", "Workspace action is unavailable."),
+          ),
+        );
+        return true;
+      }
+      await deps.executeWorkspaceCommand("collapsePanel");
+      deps.postMessage(
+        createHostResponse(request.requestId, "workspace.collapsePanel", {
+          collapsed: true,
+        }),
+      );
+      return true;
+    }
+
+    case "workspace.openFolder":
+    case "workspace.clone":
+    case "workspace.manageTrust":
+    case "repository.addRemote": {
+      const command =
+        request.type === "workspace.openFolder"
+          ? "openFolder"
+          : request.type === "workspace.clone"
+            ? "clone"
+            : request.type === "workspace.manageTrust"
+              ? "manageTrust"
+              : "addRemote";
+      if (!deps.executeWorkspaceCommand) {
+        deps.postMessage(
+          createHostError(
+            request.requestId,
+            createError("NOT_IMPLEMENTED", "Workspace action is unavailable."),
+          ),
+        );
+        return true;
+      }
+      await deps.executeWorkspaceCommand(command);
+      if (request.type === "workspace.openFolder") {
+        deps.postMessage(
+          createHostResponse(request.requestId, "workspace.openFolder", {
+            opened: true,
+          }),
+        );
+      } else if (request.type === "workspace.clone") {
+        deps.postMessage(
+          createHostResponse(request.requestId, "workspace.clone", {
+            opened: true,
+          }),
+        );
+      } else if (request.type === "workspace.manageTrust") {
+        deps.postMessage(
+          createHostResponse(request.requestId, "workspace.manageTrust", {
+            opened: true,
+          }),
+        );
+      } else {
+        deps.postMessage(
+          createHostResponse(request.requestId, "repository.addRemote", {
+            opened: true,
+          }),
+        );
+      }
+      return true;
+    }
+
     case "repo.refresh": {
       const repos = await deps.repositoryService.discoverRepositories({
         workspaceFolders: deps.workspaceFolders,
-        explicitRepoId: request.payload.repoId,
         trusted: isWorkspaceTrusted(deps),
       });
       const active = request.payload.repoId ?? repos[0]?.id ?? null;

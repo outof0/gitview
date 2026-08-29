@@ -1,5 +1,6 @@
 import type { BlameSide } from "../../types/blame";
 import type { CommitCheckKind } from "../types/commitCheck";
+import type { ConfirmationSubmission } from "../types/confirmation";
 import type { DiscardConfirmAction } from "../types/merge";
 import type { ReviewFilters } from "../types/review";
 import type { StashFileOrigin } from "../types/stash";
@@ -12,6 +13,10 @@ export type WebviewToHostExtended =
   | WebviewRequest<
       "commit.checks",
       { repoId: string; paths?: string[]; kinds?: CommitCheckKind[] }
+    >
+  | WebviewRequest<
+      "diff.numstat",
+      { repoId: string; paths?: string[]; ref?: string }
     >
   | WebviewRequest<
       "blame.query",
@@ -170,7 +175,13 @@ export type WebviewToHostExtended =
     >
   | WebviewRequest<
       "worktree.remove",
-      { repoId: string; path: string; force?: boolean; confirmed?: boolean }
+      {
+        repoId: string;
+        path: string;
+        force?: boolean;
+        confirmed?: boolean;
+        confirmation?: ConfirmationSubmission;
+      }
     >
   | WebviewRequest<
       "worktree.open",

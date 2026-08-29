@@ -19,7 +19,7 @@ function makeExecGit(
 }
 
 const branchListResponse = {
-  "for-each-ref --format=%(refname:short)|%(refname)|%(upstream:short)|%(objectname:short)|%(HEAD) refs/heads/ refs/remotes/":
+  "for-each-ref --format=%(refname:short)|%(refname)|%(upstream:short)|%(objectname)|%(HEAD) refs/heads/ refs/remotes/":
     {
       stdout:
         "main|refs/heads/main||abc|*\nfeature|refs/heads/feature||def|\n",

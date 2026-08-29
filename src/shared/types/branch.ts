@@ -38,6 +38,7 @@ export type SyncBranchTarget = {
   name: string;
   available: boolean;
   currentBranch: string | null;
+  targetSha: string | null;
   unavailableReason?: string;
 };
 

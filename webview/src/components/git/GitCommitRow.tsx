@@ -11,6 +11,7 @@ type GitCommitRowProps = {
   highlighted: boolean;
   issueTrackerBaseUrl?: string | null;
   blameDensity: boolean;
+  compact?: boolean;
   /** Non-null only in graph mode; drives the leading gutter width. */
   graphWidth: number | null;
   selectedRef: RefObject<HTMLButtonElement>;
@@ -62,6 +63,7 @@ export const GitCommitRow = memo(function GitCommitRow({
   highlighted,
   issueTrackerBaseUrl,
   blameDensity,
+  compact = false,
   graphWidth,
   selectedRef,
   onSelect,
@@ -85,7 +87,10 @@ export const GitCommitRow = memo(function GitCommitRow({
         <button
           type="button"
           className={cn(
-            "relative w-full min-h-6 grid items-center gap-0 p-0 border-0 bg-transparent text-vscode-editor-fg cursor-pointer text-left text-xs leading-6 hover:bg-list-hover",
+            "relative w-full grid items-center gap-0 p-0 border-0 bg-transparent text-vscode-editor-fg cursor-pointer text-left hover:bg-list-hover",
+            compact
+              ? "min-h-6 text-xs leading-6"
+              : "min-h-7 text-[length:var(--vscode-font-size,13px)] leading-7",
             selected && "bg-list-active text-list-activeForeground",
             !selected &&
               highlighted &&

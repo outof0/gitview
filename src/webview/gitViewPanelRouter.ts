@@ -96,6 +96,7 @@ export function createGitViewPanelRouter(
     repositoryService: gitView.repositoryService,
     protectionService: gitView.protectionService,
     refreshCoordinator: gitView.refreshCoordinator,
+    syncOperationCoordinator: gitView.syncOperationCoordinator,
     changelistStorage: gitView.changelistStorage,
     branchFavoriteStorage: gitView.branchFavoriteStorage,
     shelfStorage: gitView.shelfStorage,
@@ -108,6 +109,16 @@ export function createGitViewPanelRouter(
     workspaceFolders: workspaceFolders(),
     getWorkspaceFolders: workspaceFolders,
     postMessage,
+    executeWorkspaceCommand: async (action) => {
+      const command = {
+        openFolder: "workbench.action.files.openFolder",
+        clone: "git.clone",
+        manageTrust: "workbench.trust.manage",
+        addRemote: "git.addRemote",
+        collapsePanel: "workbench.action.closePanel",
+      }[action];
+      await vscode.commands.executeCommand(command);
+    },
     getCrlfWarningsEnabled: () =>
       vscode.workspace.getConfiguration("gitView").get("crlfWarnings", true),
     getConfirmDestructiveActions: readConfirmDestructiveActions,

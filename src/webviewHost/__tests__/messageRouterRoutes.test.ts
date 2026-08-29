@@ -9,7 +9,19 @@ describe("messageRouterRoutes", () => {
     expect(resolveDispatcher("stash.push")).toBeTypeOf("function");
   });
 
+  it("routes repository recovery destinations through the repo dispatcher", () => {
+    const repoDispatcher = resolveDispatcher("repo.refresh");
+    expect(resolveDispatcher("workspace.openFolder")).toBe(repoDispatcher);
+    expect(resolveDispatcher("workspace.clone")).toBe(repoDispatcher);
+    expect(resolveDispatcher("workspace.manageTrust")).toBe(repoDispatcher);
+    expect(resolveDispatcher("workspace.collapsePanel")).toBe(repoDispatcher);
+    expect(resolveDispatcher("repository.addRemote")).toBe(repoDispatcher);
+  });
+
   it("routes requests in the same domain to the same dispatcher", () => {
+    expect(resolveDispatcher("sync.cancel")).toBe(
+      resolveDispatcher("sync.fetch"),
+    );
     expect(resolveDispatcher("branch.create")).toBe(
       resolveDispatcher("branch.delete"),
     );

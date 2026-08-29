@@ -1,4 +1,5 @@
 import type { ProtocolRequestFn } from "./clientCore";
+import type { ConfirmationSubmission } from "@gitview/shared/types/confirmation";
 import type { StashFileOrigin } from "@gitview/shared/types/stash";
 
 export function createProtocolClientAuxMethods(request: ProtocolRequestFn) {
@@ -91,13 +92,8 @@ export function createProtocolClientAuxMethods(request: ProtocolRequestFn) {
     removeWorktree: (
       repoId: string,
       path: string,
-      force?: boolean,
-      confirmed?: boolean,
-    ) =>
-      request(
-        "worktree.remove",
-        { repoId, path, force, confirmed },
-      ),
+      confirmation?: ConfirmationSubmission,
+    ) => request("worktree.remove", { repoId, path, confirmation }),
     openWorktree: (repoId: string, path: string) =>
       request("worktree.open", { repoId, path }),
   };

@@ -30,11 +30,18 @@ export type MergeBootstrap = {
   repoId: string;
 };
 
+export type GitCreateBranchBootstrap = {
+  repoId: string;
+  /** Ref the new branch starts from; empty means the current HEAD. */
+  startPoint?: string;
+};
+
 export type GitViewBootstrap =
   | HistoryBootstrap
   | BlameBootstrap
   | DiffBootstrap
-  | MergeBootstrap;
+  | MergeBootstrap
+  | GitCreateBranchBootstrap;
 
 declare global {
   interface Window {

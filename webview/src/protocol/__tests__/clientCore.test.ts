@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PROTOCOL_VERSION } from "@gitview/shared/protocol";
-import { createProtocolClientTransport } from "../clientCore";
+import {
+  createProtocolClientTransport,
+  ProtocolRequestTimeoutError,
+} from "../clientCore";
 
 describe("clientCore", () => {
   beforeEach(() => {
@@ -15,12 +18,15 @@ describe("clientCore", () => {
     const { request } = createProtocolClientTransport(() => {});
 
     const pending = request("repo.refresh", {}, 1_000);
-    const assertion = expect(pending).rejects.toThrow(
+    const errorType = expect(pending).rejects.toBeInstanceOf(
+      ProtocolRequestTimeoutError,
+    );
+    const message = expect(pending).rejects.toThrow(
       'Request "repo.refresh" timed out after 1000ms',
     );
 
     await vi.advanceTimersByTimeAsync(1_000);
-    await assertion;
+    await Promise.all([errorType, message]);
   });
 
   it("resolves when the host returns the expected response type", async () => {

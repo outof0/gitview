@@ -47,6 +47,12 @@ describe("push upstream integration", () => {
     expect(await resolveDefaultRemote(execGit, repo.root)).toBe("origin");
   }, 15_000);
 
+  it("does not invent a remote when none is configured", async () => {
+    repo = await createTempGitRepo();
+
+    expect(await resolveDefaultRemote(execGit, repo.root)).toBeNull();
+  }, 15_000);
+
   it("sets upstream with git push -u", async () => {
     repo = await createTempGitRepo();
     await addBareRemote(repo);

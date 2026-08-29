@@ -16,6 +16,16 @@ type PendingRequest = {
   timer: ReturnType<typeof setTimeout>;
 };
 
+export class ProtocolRequestTimeoutError extends Error {
+  constructor(
+    readonly requestType: ProtocolRequestType,
+    readonly timeoutMs: number,
+  ) {
+    super(`Request "${requestType}" timed out after ${timeoutMs}ms`);
+    this.name = "ProtocolRequestTimeoutError";
+  }
+}
+
 let requestCounter = 0;
 
 function nextRequestId(): string {
@@ -113,7 +123,7 @@ export function createProtocolClientTransport(postMessage: (msg: unknown) => voi
       const timer = setTimeout(() => {
         if (sharedPending.has(requestId)) {
           sharedPending.delete(requestId);
-          reject(new Error(`Request "${type}" timed out after ${timeoutMs}ms`));
+          reject(new ProtocolRequestTimeoutError(type, timeoutMs));
         }
       }, timeoutMs);
 

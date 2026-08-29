@@ -1,6 +1,6 @@
 import type * as vscode from "vscode";
 import type { GitViewContext } from "../application/gitViewContext";
-import * as Panel from "../webview/GitViewPanel";
+import * as Panel from "./GitViewPanel";
 
 export type OpenGitViewOptions = {
   /**

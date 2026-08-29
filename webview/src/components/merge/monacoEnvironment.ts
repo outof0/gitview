@@ -1,6 +1,4 @@
 // Wire Monaco editor worker for Vite. Must run before the editor API loads.
-// Syntax colors use Monarch tokenizers on the main thread; a no-op worker is
-// enough for bracket/comment helpers and avoids ?worker URL issues in webviews.
 let configured = false;
 
 function createNoopWorker(): Worker {

@@ -5,7 +5,15 @@ import { validateRepoRelativePaths } from "../validatePaths";
 import { gitCommandError, type MutationHandlerContext } from "./mutationHelpers";
 
 export function createCommitMutationHandlers(ctx: MutationHandlerContext) {
-  const { deps, commitApi, sync, validateRepoMutation, refreshAfterMutation, preconditionError } = ctx;
+  const {
+    deps,
+    staging,
+    commitApi,
+    sync,
+    validateRepoMutation,
+    refreshAfterMutation,
+    preconditionError,
+  } = ctx;
   return {
     async createCommit(
       requestId: string,
@@ -46,16 +54,39 @@ export function createCommitMutationHandlers(ctx: MutationHandlerContext) {
         payload = { ...payload, paths: validated.paths };
       }
 
+      let effectivePaths = payload.paths?.length ? payload.paths : undefined;
+      if (!effectivePaths) {
+        try {
+          effectivePaths = await staging.listStagedPaths(repo.rootPath);
+        } catch (err) {
+          deps.postMessage(
+            createHostError(
+              requestId,
+              createError("GIT_COMMAND_FAILED", gitCommandError(err)),
+            ),
+          );
+          return;
+        }
+      }
+      if (effectivePaths.length === 0 && !payload.amend) {
+        deps.postMessage(
+          createHostError(
+            requestId,
+            createError("NO_LOCAL_CHANGES", "No staged changes to commit."),
+          ),
+        );
+        return;
+      }
+
       if (
         payload.runChecks &&
         !payload.skipChecks &&
         deps.commitCheckService &&
-        payload.paths &&
-        payload.paths.length > 0
+        effectivePaths.length > 0
       ) {
         const checkResult = await deps.commitCheckService.runChecks(
           repo.rootPath,
-          payload.paths,
+          effectivePaths,
           { applyFixes: true },
         );
         const warnings = checkResult.issues.filter(

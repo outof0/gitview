@@ -67,8 +67,7 @@ export async function dispatchTagsWorktrees(
           request.requestId,
           request.payload.repoId,
           request.payload.path,
-          request.payload.force,
-          request.payload.confirmed,
+          request.payload.confirmation,
         );
         return true;
 

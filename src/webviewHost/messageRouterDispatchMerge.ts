@@ -9,11 +9,14 @@ export async function dispatchMerge(
   request: WebviewToHost,
   ctx: MessageRouterContext,
 ): Promise<boolean> {
-  if (!ctx.mergeHandlers) {
-    return false;
+  if (!assertMergePanelConfigured(ctx, request.requestId)) {
+    return true;
   }
 
   const { mergeHandlers } = ctx;
+  if (!mergeHandlers) {
+    return true;
+  }
   switch (request.type) {
     case "conflict.refresh":
       await mergeHandlers.refreshConflicts(

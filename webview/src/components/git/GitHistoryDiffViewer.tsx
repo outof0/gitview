@@ -1,4 +1,4 @@
-import type { Ref } from "react";
+import { useEffect, type Ref } from "react";
 import type { FileDiffView } from "@gitview/types";
 import { changedFileStatusLabel } from "./changedFileStatus";
 import {
@@ -101,6 +101,34 @@ export function GitHistoryDiffViewer({
   viewerRef,
 }: GitHistoryDiffViewerProps) {
   const standalone = variant === "standalone";
+
+  // Single-panel / binary must still resolve "Comparing…" in the standalone
+  // toolbar. Monaco reports via onDidUpdateDiff; these paths have no Monaco.
+  useEffect(() => {
+    if (!onDiffCountChange || !diff) {
+      return;
+    }
+    if (diff.binary) {
+      onDiffCountChange(0);
+      return;
+    }
+    if (diff.layout !== "single") {
+      return;
+    }
+    // A/D already uses Monaco above, which notifies itself.
+    if ((diff.status === "A" && diff.right) || (diff.status === "D" && diff.left)) {
+      return;
+    }
+    const panel = diff.right ?? diff.left;
+    if (!panel) {
+      onDiffCountChange(0);
+      return;
+    }
+    // Identical (left===right already collapsed to single M) → 0, otherwise
+    // whole file is one hunk.
+    const lines = panel.text === "" ? 0 : panel.text.split("\n").length;
+    onDiffCountChange(panel.text === "" ? 0 : lines > 0 ? 1 : 0);
+  }, [diff, onDiffCountChange]);
   if (loading) {
     return (
       <div

@@ -24,6 +24,7 @@ import type { RepositorySnapshot } from "../types/repository";
 import type { ShelfListSnapshot } from "../types/shelf";
 import type { StashDetail, StashListSnapshot } from "../types/stash";
 import type { ChangeList, StatusSnapshot } from "../types/status";
+import type { SyncCancelResult, SyncOperationEvent } from "../types/sync";
 import type { TagListSnapshot } from "../types/tag";
 import type { WorktreeListSnapshot } from "../types/worktree";
 import type { CommitCheckResult } from "../types/commitCheck";
@@ -35,7 +36,6 @@ import type { HostErrorResponse, HostEvent, HostResponse } from "./base";
 export const GIT_PANEL_DIALOGS = [
   "stash",
   "unstash",
-  "createBranch",
   "merge",
   "rebase",
   "commit",
@@ -70,6 +70,7 @@ export type HostToWebview =
   | HostEvent<"repo.snapshot", RepositorySnapshot>
   | HostEvent<"status.snapshot", StatusSnapshot>
   | HostEvent<"git.settings", GitWorkspaceSettings>
+  | HostEvent<"sync.operation", SyncOperationEvent>
   | HostEvent<"branch.snapshot", BranchListSnapshot>
   | HostEvent<"branch.compare.snapshot", BranchCompareSnapshot>
   | HostEvent<"log.snapshot", LogSnapshot>
@@ -104,6 +105,11 @@ export type HostToWebview =
       "webview.ready",
       { surface: string; settings: GitWorkspaceSettings }
     >
+  | HostResponse<"workspace.openFolder", { opened: boolean }>
+  | HostResponse<"workspace.clone", { opened: boolean }>
+  | HostResponse<"workspace.manageTrust", { opened: boolean }>
+  | HostResponse<"workspace.collapsePanel", { collapsed: boolean }>
+  | HostResponse<"repository.addRemote", { opened: boolean }>
   | HostResponse<"repo.refresh", { refreshed: boolean }>
   | HostResponse<"status.list", StatusSnapshot>
   | HostResponse<"changes.stage", { staged: string[] }>
@@ -142,6 +148,7 @@ export type HostToWebview =
         }>;
       }
     >
+  | HostResponse<"sync.cancel", SyncCancelResult>
   | HostResponse<"branch.list", BranchListSnapshot>
   | HostResponse<"branch.checkout", { ref: string }>
   | HostResponse<
@@ -180,6 +187,7 @@ export type HostToWebview =
   | HostResponse<"operation.skip", { ok: boolean }>
   | HostResponse<"operation.abort", { ok: boolean }>
   | HostResponse<"diff.open", WorkspaceDiffDocument>
+  | HostResponse<"diff.numstat", { additions: number; deletions: number }>
   | HostResponse<"diff.annotate", { ok: true }>
   | HostResponse<"changelist.create", { changelists: ChangeList[] }>
   | HostResponse<"changelist.activate", { changelists: ChangeList[] }>
@@ -322,6 +330,7 @@ export type HostToWebview =
   | HostResponse<"review.checkoutBranch", { branch: string }>
   | HostResponse<"review.create", ReviewItem>
   | HostResponse<"review.createLineComment", { commentId: string }>
+  | HostResponse<"diff.openInEditor", { ok: boolean }>
   | HostErrorResponse;
 
 /**
@@ -345,6 +354,7 @@ export const HOST_EVENT_TYPES = [
   "repo.snapshot",
   "status.snapshot",
   "git.settings",
+  "sync.operation",
   "branch.snapshot",
   "branch.compare.snapshot",
   "log.snapshot",

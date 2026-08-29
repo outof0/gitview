@@ -1,5 +1,6 @@
 import type { TagEntry } from "../../shared/types/tag";
 import type { GitExecFn } from "./types";
+import { assertSafeGitOperand } from "../../shared/lib/gitOperand";
 
 export function createTagApi(execGit: GitExecFn) {
   async function listTagEntries(
@@ -44,6 +45,10 @@ export function createTagApi(execGit: GitExecFn) {
     message?: string,
     sha?: string,
   ): Promise<void> {
+    assertSafeGitOperand(name, "tag name");
+    if (sha?.trim()) {
+      assertSafeGitOperand(sha.trim(), "tag target");
+    }
     const args = ["tag", "-a", name];
     if (message?.trim()) {
       args.push("-m", message.trim());
@@ -55,6 +60,7 @@ export function createTagApi(execGit: GitExecFn) {
   }
 
   async function checkout(repoRoot: string, name: string): Promise<void> {
+    assertSafeGitOperand(name, "tag name");
     try {
       await execGit(repoRoot, ["switch", "--detach", name]);
     } catch {
@@ -67,10 +73,13 @@ export function createTagApi(execGit: GitExecFn) {
     tagName: string,
     remote = "origin",
   ): Promise<void> {
+    assertSafeGitOperand(tagName, "tag name");
+    assertSafeGitOperand(remote, "remote");
     await execGit(repoRoot, ["push", remote, tagName]);
   }
 
   async function deleteTag(repoRoot: string, name: string): Promise<void> {
+    assertSafeGitOperand(name, "tag name");
     await execGit(repoRoot, ["tag", "-d", name]);
   }
 

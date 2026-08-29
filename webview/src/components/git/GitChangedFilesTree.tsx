@@ -17,6 +17,7 @@ type GitChangedFilesTreeProps = {
   selectedPath: string | null;
   highlightPath?: string;
   onSelectFile: (path: string) => void;
+  onActivateFile?: (path: string) => void;
   onContextMenuFile?: (e: React.MouseEvent, path: string) => void;
 };
 
@@ -35,7 +36,7 @@ function Chevron({ open }: { open: boolean }) {
 function FolderIcon() {
   return (
     <svg
-      className="w-3.5 h-3.5 shrink-0 text-[#c5c5c5]"
+      className="w-3.5 h-3.5 shrink-0 text-[var(--vscode-icon-foreground,var(--foreground))]"
       viewBox="0 0 16 16"
       fill="currentColor"
     >
@@ -52,6 +53,7 @@ const TreeRow = memo(function TreeRow({
   collapsed,
   onToggle,
   onSelectFile,
+  onActivateFile,
   onContextMenuFile,
 }: {
   node: ChangedFileTreeNode;
@@ -61,6 +63,7 @@ const TreeRow = memo(function TreeRow({
   collapsed: Set<string>;
   onToggle: (path: string) => void;
   onSelectFile: (path: string) => void;
+  onActivateFile?: (path: string) => void;
   onContextMenuFile?: (e: React.MouseEvent, path: string) => void;
 }) {
   const isOpen = !collapsed.has(node.path);
@@ -75,14 +78,14 @@ const TreeRow = memo(function TreeRow({
       <>
         <button
           type="button"
-          className="w-full text-left flex items-center gap-1 py-0.5 pr-2 text-[11px] font-mono hover:bg-list-hover border-none bg-transparent cursor-pointer text-foreground"
+          className="w-full text-left flex items-center gap-1 py-1 pr-2 min-h-[22px] text-[length:var(--vscode-font-size,13px)] font-mono hover:bg-list-hover border-none bg-transparent cursor-pointer text-foreground"
           style={{ paddingLeft: `${8 + depth * 14}px` }}
           onClick={() => onToggle(node.path)}
           data-testid={`changed-files-folder-${node.path}`}
         >
           <Chevron open={isOpen} />
           <FolderIcon />
-          <span className="truncate font-semibold text-[#c5c5c5]">
+          <span className="truncate font-semibold text-[var(--vscode-icon-foreground,var(--foreground))]">
             {node.name}
           </span>
         </button>
@@ -97,6 +100,7 @@ const TreeRow = memo(function TreeRow({
               collapsed={collapsed}
               onToggle={onToggle}
               onSelectFile={onSelectFile}
+              onActivateFile={onActivateFile}
               onContextMenuFile={onContextMenuFile}
             />
           ))}
@@ -109,9 +113,10 @@ const TreeRow = memo(function TreeRow({
   return (
     <button
       type="button"
-      className={`w-full text-left flex items-center gap-1 py-0.5 pr-2 text-[11px] font-mono border-none cursor-pointer truncate ${changedFileRowBgClass(status, isSelected, isHighlighted)}`}
+      className={`w-full text-left flex items-center gap-1 py-1 pr-2 min-h-[22px] text-[length:var(--vscode-font-size,13px)] font-mono border-none cursor-pointer truncate ${changedFileRowBgClass(isSelected, isHighlighted)}`}
       style={{ paddingLeft: `${22 + depth * 14}px` }}
       onClick={() => onSelectFile(node.path)}
+      onDoubleClick={() => onActivateFile?.(node.path)}
       onContextMenu={
         onContextMenuFile
           ? (e) => {
@@ -143,6 +148,7 @@ export function GitChangedFilesTree({
   selectedPath,
   highlightPath,
   onSelectFile,
+  onActivateFile,
   onContextMenuFile,
 }: GitChangedFilesTreeProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
@@ -181,6 +187,7 @@ export function GitChangedFilesTree({
           collapsed={collapsed}
           onToggle={toggle}
           onSelectFile={onSelectFile}
+          onActivateFile={onActivateFile}
           onContextMenuFile={onContextMenuFile}
         />
       ))}
