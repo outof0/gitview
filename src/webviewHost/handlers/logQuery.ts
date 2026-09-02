@@ -18,7 +18,14 @@ import {
 } from "./logHelpers";
 
 export function createLogQueryHandlers(apis: LogHandlerApis) {
-  const { deps, log, diff, resolveRepo } = apis;
+  const {
+    deps,
+    log,
+    diff,
+    resolveRepo,
+    rememberCommitParents,
+    knownParentForCommit,
+  } = apis;
   const repoApi = createRepoApi(deps.execGit);
   return {
     async query(
@@ -101,6 +108,7 @@ export function createLogQueryHandlers(apis: LogHandlerApis) {
         result.commits,
         opts,
       );
+      rememberCommitParents(repo.id, snapshot.commits);
       deps.postMessage({
         protocolVersion: PROTOCOL_VERSION,
         type: "log.snapshot",
@@ -158,6 +166,7 @@ export function createLogQueryHandlers(apis: LogHandlerApis) {
         sha,
         path,
         status as GitChangedFileStatus | undefined,
+        knownParentForCommit(repo.id, sha),
       );
       if (!result.ok) {
         deps.postMessage(
@@ -170,12 +179,6 @@ export function createLogQueryHandlers(apis: LogHandlerApis) {
       }
 
       const document = commitDiffToWorkspaceDocument(repo.id, path, result.diff);
-      deps.postMessage({
-        protocolVersion: PROTOCOL_VERSION,
-        type: "diff.result",
-        payload: document,
-        requestId,
-      });
       deps.postMessage(createHostResponse(requestId, "log.fileDiff", document));
     },
 
@@ -214,6 +217,9 @@ export function createLogQueryHandlers(apis: LogHandlerApis) {
         : {
             error: { code: result.code, message: result.message },
           };
+      if (result.ok) {
+        rememberCommitParents(repo.id, [result.commit]);
+      }
       deps.postMessage(createHostResponse(requestId, "log.commitDetail", payload));
     },
 

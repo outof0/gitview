@@ -1,15 +1,15 @@
 import type { SpecialConflictKind } from "../core/types";
 import { resolveRepoRelativeRealPath } from "../util/repoPath";
 
-export const DISCARD_BACK_MESSAGE =
+const DISCARD_BACK_MESSAGE =
   "Discard unsaved changes and return to the conflict list?";
-export const DISCARD_OPEN_FILE_MESSAGE =
+const DISCARD_OPEN_FILE_MESSAGE =
   "Discard unsaved changes and open another conflict file?";
 
 export const APPLY_CONFIRM_MESSAGE =
   "Mark this file as resolved and write the result to disk?";
 
-export const NOT_UNMERGED_MESSAGE =
+const NOT_UNMERGED_MESSAGE =
   "That file is not in the current unmerged conflict list.";
 
 export function discardConfirmMessage(

@@ -41,6 +41,10 @@ export function createDiffHandlers(deps: DiffHandlerDeps) {
   const numstat = createNumstatApi(deps.execGit);
 
   async function resolveRepo(repoId: string) {
+    const cached = deps.repositoryService.getCached(repoId);
+    if (cached) {
+      return cached;
+    }
     const repos = await deps.repositoryService.discoverRepositories({
       workspaceFolders: deps.workspaceFolders,
       explicitRepoId: repoId,
@@ -85,13 +89,16 @@ export function createDiffHandlers(deps: DiffHandlerDeps) {
       }
       const path = validated.paths[0]!;
 
-      const snapshot = await buildRepoStatusSnapshot(
-        statusApi,
-        repo.rootPath,
-        repo.id,
-        { changelistStorage: deps.changelistStorage },
-      );
-      const file = snapshot.files.find((f) => f.path === path);
+      const cachedFile = deps.repositoryService
+        .getCachedStatus(repo.id)
+        ?.files.find((entry) => entry.path === path);
+      const file =
+        cachedFile ??
+        (
+          await buildRepoStatusSnapshot(statusApi, repo.rootPath, repo.id, {
+            changelistStorage: deps.changelistStorage,
+          })
+        ).files.find((entry) => entry.path === path);
       if (!file || file.kind === "ignored") {
         deps.postMessage(
           createHostError(

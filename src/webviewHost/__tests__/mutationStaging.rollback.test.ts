@@ -27,7 +27,8 @@ async function setup(opts?: {
     "rev-parse --show-toplevel": { stdout: "/repo\n", stderr: "" },
     "rev-parse --git-dir": { stdout: ".git\n", stderr: "" },
     "rev-parse HEAD": { stdout: "abc\n", stderr: "" },
-    "restore -- file.ts": { stdout: "", stderr: "" },
+    "restore --staged --worktree -- file.ts": { stdout: "", stderr: "" },
+    "restore --staged --worktree -- added.ts": { stdout: "", stderr: "" },
     "clean -f -- untracked.txt": { stdout: "", stderr: "" },
   });
   const repositoryService = createRepositoryService({
@@ -282,8 +283,51 @@ describe("mutationStaging.rollback confirmation", () => {
     ]);
     expect(execGit).not.toHaveBeenCalledWith("/repo", [
       "restore",
+      "--staged",
+      "--worktree",
       "--",
       "untracked.txt",
+    ]);
+  });
+
+  it("requires DELETE confirmation for staged-added files", async () => {
+    const { handlers, repos, sent, execGit } = await setup({
+      confirmDestructive: true,
+    });
+    const files: GitFileStatus[] = [
+      {
+        repoId: repos[0]!.id,
+        path: "added.ts",
+        kind: "added",
+        indexStatus: "A",
+        workingTreeStatus: " ",
+        staged: true,
+        conflicted: false,
+        binary: false,
+      },
+    ];
+
+    await handlers.rollback("rb-added-preflight", repos[0]!.id, ["added.ts"], undefined, files);
+    const evidence = rollbackEvidence(sent);
+    expect(evidence.expectedTypedValue).toBe("DELETE");
+    expect(evidence.unversionedPaths).toEqual(["added.ts"]);
+    sent.length = 0;
+
+    await handlers.rollback(
+      "rb-added-submit",
+      repos[0]!.id,
+      ["added.ts"],
+      { evidence, typedValue: "DELETE" },
+      files,
+    );
+
+    expect(errorCode(sent)).toBeUndefined();
+    expect(execGit).toHaveBeenCalledWith("/repo", [
+      "restore",
+      "--staged",
+      "--worktree",
+      "--",
+      "added.ts",
     ]);
   });
 });

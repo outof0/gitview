@@ -111,6 +111,7 @@ describe("messageRouter v1", () => {
       ["workspace.clone", {}],
       ["workspace.manageTrust", {}],
       ["workspace.collapsePanel", {}],
+      ["workspace.toggleSidebar", {}],
       ["repository.addRemote", { repoId: "repo" }],
     ] as const) {
       await router.handleRawMessage({
@@ -126,6 +127,7 @@ describe("messageRouter v1", () => {
       ["clone"],
       ["manageTrust"],
       ["collapsePanel"],
+      ["toggleSidebar"],
       ["addRemote"],
     ]);
     expect(sent).toEqual(
@@ -134,6 +136,7 @@ describe("messageRouter v1", () => {
         expect.objectContaining({ type: "workspace.clone", ok: true }),
         expect.objectContaining({ type: "workspace.manageTrust", ok: true }),
         expect.objectContaining({ type: "workspace.collapsePanel", ok: true }),
+        expect.objectContaining({ type: "workspace.toggleSidebar", ok: true }),
         expect.objectContaining({ type: "repository.addRemote", ok: true }),
       ]),
     );
@@ -227,6 +230,80 @@ describe("messageRouter v1", () => {
         (m as { ok?: boolean }).ok === true,
     );
     expect(statusResponse).toBeDefined();
+  });
+
+  it("waits for the coordinator refresh before acknowledging repo.refresh", async () => {
+    const execGit = makeExecGit(
+      {
+        "rev-parse --show-toplevel": { stdout: "/repo\n", stderr: "" },
+        "rev-parse --git-dir": { stdout: ".git\n", stderr: "" },
+        "rev-parse HEAD": { stdout: "abc\n", stderr: "" },
+        "status --porcelain=v1 -z -b": {
+          stdout: "## main\0 M file.ts\0",
+          stderr: "",
+        },
+      },
+      verifyReject,
+    );
+    const repositoryService = createRepositoryService({
+      execGit,
+      discoverGitRoots: async () => ["/repo"],
+    });
+    await repositoryService.discoverRepositories({
+      workspaceFolders: [{ uriPath: "/repo", name: "repo" }],
+      trusted: true,
+    });
+    const discover = vi.spyOn(repositoryService, "discoverRepositories");
+    discover.mockClear();
+    const cached = repositoryService.getCachedRepositories();
+    const refreshNow = vi.fn(async (activeRepoId?: string) => ({
+      repoSnapshot: repositoryService.buildSnapshot(
+        cached,
+        activeRepoId ?? cached[0]?.id ?? null,
+      ),
+      statusByRepoId: new Map(),
+      traceId: "test",
+    }));
+    const sent: unknown[] = [];
+    const router = createMessageRouter({
+      execGit,
+      repositoryService,
+      protectionService: createProtectionService(["main"]),
+      refreshCoordinator: {
+        refreshNow,
+        subscribe: () => () => undefined,
+      } as never,
+      trusted: true,
+      workspaceFolders: [{ uriPath: "/repo", name: "repo" }],
+      postMessage: (msg) => {
+        sent.push(msg);
+      },
+    });
+
+    await router.handleRawMessage({
+      protocolVersion: PROTOCOL_VERSION,
+      requestId: "cached-refresh",
+      type: "repo.refresh",
+      payload: {},
+    });
+
+    expect(discover).not.toHaveBeenCalled();
+    expect(refreshNow).toHaveBeenCalledOnce();
+    expect(
+      sent.some(
+        (message) =>
+          typeof message === "object" &&
+          message !== null &&
+          (message as { type?: string }).type === "repo.snapshot",
+      ),
+    ).toBe(true);
+    expect(sent.at(-1)).toEqual(
+      expect.objectContaining({
+        type: "repo.refresh",
+        ok: true,
+        payload: { refreshed: true },
+      }),
+    );
   });
 
   it("keeps every workspace root when refreshing a selected repository", async () => {

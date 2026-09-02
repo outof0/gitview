@@ -28,7 +28,7 @@ export function createLogSelectedChangesHandlers(apis: LogHandlerApis) {
       lines?: unknown[],
       checkOnly = false,
     ) {
-      const repo = await resolveRepo(repoId);
+      const repo = await resolveRepo(repoId, true);
       const check = validateMutationPreconditions({
         trusted: deps.trusted,
         repository: repo,
@@ -121,7 +121,7 @@ export function createLogSelectedChangesHandlers(apis: LogHandlerApis) {
       lines?: unknown[],
       checkOnly = false,
     ) {
-      const repo = await resolveRepo(repoId);
+      const repo = await resolveRepo(repoId, true);
       const check = validateMutationPreconditions({
         trusted: deps.trusted,
         repository: repo,
@@ -214,7 +214,7 @@ export function createLogSelectedChangesHandlers(apis: LogHandlerApis) {
       lines?: unknown[],
       confirmation?: ConfirmationSubmission,
     ) {
-      const repo = await resolveRepo(repoId);
+      const repo = await resolveRepo(repoId, true);
       const protectedCheck = deps.protectionService.checkDestructiveAction(
         repo?.currentBranch ?? null,
         "history_rewrite",

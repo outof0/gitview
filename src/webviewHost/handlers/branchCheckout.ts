@@ -119,7 +119,7 @@ export function createBranchCheckoutHandlers(ctx: BranchHandlerContext) {
       },
     ) {
       const settings = readGitWorkspaceSettings();
-      const allRepos = await discoverRepos();
+      const allRepos = await discoverRepos(undefined, Boolean(opts?.force));
       const targetRef = ref.trim();
       if (!targetRef) {
         deps.postMessage(

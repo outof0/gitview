@@ -212,7 +212,12 @@ export function activate(
       gitAnnotateBlame(context, gitView, resource, workspaceRoot, ...args),
     ),
     registerGit("gitView.gitRollback", (resource, workspaceRoot) =>
-      gitRollback(resource, workspaceRoot, gitView.commandRuntime),
+      gitRollback(
+        resource,
+        workspaceRoot,
+        gitView.commandRuntime,
+        gitView.gitMenuPresentation,
+      ),
     ),
     registerGit("gitView.gitAdd", (resource, workspaceRoot) =>
       gitAdd(resource, workspaceRoot, gitView.commandRuntime),

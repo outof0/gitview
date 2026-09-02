@@ -58,6 +58,25 @@ export async function dispatchRepo(
       return true;
     }
 
+    case "workspace.toggleSidebar": {
+      if (!deps.executeWorkspaceCommand) {
+        deps.postMessage(
+          createHostError(
+            request.requestId,
+            createError("NOT_IMPLEMENTED", "Workspace action is unavailable."),
+          ),
+        );
+        return true;
+      }
+      await deps.executeWorkspaceCommand("toggleSidebar");
+      deps.postMessage(
+        createHostResponse(request.requestId, "workspace.toggleSidebar", {
+          toggled: true,
+        }),
+      );
+      return true;
+    }
+
     case "workspace.openFolder":
     case "workspace.clone":
     case "workspace.manageTrust":
@@ -109,32 +128,26 @@ export async function dispatchRepo(
     }
 
     case "repo.refresh": {
-      const repos = await deps.repositoryService.discoverRepositories({
-        workspaceFolders: deps.workspaceFolders,
-        trusted: isWorkspaceTrusted(deps),
-      });
-      const active = request.payload.repoId ?? repos[0]?.id ?? null;
-      const snapshot = deps.repositoryService.buildSnapshot(repos, active);
+      const payload = await deps.refreshCoordinator.refreshNow(
+        request.payload.repoId,
+      );
       deps.postMessage({
         protocolVersion: PROTOCOL_VERSION,
         type: "repo.snapshot",
-        payload: snapshot,
+        payload: payload.repoSnapshot,
         requestId: request.requestId,
       });
-
-      // A refresh is an aggregate UI operation, not repository discovery
-      // alone. Sending the active status after the webview-initiated
-      // handshake prevents initial status from being lost while HTML boots.
-      const activeRepo = snapshot.activeRepoId
-        ? repos.find((repo) => repo.id === snapshot.activeRepoId)
-        : undefined;
-      if (activeRepo) {
-        deps.postMessage({
-          protocolVersion: PROTOCOL_VERSION,
-          type: "status.snapshot",
-          payload: await buildStatusForRepository(ctx, activeRepo),
-          requestId: request.requestId,
-        });
+      const activeId = payload.repoSnapshot.activeRepoId;
+      if (activeId) {
+        const status = payload.statusByRepoId.get(activeId);
+        if (status) {
+          deps.postMessage({
+            protocolVersion: PROTOCOL_VERSION,
+            type: "status.snapshot",
+            payload: status,
+            requestId: request.requestId,
+          });
+        }
       }
       deps.postMessage(
         createHostResponse(request.requestId, "repo.refresh", {

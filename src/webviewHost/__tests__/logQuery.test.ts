@@ -188,25 +188,12 @@ describe("log.query / log.commitDetail / log.fileAtRevision handlers", () => {
     const sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     const execGit = makeExecGit({
       ...baseRepoResponses,
-      [`show --format=fuller --no-patch ${sha}`]: {
-        stdout: `commit ${sha} (aaaaaaa)
-Author: Jane Doe <jane@example.com>
-Commit: Jane Doe <jane@example.com>
-
-    Full commit
-`,
-        stderr: "",
-      },
-      [`show --format=%b --no-patch ${sha}`]: {
-        stdout: "",
+      [`show --no-patch --format=${LOG_FORMAT} ${sha}`]: {
+        stdout: sampleLogOutput("Full commit").replace("M\tsrc/app.ts\n", ""),
         stderr: "",
       },
       [`diff-tree --no-commit-id --name-status -r -m --root ${sha}`]: {
         stdout: "M\tsrc/app.ts\n",
-        stderr: "",
-      },
-      [`show -s --format=%at ${sha}`]: {
-        stdout: "1719000000\n",
         stderr: "",
       },
     });

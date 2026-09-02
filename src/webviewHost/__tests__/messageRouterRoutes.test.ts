@@ -15,6 +15,7 @@ describe("messageRouterRoutes", () => {
     expect(resolveDispatcher("workspace.clone")).toBe(repoDispatcher);
     expect(resolveDispatcher("workspace.manageTrust")).toBe(repoDispatcher);
     expect(resolveDispatcher("workspace.collapsePanel")).toBe(repoDispatcher);
+    expect(resolveDispatcher("workspace.toggleSidebar")).toBe(repoDispatcher);
     expect(resolveDispatcher("repository.addRemote")).toBe(repoDispatcher);
   });
 

@@ -79,7 +79,12 @@ export function createStagingMutationHandlers(ctx: MutationHandlerContext) {
       confirmation: ConfirmationSubmission | undefined,
       statusFiles: GitFileStatus[],
     ) {
-      const repo = await validateRepoMutation(requestId, repoId);
+      const repo = await validateRepoMutation(
+        requestId,
+        repoId,
+        undefined,
+        true,
+      );
       if (!repo) {
         return;
       }
@@ -91,21 +96,21 @@ export function createStagingMutationHandlers(ctx: MutationHandlerContext) {
         });
         return;
       }
-
-      const { tracked, unversioned } = splitPathsByKind(
+      const { tracked, unversioned, added } = splitPathsByKind(
         statusFiles,
         validated.paths,
       );
+      const deletePaths = [...unversioned, ...added];
       const confirmDestructive =
         deps.getConfirmDestructiveActions?.() !== false;
       const needsConfirm =
-        unversioned.length > 0 ||
+        deletePaths.length > 0 ||
         (confirmDestructive && tracked.length > 0);
       if (needsConfirm || confirmation) {
         const confirmationCheck = requireRollbackConfirmation(
           repo,
           validated.paths,
-          unversioned,
+          deletePaths,
           confirmation,
         );
         if (!confirmationCheck.ok) {
@@ -117,8 +122,9 @@ export function createStagingMutationHandlers(ctx: MutationHandlerContext) {
       }
 
       try {
-        if (tracked.length > 0) {
-          await staging.rollbackTrackedFiles(repo.rootPath, tracked);
+        const rollbackPaths = [...tracked, ...added];
+        if (rollbackPaths.length > 0) {
+          await staging.rollbackTrackedFiles(repo.rootPath, rollbackPaths);
         }
         if (unversioned.length > 0) {
           await staging.removeUnversionedFiles(repo.rootPath, unversioned);

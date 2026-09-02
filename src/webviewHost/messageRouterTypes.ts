@@ -54,7 +54,8 @@ export type MessageRouterDeps = {
       | "clone"
       | "manageTrust"
       | "addRemote"
-      | "collapsePanel",
+      | "collapsePanel"
+      | "toggleSidebar",
   ) => Promise<void>;
   getCrlfWarningsEnabled?: () => boolean;
   /** When true (default), destructive history ops require a confirmed flag. */
@@ -79,6 +80,16 @@ export type MessageRouterDeps = {
     repoId: string,
     path: string,
     isFolder: boolean,
+  ) => Promise<void>;
+  onOpenGitRollback?: (
+    repoId: string,
+    path: string,
+    selectedPaths?: string[],
+  ) => Promise<void>;
+  onOpenGitContentDialog?: (
+    repoId: string,
+    dialog: "stash" | "unstash",
+    index?: number | null,
   ) => Promise<void>;
   mergePanel?: MergePanelDeps;
   openDiffInEditor?: (

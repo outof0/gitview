@@ -26,7 +26,7 @@ export function createLogRewriteHandlers(apis: LogHandlerApis) {
       confirmed = false,
       confirmation?: ConfirmationSubmission,
     ) {
-      const repo = await resolveRepo(repoId);
+      const repo = await resolveRepo(repoId, true);
       const protectedCheck = deps.protectionService.checkDestructiveAction(
         repo?.currentBranch ?? null,
         resetProtectionAction(mode),
@@ -102,7 +102,7 @@ export function createLogRewriteHandlers(apis: LogHandlerApis) {
       repoId: string,
       confirmed = false,
     ) {
-      const repo = await resolveRepo(repoId);
+      const repo = await resolveRepo(repoId, true);
       const protectedCheck = deps.protectionService.checkDestructiveAction(
         repo?.currentBranch ?? null,
         "history_rewrite",
@@ -153,7 +153,7 @@ export function createLogRewriteHandlers(apis: LogHandlerApis) {
       name: string,
       sha: string,
     ) {
-      const repo = await resolveRepo(repoId);
+      const repo = await resolveRepo(repoId, true);
       const check = validateMutationPreconditions({
         trusted: deps.trusted,
         repository: repo,
@@ -210,7 +210,7 @@ export function createLogRewriteHandlers(apis: LogHandlerApis) {
       sha: string,
       confirmation?: ConfirmationSubmission,
     ) {
-      const repo = await resolveRepo(repoId);
+      const repo = await resolveRepo(repoId, true);
       const protectedCheck = deps.protectionService.checkDestructiveAction(
         repo?.currentBranch ?? null,
         "history_rewrite",
@@ -268,7 +268,7 @@ export function createLogRewriteHandlers(apis: LogHandlerApis) {
       message: string,
       confirmed = false,
     ) {
-      const repo = await resolveRepo(repoId);
+      const repo = await resolveRepo(repoId, true);
       const protectedCheck = deps.protectionService.checkDestructiveAction(
         repo?.currentBranch ?? null,
         "history_rewrite",
@@ -335,7 +335,7 @@ export function createLogRewriteHandlers(apis: LogHandlerApis) {
       confirmed = false,
       confirmation?: ConfirmationSubmission,
     ) {
-      const repo = await resolveRepo(repoId);
+      const repo = await resolveRepo(repoId, true);
       const protectedCheck = deps.protectionService.checkDestructiveAction(
         repo?.currentBranch ?? null,
         "history_rewrite",
@@ -404,7 +404,7 @@ export function createLogRewriteHandlers(apis: LogHandlerApis) {
       sha: string,
       paths?: string[],
     ) {
-      const repo = await resolveRepo(repoId);
+      const repo = await resolveRepo(repoId, true);
       const check = validateMutationPreconditions({
         trusted: deps.trusted,
         repository: repo,

@@ -17,10 +17,7 @@ import {
 } from "../shared/types/confirmation";
 import type { DiffLineSelection } from "../shared/types/diff";
 import type { Repository } from "../shared/types/repository";
-import type {
-  DestructiveAction,
-  ProtectionCheckResult,
-} from "../services/protectionService";
+import type { ProtectionCheckResult } from "../services/protectionService";
 
 export type MutationPreconditionContext = {
   trusted: boolean;
@@ -32,7 +29,7 @@ export type MutationPreconditionResult =
   | { ok: true; repository: Repository }
   | { ok: false; error: GitViewStructuredError };
 
-export function requireTrustedWorkspace(
+function requireTrustedWorkspace(
   trusted: boolean,
 ): MutationPreconditionResult | { ok: true } {
   if (!trusted) {
@@ -48,7 +45,7 @@ export function requireTrustedWorkspace(
   return { ok: true };
 }
 
-export function requireRepository(
+function requireRepository(
   repository: Repository | null,
 ): MutationPreconditionResult {
   if (!repository) {
@@ -73,7 +70,7 @@ export function requireRepository(
   return { ok: true, repository };
 }
 
-export function requireProtectedBranchAllowed(
+function requireProtectedBranchAllowed(
   check: ProtectionCheckResult | undefined,
 ): MutationPreconditionResult | { ok: true } {
   if (!check || check.allowed) {
@@ -482,23 +479,4 @@ export function requireDirtyWorktreeRemovalConfirmation(
   }
 
   return { ok: true };
-}
-
-export function destructiveActionLabel(action: DestructiveAction): string {
-  switch (action) {
-    case "force_push":
-      return "Force push";
-    case "hard_reset":
-      return "Hard reset";
-    case "history_rewrite":
-      return "Rewrite history";
-    case "drop_commit":
-      return "Drop commit";
-    case "force_checkout":
-      return "Force checkout";
-    case "branch_delete_force":
-      return "Force delete branch";
-    case "worktree_delete_dirty":
-      return "Delete dirty worktree";
-  }
 }

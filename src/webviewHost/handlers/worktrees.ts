@@ -32,11 +32,12 @@ export type WorktreeHandlerDeps = {
 export function createWorktreeHandlers(deps: WorktreeHandlerDeps) {
   const worktrees = createWorktreeApi(deps.execGit);
 
-  async function resolveRepo(repoId: string) {
+  async function resolveRepo(repoId: string, freshChangeDigest = false) {
     const repos = await deps.repositoryService.discoverRepositories({
       workspaceFolders: deps.workspaceFolders,
       explicitRepoId: repoId,
       trusted: deps.trusted,
+      freshChangeDigest,
     });
     return deps.repositoryService.resolveRepositoryForResource(
       repos,
@@ -45,8 +46,12 @@ export function createWorktreeHandlers(deps: WorktreeHandlerDeps) {
     );
   }
 
-  async function validateRepo(requestId: string, repoId: string) {
-    const repo = await resolveRepo(repoId);
+  async function validateRepo(
+    requestId: string,
+    repoId: string,
+    freshChangeDigest = false,
+  ) {
+    const repo = await resolveRepo(repoId, freshChangeDigest);
     const check = validateMutationPreconditions({
       trusted: deps.trusted,
       repository: repo,
@@ -101,7 +106,7 @@ export function createWorktreeHandlers(deps: WorktreeHandlerDeps) {
       worktreePath: string,
       opts?: { branch?: string; newBranch?: string },
     ) {
-      const repo = await validateRepo(requestId, repoId);
+      const repo = await validateRepo(requestId, repoId, true);
       if (!repo) {
         return;
       }
@@ -139,7 +144,7 @@ export function createWorktreeHandlers(deps: WorktreeHandlerDeps) {
       worktreePath: string,
       confirmation?: ConfirmationSubmission,
     ) {
-      const repo = await validateRepo(requestId, repoId);
+      const repo = await validateRepo(requestId, repoId, true);
       if (!repo) {
         return;
       }

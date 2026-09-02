@@ -47,16 +47,20 @@ export function createMutationHandlerContext(deps: MutationHandlerDeps) {
   const commitApi = createCommitApi(deps.execGit);
   const sync = createSyncApi(deps.execGit);
 
-  async function discoverRepos(explicitRepoId?: string) {
+  async function discoverRepos(
+    explicitRepoId?: string,
+    freshChangeDigest = false,
+  ) {
     return deps.repositoryService.discoverRepositories({
       workspaceFolders: deps.workspaceFolders,
       explicitRepoId,
       trusted: isWorkspaceTrusted(deps),
+      freshChangeDigest,
     });
   }
 
-  async function resolveRepo(repoId: string) {
-    const repos = await discoverRepos(repoId);
+  async function resolveRepo(repoId: string, freshChangeDigest = false) {
+    const repos = await discoverRepos(repoId, freshChangeDigest);
     return deps.repositoryService.resolveRepositoryForResource(
       repos,
       undefined,
@@ -78,8 +82,9 @@ export function createMutationHandlerContext(deps: MutationHandlerDeps) {
     requestId: string,
     repoId: string,
     protectedAction?: Parameters<ProtectionService["checkDestructiveAction"]>[1],
+    freshChangeDigest = false,
   ) {
-    const repo = await resolveRepo(repoId);
+    const repo = await resolveRepo(repoId, freshChangeDigest);
     const protectedCheck = protectedAction
       ? deps.protectionService.checkDestructiveAction(
           repo?.currentBranch ?? null,
@@ -105,19 +110,25 @@ export function createMutationHandlerContext(deps: MutationHandlerDeps) {
   function splitPathsByKind(
     files: GitFileStatus[],
     paths: string[],
-  ): { tracked: string[]; unversioned: string[] } {
+  ): { tracked: string[]; unversioned: string[]; added: string[] } {
     const byPath = new Map(files.map((f) => [f.path, f]));
     const tracked: string[] = [];
     const unversioned: string[] = [];
+    const added: string[] = [];
     for (const p of paths) {
       const file = byPath.get(p);
       if (file?.kind === "unversioned") {
         unversioned.push(p);
+      } else if (file?.kind === "added") {
+        // `restore --staged --worktree` removes an added path from both the
+        // index and worktree. Treat it like an unversioned path for the
+        // confirmation contract so the user must acknowledge deletion.
+        added.push(p);
       } else {
         tracked.push(p);
       }
     }
-    return { tracked, unversioned };
+    return { tracked, unversioned, added };
   }
 
   return {

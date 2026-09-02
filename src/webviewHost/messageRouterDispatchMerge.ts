@@ -75,7 +75,7 @@ export async function dispatchMerge(
   }
 }
 
-export function assertMergePanelConfigured(
+function assertMergePanelConfigured(
   ctx: MessageRouterContext,
   requestId: string,
 ): boolean {
