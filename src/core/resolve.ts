@@ -250,13 +250,6 @@ export function ignoreSide(
   );
 }
 
-export function resolveUsingSide(
-  block: ChangeBlock,
-  side: ConflictSide,
-): ChangeBlock {
-  return side === "ours" ? acceptOurs(block) : acceptTheirs(block);
-}
-
 // desktop-IDE-style Revert on an applied non-conflicting hunk: restore base and
 // mark the block unresolved so Apply stays disabled until re-resolved.
 export function revertAppliedChange(block: ChangeBlock): ChangeBlock {

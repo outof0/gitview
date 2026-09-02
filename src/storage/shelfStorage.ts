@@ -60,7 +60,7 @@ function isNodeError(error: unknown): error is NodeJS.ErrnoException {
  * Resolve the shared Git metadata directory without assuming that `.git` is a
  * directory. Linked worktrees use a `.git` file and a `commondir` indirection.
  */
-export async function resolveGitCommonDir(repoRoot: string): Promise<string> {
+async function resolveGitCommonDir(repoRoot: string): Promise<string> {
   const dotGit = path.join(repoRoot, ".git");
   const stat = await fs.stat(dotGit);
   if (stat.isDirectory()) {
