@@ -59,6 +59,7 @@ async function main(): Promise<void> {
         testWorkspace,
         // Keep vscode.git enabled — Explorer Git submenu delegates to it.
         "--disable-gpu",
+        "--disable-crash-reporter",
         "--disable-updates",
         "--disable-workspace-trust",
         "--skip-welcome",

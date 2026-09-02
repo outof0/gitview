@@ -13,7 +13,6 @@ import {
 } from "../util/gitRepoRoot";
 import { resolveGitRepository } from "../util/vscodeGit";
 import { coerceContextMenuResourceUri } from "./contextMenuResource";
-import { warnNoGitRepository } from "./gitMenuContext";
 
 export type GitCommandRuntime = {
   gitService: GitService;
@@ -24,7 +23,7 @@ export type GitCommandRuntime = {
 };
 
 /** Standalone adapter for tests/back-compat callers; production injects one runtime. */
-export function createStandaloneGitCommandRuntime(): GitCommandRuntime {
+function createStandaloneGitCommandRuntime(): GitCommandRuntime {
   return { gitService: createGitService({ execGit: createDefaultExecGit() }) };
 }
 
@@ -236,22 +235,6 @@ export async function promptCommitMessage(title: string): Promise<string | undef
       value.trim() ? undefined : "Enter a commit message.",
   });
   return message?.trim() || undefined;
-}
-
-export async function runGitInRepo(
-  resource: vscode.Uri | undefined,
-  workspaceRoot: string | undefined,
-  args: string[],
-  actionLabel?: string,
-  runtime?: GitCommandRuntime,
-): Promise<string | undefined> {
-  const repoRoot = await resolveRepoRoot(resource, workspaceRoot, runtime);
-  if (!repoRoot) {
-    warnNoGitRepository(actionLabel ?? "Git");
-    return undefined;
-  }
-  await execGit("git", ["--no-pager", ...args], { cwd: repoRoot }, runtime);
-  return repoRoot;
 }
 
 export async function execGitInRepo(

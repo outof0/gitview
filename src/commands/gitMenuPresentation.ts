@@ -27,10 +27,23 @@ export interface GitMenuPresentation {
     /** 1-based line to scroll to (editor cursor when Annotate was opened). */
     focusLine?: number;
   }): Promise<void>;
+  /** Select a specific commit in the active workspace Git log. */
+  selectCommit?(request: { repoId: string; sha: string }): Promise<void>;
   /** Surface the GitView Git panel and open one of its dialogs or list popups. */
   openPanelDialog?(request: {
     dialog: GitPanelSurface;
     relativePath?: string;
+    index?: number | null;
+    /** Repository root resolved from the native resource/menu invocation. */
+    repoRoot?: string;
+    workspaceRoot?: string;
+  }): Promise<void>;
+  /** Open the rollback confirmation in the Git workspace content. */
+  openRollbackConfirmation?(request: {
+    relativePath: string;
+    workspaceRoot?: string;
+    repoRoot: string;
+    selectedPaths?: string[];
   }): Promise<void>;
   /** Open the Create Branch dialog as a centered modal in the editor area. */
   openCreateBranchDialog?(request: {

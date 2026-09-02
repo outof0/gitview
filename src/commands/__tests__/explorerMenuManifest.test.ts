@@ -17,6 +17,7 @@ import {
   EXPLORER_GIT_SUBMENU_FEATURE_SPECS,
   MERGE_CHANGES_WHEN,
   RESOLVE_CONFLICT_KEYBINDING_SPEC,
+  SHOW_DIFF_KEYBINDING_SPEC,
 } from "../explorerGitMenuManifest";
 
 describe("Explorer Git context menu manifest", () => {
@@ -150,6 +151,21 @@ describe("Explorer Git context menu manifest", () => {
   it("binds Resolve conflict to Alt/Cmd+Shift+M when the active file has merge conflicts", () => {
     expect(getPackageKeybindings()).toContainEqual(
       RESOLVE_CONFLICT_KEYBINDING_SPEC,
+    );
+  });
+
+  it("binds Show Diff to Ctrl/Cmd+D from Explorer files only", () => {
+    expect(getPackageKeybindings()).toContainEqual(SHOW_DIFF_KEYBINDING_SPEC);
+    expect(SHOW_DIFF_KEYBINDING_SPEC.when).toContain("explorerViewletFocus");
+    expect(SHOW_DIFF_KEYBINDING_SPEC.when).not.toContain("editorTextFocus");
+  });
+
+  it("does not let native keybindings steal shortcuts from GitView webviews", () => {
+    expect(RESOLVE_CONFLICT_KEYBINDING_SPEC.when).toContain(
+      "!(view == gitView.launcher || view == gitView.workspace)",
+    );
+    expect(SHOW_DIFF_KEYBINDING_SPEC.when).toContain(
+      "!(view == gitView.launcher || view == gitView.workspace)",
     );
   });
 

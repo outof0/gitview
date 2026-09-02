@@ -62,6 +62,8 @@ export async function gitStash(
       await presentation.openPanelDialog({
         dialog: "stash",
         relativePath: scopePathForResource(uri, repoRoot) ?? undefined,
+        repoRoot,
+        workspaceRoot,
       });
       return;
     }
@@ -140,7 +142,11 @@ export async function gitUnstash(
   // Ahead of the emptiness check: the dialog renders its own empty state, so
   // returning a toast here would make the menu entry look like it did nothing.
   if (presentation?.openPanelDialog) {
-    await presentation.openPanelDialog({ dialog: "unstash" });
+    await presentation.openPanelDialog({
+      dialog: "unstash",
+      repoRoot,
+      workspaceRoot,
+    });
     return;
   }
 

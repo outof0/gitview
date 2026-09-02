@@ -20,35 +20,36 @@ suite("Explorer Git context menu (integration)", () => {
     await ext!.activate();
   });
 
-  test("Show History on a file opens History tab for that file", async function () {
+  test("Show History on a file does not open a legacy editor tab", async function () {
     this.timeout(20_000);
     const fileUri = uri("file.txt");
     await vscode.commands.executeCommand("gitView.showGitHistory", fileUri);
-    await waitFor(
-      () => tabLabels().some((label) => label.includes("History — file.txt")),
-      `expected History tab for file.txt, got: ${tabLabels().join(", ")}`,
+    assert.ok(
+      !tabLabels().some((label) => label.includes("History — file.txt")),
+      "history is rendered in the Git workspace, not a legacy editor tab",
     );
   });
 
-  test("Show History on a folder opens History tab for that directory", async function () {
+  test("Show History on a folder does not open a legacy editor tab", async function () {
     this.timeout(20_000);
     const folderUri = uri("src");
     await vscode.commands.executeCommand("gitView.showGitHistory", folderUri);
-    await waitFor(
-      () => tabLabels().some((label) => label.includes("History — src/")),
-      `expected History tab for src/, got: ${tabLabels().join(", ")}`,
+    assert.ok(
+      !tabLabels().some((label) => label.includes("History — src/")),
+      "history is rendered in the Git workspace, not a legacy editor tab",
     );
   });
 
-  test("Show History uses the passed URI, not the active editor file", async function () {
+  test("Show History does not open a legacy tab for the passed or active file", async function () {
     this.timeout(20_000);
     const decoy = uri("types.ts");
     const target = uri("file.txt");
     await vscode.window.showTextDocument(decoy, { preview: true });
     await vscode.commands.executeCommand("gitView.showGitHistory", target);
-    await waitFor(
-      () => tabLabels().some((label) => label.includes("History — file.txt")),
-      "history should target right-clicked file.txt, not active editor",
+    await vscode.commands.executeCommand("workbench.action.focusPanel");
+    assert.ok(
+      !tabLabels().some((label) => label.includes("History — file.txt")),
+      "history is rendered in the Git workspace, not a legacy editor tab",
     );
     assert.ok(
       !tabLabels().some((l) => l.includes("History — types.ts")),

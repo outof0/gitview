@@ -8,7 +8,6 @@ import {
   gitAnnotateBlame,
   runGitMenuAction,
 } from "../gitMenuActions";
-import { openGitHistoryPanel } from "../../webview/GitHistoryWebviewPanel";
 import {
   context,
   mockGitView,
@@ -63,17 +62,13 @@ describe("gitMenuActions clipboard and fetch", () => {
       vscode.Uri.file("/repo/src/app.ts") as vscode.Uri,
     );
     expect(vscode.window.showTextDocument).not.toHaveBeenCalled();
-    expect(mockOpenGitViewBlamePanel).toHaveBeenCalledWith(
-      context,
-      mockGitView,
+    expect(mockGitView.gitMenuPresentation.openBlame).toHaveBeenCalledWith(
       expect.objectContaining({
         relativePath: "src/app.ts",
-        lines: [],
-        loading: true,
+        repoRoot: "/repo",
       }),
-      undefined,
-      "/repo",
     );
+    expect(mockOpenGitViewBlamePanel).not.toHaveBeenCalled();
   });
 
   it("warns when annotate is invoked on a folder", async () => {
@@ -91,7 +86,7 @@ describe("gitMenuActions clipboard and fetch", () => {
       "Annotate with Git Blame is only available for files.",
     );
     expect(mockOpenGitViewBlamePanel).not.toHaveBeenCalled();
-    expect(vi.mocked(openGitHistoryPanel)).not.toHaveBeenCalled();
+    expect(mockGitView.gitMenuPresentation.openHistory).not.toHaveBeenCalled();
   });
 
   it("warns when annotate is invoked on an empty folder", async () => {
@@ -109,6 +104,6 @@ describe("gitMenuActions clipboard and fetch", () => {
       "Annotate with Git Blame is only available for files.",
     );
     expect(mockOpenGitViewBlamePanel).not.toHaveBeenCalled();
-    expect(vi.mocked(openGitHistoryPanel)).not.toHaveBeenCalled();
+    expect(mockGitView.gitMenuPresentation.openHistory).not.toHaveBeenCalled();
   });
 });

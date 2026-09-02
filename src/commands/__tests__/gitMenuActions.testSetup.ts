@@ -1,8 +1,22 @@
-import { beforeEach, vi } from "vitest";
+import { beforeEach, vi, type Mock } from "vitest";
 import * as vscode from "vscode";
 import type { GitMenuPresentation } from "../gitMenuPresentation";
 
-const gitMenuTestMocks = vi.hoisted(() => {
+type GitMenuTestMocks = {
+  mockExecFile: Mock;
+  mockExecFilePromise: Mock;
+  mockFindRepoRoot: Mock;
+  mockLogFile: Mock;
+  mockListBranches: Mock;
+  mockBlameFile: Mock;
+  mockResolveGitRepository: Mock;
+  mockShelveChanges: Mock;
+  mockUnshelveLatest: Mock;
+  mockOpenGitViewPanel: Mock;
+  mockOpenGitViewBlamePanel: Mock;
+};
+
+const gitMenuTestMocks = vi.hoisted((): GitMenuTestMocks => {
   const execFile = vi.fn();
   const execFilePromise = vi.fn();
   Object.assign(execFile, {
@@ -18,7 +32,6 @@ const gitMenuTestMocks = vi.hoisted(() => {
     mockResolveGitRepository: vi.fn(),
     mockShelveChanges: vi.fn(),
     mockUnshelveLatest: vi.fn(),
-    mockOpenGitHistoryPanel: vi.fn(),
     mockOpenGitViewPanel: vi.fn(),
     mockOpenGitViewBlamePanel: vi.fn(),
   };
@@ -38,6 +51,7 @@ vi.mock("vscode", () => ({
     showTextDocument: vi.fn().mockResolvedValue({}),
     activeTextEditor: undefined,
     visibleTextEditors: [],
+    tabGroups: { activeTabGroup: { activeTab: undefined } },
   },
   workspace: {
     workspaceFolders: [
@@ -171,10 +185,6 @@ vi.mock("../../util/gitShelves", () => ({
   unshelveLatest: gitMenuTestMocks.mockUnshelveLatest,
 }));
 
-vi.mock("../../webview/GitHistoryWebviewPanel", () => ({
-  openGitHistoryPanel: gitMenuTestMocks.mockOpenGitHistoryPanel,
-}));
-
 vi.mock("../../webview/gitViewPresentation", () => ({
   openGitViewPanel: gitMenuTestMocks.mockOpenGitViewPanel,
   openGitViewBlamePanel: gitMenuTestMocks.mockOpenGitViewBlamePanel,
@@ -227,17 +237,7 @@ export const mockGitView = {
   shelfStorage: {},
   commitCheckService: {},
   gitMenuPresentation: {
-    openHistory: vi.fn(async (
-      request: Parameters<GitMenuPresentation["openHistory"]>[0],
-    ) => {
-      await gitMenuTestMocks.mockOpenGitHistoryPanel(
-        context,
-        mockGitView,
-        request.relativePath,
-        request.isFolder,
-        request.workspaceRoot,
-      );
-    }),
+    openHistory: vi.fn(async () => undefined),
     openDiff: vi.fn(async (
       request: Parameters<GitMenuPresentation["openDiff"]>[0],
     ) => {
@@ -251,21 +251,8 @@ export const mockGitView = {
         },
       );
     }),
-    openBlame: vi.fn(async (
-      request: Parameters<GitMenuPresentation["openBlame"]>[0],
-    ) => {
-      await gitMenuTestMocks.mockOpenGitViewBlamePanel(
-        context,
-        mockGitView,
-        {
-          relativePath: request.relativePath,
-          lines: [],
-          loading: true,
-        },
-        request.workspaceRoot,
-        request.repoRoot,
-      );
-    }),
+    openBlame: vi.fn(async () => undefined),
+    openRollbackConfirmation: vi.fn(async () => undefined),
   },
   dispose: vi.fn(),
 } as unknown as import("../../activation").GitViewContext;
@@ -283,7 +270,6 @@ export const {
   mockResolveGitRepository,
   mockShelveChanges,
   mockUnshelveLatest,
-  mockOpenGitHistoryPanel,
   mockOpenGitViewPanel,
   mockOpenGitViewBlamePanel,
 } = gitMenuTestMocks;

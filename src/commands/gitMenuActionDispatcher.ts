@@ -93,7 +93,7 @@ export async function runGitMenuAction(
   if (!uri && payload.relativePath) {
     uri = await resolveRepoFileUri(payload.relativePath, workspaceRoot, runtime);
   }
-  const { action, commitSha, commitMessage, isFolder } = payload;
+  const { action, commitSha, commitMessage, isFolder, selectedPaths } = payload;
 
   switch (action) {
     case "showHistory":
@@ -151,7 +151,13 @@ export async function runGitMenuAction(
       await gitAnnotateBlame(context, gitView, uri, workspaceRoot);
       break;
     case "rollback":
-      await gitRollback(uri, workspaceRoot, runtime);
+      await gitRollback(
+        uri,
+        workspaceRoot,
+        runtime,
+        presentation,
+        selectedPaths,
+      );
       break;
     case "add":
       await gitAdd(uri, workspaceRoot, runtime);
