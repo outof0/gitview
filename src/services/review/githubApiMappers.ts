@@ -13,7 +13,7 @@ import type {
   GithubReview,
 } from "./githubApiTypes";
 
-export function mapGithubState(pr: GithubPullRequest): ReviewItemState {
+function mapGithubState(pr: GithubPullRequest): ReviewItemState {
   if (pr.merged_at || pr.merged) {
     return "merged";
   }

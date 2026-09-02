@@ -71,6 +71,8 @@ export type GitMenuActionPayload = {
   /** Active workspace repo when dispatched from GitView Git Workspace. */
   repoId?: string;
   relativePath?: string;
+  /** Initial rollback selection when the action came from a multi-file view. */
+  selectedPaths?: string[];
   commitSha?: string;
   commitMessage?: string;
   isFolder?: boolean;
@@ -88,7 +90,11 @@ export function isRepoWideGitMenuAction(action: GitMenuAction): boolean {
 
 export function buildGitMenuActionPayload(
   action: GitMenuAction,
-  opts: { relativePath?: string; isFolder?: boolean } = {},
+  opts: {
+    relativePath?: string;
+    selectedPaths?: string[];
+    isFolder?: boolean;
+  } = {},
 ): GitMenuActionPayload {
   if (isRepoWideGitMenuAction(action)) {
     return { action };
@@ -97,6 +103,9 @@ export function buildGitMenuActionPayload(
   const payload: GitMenuActionPayload = { action };
   if (opts.relativePath !== undefined) {
     payload.relativePath = opts.relativePath;
+  }
+  if (opts.selectedPaths !== undefined) {
+    payload.selectedPaths = opts.selectedPaths;
   }
   if (opts.isFolder !== undefined) {
     payload.isFolder = opts.isFolder;

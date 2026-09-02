@@ -142,6 +142,51 @@ describe("gitSubmenuEnablement", () => {
     expect(result.reason?.toLowerCase()).toContain("conflict");
   });
 
+  it("enables commit for modified files before they are staged", () => {
+    const result = evaluateGitSubmenuAction("commit", {
+      repository: { ...baseRepo, dirty: true },
+      files: [
+        file({
+          path: "src/a.ts",
+          indexStatus: " ",
+          workingTreeStatus: "M",
+          staged: false,
+        }),
+      ],
+    });
+    expect(result.enabled).toBe(true);
+  });
+
+  it("keeps commit and push available so the dialog can configure an upstream", () => {
+    const result = evaluateGitSubmenuAction("commitAndPush", {
+      repository: {
+        ...baseRepo,
+        upstream: null,
+        ahead: null,
+        behind: null,
+        dirty: true,
+      },
+      files: [
+        file({
+          path: "src/a.ts",
+          indexStatus: " ",
+          workingTreeStatus: "M",
+          staged: false,
+        }),
+      ],
+    });
+    expect(result.enabled).toBe(true);
+  });
+
+  it("keeps commit disabled when there are no committable changes", () => {
+    const result = evaluateGitSubmenuAction("commit", {
+      repository: baseRepo,
+      files: [],
+    });
+    expect(result.enabled).toBe(false);
+    expect(result.reason?.toLowerCase()).toContain("local changes");
+  });
+
   it("exposes native context flags for stash/shelve enablement", () => {
     const flags = buildGitSubmenuNativeContext({
       repository: {

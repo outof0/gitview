@@ -11,6 +11,7 @@ export type WebviewToHostCore =
   | WebviewRequest<"workspace.clone", Record<string, never>>
   | WebviewRequest<"workspace.manageTrust", Record<string, never>>
   | WebviewRequest<"workspace.collapsePanel", Record<string, never>>
+  | WebviewRequest<"workspace.toggleSidebar", Record<string, never>>
   | WebviewRequest<"repository.addRemote", { repoId: string }>
   | WebviewRequest<"repo.refresh", { repoId?: string }>
   | WebviewRequest<"status.list", { repoId: string; includeIgnored?: boolean }>
@@ -170,6 +171,18 @@ export type WebviewToHostCore =
   | WebviewRequest<
       "git.menuAction",
       { repoId: string } & GitMenuActionPayload
+    >
+  | WebviewRequest<
+      "rollback.openPanel",
+      { repoId: string; path: string; selectedPaths?: string[] }
+    >
+  | WebviewRequest<
+      "git.openContentDialog",
+      {
+        repoId: string;
+        dialog: "stash" | "unstash";
+        index?: number | null;
+      }
     >
   | WebviewRequest<
       "diff.stageHunk",

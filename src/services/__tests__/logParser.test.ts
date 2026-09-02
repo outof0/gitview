@@ -6,7 +6,6 @@ import {
   LOG_RECORD_END,
   LOG_RECORD_MARKER,
   parseGitLogWithNameStatus,
-  parseShowCommitOutput,
 } from "../logParser";
 
 describe("parseGitLogWithNameStatus", () => {
@@ -95,47 +94,5 @@ A\tsrc/new.ts
       { path: "src/new.ts", status: "A" },
     ]);
   });
-});
 
-describe("parseShowCommitOutput", () => {
-  it("parses git show fuller output", () => {
-    const sha = "a".repeat(40);
-    const meta = `commit ${sha} (abc1234)
-Author: John Doe <john@example.com>
-Commit: John Doe <john@example.com>
-
-    Fix greeting
-`;
-    const body = "Detailed body\n";
-    const nameStatus = "M\tsrc/app.ts\n";
-    const commit = parseShowCommitOutput(meta, body, nameStatus, "1719000000");
-    expect(commit).toMatchObject({
-      sha,
-      shortSha: "abc1234",
-      author: "John Doe",
-      authorEmail: "john@example.com",
-      authorTime: 1719000000,
-      subject: "Fix greeting",
-      body: "Detailed body",
-      changedFiles: [{ path: "src/app.ts", status: "M" }],
-    });
-  });
-
-  it("deduplicates merge-parent file entries", () => {
-    const sha = "a".repeat(40);
-    const meta = `commit ${sha}
-Author: John Doe <john@example.com>
-
-    Merge feature
-`;
-    const commit = parseShowCommitOutput(
-      meta,
-      "",
-      "M\tsrc/app.ts\nM\tsrc/app.ts\n",
-      "1719000000",
-    );
-    expect(commit?.changedFiles).toEqual([
-      { path: "src/app.ts", status: "M" },
-    ]);
-  });
 });

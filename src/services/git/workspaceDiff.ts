@@ -28,6 +28,19 @@ async function readHeadFile(
   }
 }
 
+async function readIndexFile(
+  execGit: GitExecFn,
+  repoRoot: string,
+  relativePath: string,
+): Promise<string | null> {
+  try {
+    const { stdout } = await execGit(repoRoot, ["show", `:${relativePath}`]);
+    return stdout;
+  } catch {
+    return null;
+  }
+}
+
 function statusCode(file: GitFileStatus): WorkspaceDiffDocument["status"] {
   if (file.kind === "added" || file.kind === "unversioned") {
     return "A";
@@ -72,8 +85,15 @@ export function createWorkspaceDiffApi(
       };
     }
 
-    const headText = (await readHeadFile(execGit, repoRoot, relativePath)) ?? "";
-    const worktreeText = (await readWorktreeFile(repoRoot, relativePath)) ?? "";
+    const [headResult, worktreeResult, indexResult] = await Promise.all([
+      readHeadFile(execGit, repoRoot, relativePath),
+      readWorktreeFile(repoRoot, relativePath),
+      staged
+        ? readIndexFile(execGit, repoRoot, relativePath)
+        : Promise.resolve(null),
+    ]);
+    const headText = headResult ?? "";
+    const worktreeText = worktreeResult ?? "";
 
     let leftLabel = "HEAD";
     let rightLabel = "Working Tree";
@@ -81,16 +101,8 @@ export function createWorkspaceDiffApi(
     let rightText = worktreeText;
 
     if (staged) {
-      try {
-        const { stdout } = await execGit(repoRoot, [
-          "show",
-          `:${relativePath}`,
-        ]);
-        rightText = stdout;
-        rightLabel = "Index";
-      } catch {
-        rightText = worktreeText;
-      }
+      rightText = indexResult ?? worktreeText;
+      rightLabel = indexResult === null ? "Working Tree" : "Index";
     }
 
     if (code === "A") {

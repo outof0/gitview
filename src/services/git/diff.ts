@@ -6,6 +6,14 @@ import type {
 import { isValidCommitSha, isValidRepoRelativePath } from "../blameRefs";
 import type { GitExecFn } from "./types";
 
+type BlobReadResult<T> =
+  | { ok: true; value: T }
+  | { ok: false; message: string };
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 export function createDiffApi(
   execGit: GitExecFn,
   isBinaryFile: (repoRoot: string, filePath: string) => Promise<boolean>,
@@ -14,15 +22,35 @@ export function createDiffApi(
     repoRoot: string,
     ref: string,
     relativePath: string,
-  ): Promise<string | null> {
+  ): Promise<BlobReadResult<string>> {
     try {
       const { stdout } = await execGit(repoRoot, [
         "show",
         `${ref}:${relativePath}`,
       ]);
-      return stdout;
-    } catch {
-      return null;
+      return { ok: true, value: stdout };
+    } catch (error) {
+      return { ok: false, message: errorMessage(error) };
+    }
+  }
+
+  async function readBlobBufferAtRef(
+    repoRoot: string,
+    ref: string,
+    relativePath: string,
+  ): Promise<BlobReadResult<Buffer>> {
+    try {
+      const result = await execGit(
+        repoRoot,
+        ["show", `${ref}:${relativePath}`],
+        { encoding: "buffer" },
+      );
+      return {
+        ok: true,
+        value: result.stdoutBuffer ?? Buffer.from(result.stdout, "utf8"),
+      };
+    } catch (error) {
+      return { ok: false, message: errorMessage(error) };
     }
   }
 
@@ -42,11 +70,22 @@ export function createDiffApi(
     return sha.length > 7 ? sha.slice(0, 7) : sha;
   }
 
+  function isBinaryBlob(blob: Buffer): boolean {
+    const sampleLength = Math.min(blob.length, 8_000);
+    for (let index = 0; index < sampleLength; index++) {
+      if (blob[index] === 0) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   async function fileDiffAtCommit(
     repoRoot: string,
     sha: string,
     relativePath: string,
     status?: GitChangedFileStatus,
+    knownParent?: string | null,
   ): Promise<FileDiffAtCommitResult> {
     if (!isValidRepoRelativePath(relativePath)) {
       return {
@@ -60,79 +99,112 @@ export function createDiffApi(
     }
 
     const effectiveStatus = status ?? "M";
-    const parent = await parentSha(repoRoot, sha);
+    const parent =
+      knownParent === undefined
+        ? await parentSha(repoRoot, sha)
+        : knownParent;
     const parentLabel = parent ? shortRef(parent) : "parent";
     const commitLabel = shortRef(sha);
 
-    if (await isBinaryFile(repoRoot, relativePath)) {
-      return {
-        ok: true,
-        diff: {
-          layout:
-            effectiveStatus === "A" || effectiveStatus === "D"
-              ? "single"
-              : "split",
-          status: effectiveStatus,
-          left:
-            effectiveStatus === "A"
-              ? null
-              : parent
-                ? {
-                    label: parentLabel,
-                    text: "[Binary file — preview not available]",
-                  }
-                : null,
-          right:
-            effectiveStatus === "D"
-              ? null
-              : {
-                  label: commitLabel,
-                  text: "[Binary file — preview not available]",
-                },
-          binary: true,
-        },
-      };
-    }
-
     if (effectiveStatus === "A") {
-      const text = (await readBlobAtRef(repoRoot, sha, relativePath)) ?? "";
+      const result = await readBlobBufferAtRef(repoRoot, sha, relativePath);
+      if (!result.ok) {
+        return {
+          ok: false,
+          code: "GIT_ERROR",
+          message: `Could not read ${relativePath} at ${commitLabel}: ${result.message}`,
+        };
+      }
+      const binary = isBinaryBlob(result.value);
       return {
         ok: true,
         diff: {
           layout: "single",
           status: "A",
           left: null,
-          right: { label: commitLabel, text },
+          right: {
+            label: commitLabel,
+            text: binary
+              ? "[Binary file — preview not available]"
+              : result.value.toString("utf8"),
+          },
+          binary,
         },
       };
     }
 
     if (effectiveStatus === "D") {
-      const text = parent
-        ? ((await readBlobAtRef(repoRoot, parent, relativePath)) ?? "")
-        : "";
+      const result = parent
+        ? await readBlobBufferAtRef(repoRoot, parent, relativePath)
+        : null;
+      if (result && !result.ok) {
+        return {
+          ok: false,
+          code: "GIT_ERROR",
+          message: `Could not read ${relativePath} at ${parentLabel}: ${result.message}`,
+        };
+      }
+      const blob = result?.ok ? result.value : null;
+      const binary = blob ? isBinaryBlob(blob) : false;
       return {
         ok: true,
         diff: {
           layout: "single",
           status: "D",
-          left: { label: parentLabel, text },
+          left: {
+            label: parentLabel,
+            text: binary
+              ? "[Binary file — preview not available]"
+              : (blob?.toString("utf8") ?? ""),
+          },
           right: null,
+          binary,
         },
       };
     }
 
-    const leftText = parent
-      ? ((await readBlobAtRef(repoRoot, parent, relativePath)) ?? "")
-      : "";
-    const rightText = (await readBlobAtRef(repoRoot, sha, relativePath)) ?? "";
+    const [leftBlob, rightBlob] = await Promise.all([
+      parent
+        ? readBlobBufferAtRef(repoRoot, parent, relativePath)
+        : Promise.resolve(null),
+      readBlobBufferAtRef(repoRoot, sha, relativePath),
+    ]);
+    if (!rightBlob.ok) {
+      return {
+        ok: false,
+        code: "GIT_ERROR",
+        message: `Could not read ${relativePath} at ${commitLabel}: ${rightBlob.message}`,
+      };
+    }
+    if (leftBlob && !leftBlob.ok) {
+      return {
+        ok: false,
+        code: "GIT_ERROR",
+        message: `Could not read ${relativePath} at ${parentLabel}: ${leftBlob.message}`,
+      };
+    }
+    const leftValue = leftBlob?.ok ? leftBlob.value : null;
+    const rightValue = rightBlob.value;
+    const binary =
+      (leftValue ? isBinaryBlob(leftValue) : false) || isBinaryBlob(rightValue);
     return {
       ok: true,
       diff: {
         layout: "split",
         status: effectiveStatus,
-        left: { label: parentLabel, text: leftText },
-        right: { label: commitLabel, text: rightText },
+        left: {
+          label: parentLabel,
+          text: binary
+            ? "[Binary file — preview not available]"
+            : (leftValue?.toString("utf8") ?? ""),
+        },
+        right: {
+          label: commitLabel,
+          text: binary
+            ? "[Binary file — preview not available]"
+            : rightValue.toString("utf8"),
+        },
+        binary,
       },
     };
   }
@@ -212,15 +284,15 @@ export function createDiffApi(
       return { ok: true, text: "", binary: true };
     }
 
-    const text = await readBlobAtRef(repoRoot, sha, relativePath);
-    if (text === null) {
+    const result = await readBlobAtRef(repoRoot, sha, relativePath);
+    if (!result.ok) {
       return {
         ok: false,
-        code: "NOT_FOUND",
-        message: "File does not exist at this revision.",
+        code: "GIT_ERROR",
+        message: `Could not read ${relativePath} at ${shortRef(sha)}: ${result.message}`,
       };
     }
-    return { ok: true, text, binary: false };
+    return { ok: true, text: result.value, binary: false };
   }
 
   return { fileDiffAtCommit, filePatchAtCommit, readFileAtRevision };

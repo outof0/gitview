@@ -14,13 +14,19 @@ import {
 import {
   LOG_FORMAT,
   parseGitLogWithNameStatus,
-  parseShowCommitOutput,
 } from "../logParser";
 import { isValidRepoRelativePath } from "../blameRefs";
 import { DEFAULT_LOG_LIMIT, type GitExecFn } from "./types";
 import { isFileNotAtRefError } from "./exec";
 
-export function createLogApi(execGit: GitExecFn) {
+export type LogApiOptions = {
+  supportsDiffMerges?: (repoRoot: string) => Promise<boolean>;
+};
+
+export function createLogApi(
+  execGit: GitExecFn,
+  options?: LogApiOptions,
+) {
   async function resolveUpstreamRef(repoRoot: string): Promise<string | null> {
     try {
       const { stdout } = await execGit(repoRoot, [
@@ -193,9 +199,8 @@ export function createLogApi(execGit: GitExecFn) {
     sha: string,
   ): Promise<CommitDetailResult> {
     try {
-      const [meta, body, nameStatus, atOut] = await Promise.all([
-        execGit(repoRoot, ["show", "--format=fuller", "--no-patch", sha]),
-        execGit(repoRoot, ["show", "--format=%b", "--no-patch", sha]),
+      const [meta, nameStatus] = await Promise.all([
+        execGit(repoRoot, ["show", "--no-patch", `--format=${LOG_FORMAT}`, sha]),
         // Split merge diffs by parent so annotate can show files touched by a
         // merge instead of presenting the misleading empty file pane. diff-tree
         // asks Git for names/statuses directly and avoids constructing show's
@@ -209,15 +214,12 @@ export function createLogApi(execGit: GitExecFn) {
           "--root",
           sha,
         ]),
-        execGit(repoRoot, ["show", "-s", "--format=%at", sha]),
       ]);
 
-      const commit = parseShowCommitOutput(
-        meta.stdout,
-        body.stdout,
-        nameStatus.stdout,
-        atOut.stdout.trim(),
-      );
+      const separator = meta.stdout.endsWith("\n") ? "" : "\n";
+      const commit = parseGitLogWithNameStatus(
+        `${meta.stdout}${separator}${nameStatus.stdout}`,
+      )[0];
       if (!commit) {
         return {
           ok: false,
@@ -241,14 +243,22 @@ export function createLogApi(execGit: GitExecFn) {
   ): Promise<LogResult> {
     const limit = opts?.limit ?? DEFAULT_LOG_LIMIT;
     const query = opts as LogQueryFilters | undefined;
-    const args = [
-      "log",
-      "--parents",
+    const args = ["log", "--parents"];
+    // Keep the initial graph query bounded to one record/diff per commit.
+    // Empty merge diffs are resolved lazily when that node is selected. Git
+    // 2.30 and older reject this flag, so feature-detect it per repository.
+    const supportsDiffMerges = options?.supportsDiffMerges
+      ? await options.supportsDiffMerges(repoRoot)
+      : true;
+    if (supportsDiffMerges) {
+      args.push("--diff-merges=first-parent");
+    }
+    args.push(
       "--name-status",
       `--format=${LOG_FORMAT}`,
       `-n`,
       String(limit),
-    ];
+    );
 
     if (query?.author?.trim()) {
       args.push(`--author=${query.author.trim()}`);

@@ -73,7 +73,7 @@ export type ForceCheckoutConfirmationEvidence = {
   repository: RepositoryStateFingerprint;
 };
 
-export type MultiRootForceCheckoutTargetEvidence = {
+type MultiRootForceCheckoutTargetEvidence = {
   repoId: string;
   targetSha: string;
   repository: RepositoryStateFingerprint;
@@ -364,7 +364,7 @@ function isSelectedChangesConfirmationSelection(
   return validHunks && validLines && (value.hunkIndexes.length > 0 || value.lines.length > 0);
 }
 
-export function isRepositoryStateFingerprint(
+function isRepositoryStateFingerprint(
   value: unknown,
 ): value is RepositoryStateFingerprint {
   if (!isRecord(value)) {

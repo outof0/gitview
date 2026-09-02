@@ -95,8 +95,24 @@ export type HostToWebview =
   /** Native Git submenu asks the panel to open a JetBrains-style dialog. */
   | HostEvent<
       "git.openDialog",
-      { dialog: GitPanelSurface; relativePath?: string }
+      {
+        dialog: GitPanelSurface;
+        relativePath?: string;
+        index?: number | null;
+        repoId?: string;
+      }
     >
+  | HostEvent<
+      "git.openHistory",
+      { repoId: string; path: string; isFolder: boolean; showDiff?: boolean }
+    >
+  | HostEvent<"git.selectCommit", { repoId: string; sha: string }>
+  | HostEvent<
+      "git.requestRollback",
+      { repoId: string; path: string; selectedPaths?: string[] }
+    >
+  /** Activity-bar Git icon asks the bottom panel to return to its root Log tab. */
+  | HostEvent<"git.focusRoot", Record<string, never>>
   /**
    * Native Git submenu asks the currently active GitView editor-area tab
    * (diff/compare or blame) to render New Branch / Branches as an overlay
@@ -118,6 +134,7 @@ export type HostToWebview =
   | HostResponse<"workspace.clone", { opened: boolean }>
   | HostResponse<"workspace.manageTrust", { opened: boolean }>
   | HostResponse<"workspace.collapsePanel", { collapsed: boolean }>
+  | HostResponse<"workspace.toggleSidebar", { toggled: boolean }>
   | HostResponse<"repository.addRemote", { opened: boolean }>
   | HostResponse<"repo.refresh", { refreshed: boolean }>
   | HostResponse<"status.list", StatusSnapshot>
@@ -208,6 +225,7 @@ export type HostToWebview =
   | HostResponse<"log.commitDetail", CommitDetailResult>
   | HostResponse<"log.fileAtRevision", FileAtRevisionResult>
   | HostResponse<"git.menuAction", { ok: true }>
+  | HostResponse<"rollback.openPanel", { opened: true }>
   | HostResponse<"diff.stageHunk", { path: string; hunkIndex: number }>
   | HostResponse<"diff.unstageHunk", { path: string; hunkIndex: number }>
   | HostResponse<"diff.stageLines", { path: string; lines: DiffLineSelection[] }>
@@ -342,6 +360,7 @@ export type HostToWebview =
   | HostResponse<"review.create", ReviewItem>
   | HostResponse<"review.createLineComment", { commentId: string }>
   | HostResponse<"diff.openInEditor", { ok: boolean }>
+  | HostResponse<"git.openContentDialog", { opened: boolean }>
   | HostErrorResponse;
 
 /**
@@ -387,6 +406,10 @@ export const HOST_EVENT_TYPES = [
   "merge.showConflictList",
   "blame.annotateRequest",
   "git.openDialog",
+  "git.openHistory",
+  "git.selectCommit",
+  "git.requestRollback",
+  "git.focusRoot",
   "git.openOverlay",
   "notification",
 ] as const satisfies readonly HostToWebviewEventType[];

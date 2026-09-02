@@ -27,7 +27,7 @@ const stableLocaleEnv: NodeJS.ProcessEnv = {
   GIT_TERMINAL_PROMPT: "0",
 };
 
-export const DEFAULT_GIT_TIMEOUT_MS = 30_000;
+const DEFAULT_GIT_TIMEOUT_MS = 30_000;
 /** Network operations depend on remote and link speed, not repository size. */
 export const NETWORK_GIT_TIMEOUT_MS = 300_000;
 

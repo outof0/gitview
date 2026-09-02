@@ -81,6 +81,7 @@ describe("protocol", () => {
       "workspace.clone",
       "workspace.manageTrust",
       "workspace.collapsePanel",
+      "workspace.toggleSidebar",
     ]) {
       expect(
         parseWebviewRequest({

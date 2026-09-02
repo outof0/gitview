@@ -22,7 +22,7 @@ export const LOG_FORMAT = [
 ].join("%n");
 
 /** Parse `git log %D` (e.g. "HEAD -> master, origin/master, tag: v1"). */
-export function parseLogDecorations(raw: string): string[] {
+function parseLogDecorations(raw: string): string[] {
   if (!raw.trim()) {
     return [];
   }
@@ -140,39 +140,4 @@ export function parseGitLogWithNameStatus(output: string): GitCommitEntry[] {
   }
 
   return commits;
-}
-
-export function parseShowCommitOutput(
-  metaOutput: string,
-  bodyOutput: string,
-  nameStatusOutput: string,
-  authorTimeStr?: string,
-): GitCommitEntry | null {
-  const shaMatch = metaOutput.match(/^commit\s+([0-9a-f]{40})/m);
-  const shortShaMatch = metaOutput.match(
-    /^commit\s+([0-9a-f]{40})\s+\((.+)\)/m,
-  );
-  const authorMatch = metaOutput.match(/^Author:\s+(.+?)\s+<([^>]+)>/m);
-  const subjectMatch = metaOutput.match(/^ {4}(.+)$/m);
-
-  if (!shaMatch || !authorMatch) {
-    return null;
-  }
-
-  const sha = shaMatch[1]!;
-  const changedFiles = parseChangedFiles(nameStatusOutput.split("\n"));
-
-  const body = bodyOutput.trim() || undefined;
-  const authorTime = authorTimeStr ? Number.parseInt(authorTimeStr, 10) : 0;
-
-  return {
-    sha,
-    shortSha: shortShaMatch?.[2] ?? sha.slice(0, 7),
-    author: authorMatch[1]!,
-    authorEmail: authorMatch[2]!,
-    authorTime,
-    subject: subjectMatch?.[1] ?? "",
-    body,
-    changedFiles,
-  };
 }

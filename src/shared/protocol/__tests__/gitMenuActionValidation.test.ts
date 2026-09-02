@@ -12,6 +12,32 @@ function menuAction(payload: unknown) {
 }
 
 describe("git.menuAction validation", () => {
+  it("accepts rollback panel requests with an initial selection", () => {
+    const result = parseWebviewRequestResult({
+      protocolVersion: PROTOCOL_VERSION,
+      requestId: "rollback-1",
+      type: "rollback.openPanel",
+      payload: {
+        repoId: "repo",
+        path: "src/app.ts",
+        selectedPaths: ["src/app.ts", "README.md"],
+      },
+    });
+    expect(result).toMatchObject({ ok: true });
+    expect(
+      parseWebviewRequestResult({
+        protocolVersion: PROTOCOL_VERSION,
+        requestId: "rollback-2",
+        type: "rollback.openPanel",
+        payload: {
+          repoId: "repo",
+          path: "src/app.ts",
+          selectedPaths: ["../outside.ts"],
+        },
+      }),
+    ).toMatchObject({ ok: false, code: "INVALID_REQUEST" });
+  });
+
   it("accepts file-scoped webview actions with a contained path", () => {
     expect(
       menuAction({ repoId: "repo", action: "openFile", relativePath: "src/app.ts" }),
@@ -19,6 +45,25 @@ describe("git.menuAction validation", () => {
     expect(
       menuAction({ repoId: "repo", action: "showDiff", relativePath: "src/app.ts" }),
     ).toMatchObject({ ok: true });
+  });
+
+  it("accepts a contained initial selection for rollback", () => {
+    expect(
+      menuAction({
+        repoId: "repo",
+        action: "rollback",
+        relativePath: "src/app.ts",
+        selectedPaths: ["src/app.ts", "README.md"],
+      }),
+    ).toMatchObject({ ok: true });
+    expect(
+      menuAction({
+        repoId: "repo",
+        action: "rollback",
+        relativePath: "src/app.ts",
+        selectedPaths: ["../outside.ts"],
+      }),
+    ).toMatchObject({ ok: false, code: "INVALID_REQUEST" });
   });
 
   it("accepts commit actions with a safe operand", () => {

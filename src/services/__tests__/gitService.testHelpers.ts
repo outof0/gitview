@@ -24,6 +24,9 @@ export function makeFakeGit(
 ) {
   const calls: Array<{ repoRoot: string; args: string[] }> = [];
   const execGit: GitServiceDeps["execGit"] = (repoRoot, args) => {
+    if (args.length === 1 && args[0] === "--version") {
+      return Promise.resolve({ stdout: "git version 2.45.0\n", stderr: "" });
+    }
     calls.push({ repoRoot, args });
     const key = args.join(" ");
     const resp = responses[key];

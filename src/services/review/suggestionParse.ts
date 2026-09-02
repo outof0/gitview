@@ -8,7 +8,3 @@ export function parseSuggestionFromBody(body: string): string | null {
   const text = match[1];
   return text.endsWith("\n") ? text.slice(0, -1) : text;
 }
-
-export function hasSuggestionBlock(body: string): boolean {
-  return SUGGESTION_BLOCK.test(body);
-}

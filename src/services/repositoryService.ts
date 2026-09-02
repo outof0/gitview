@@ -26,6 +26,12 @@ export type RepositoryDiscoveryInput = {
   trusted: boolean;
   /** Re-scan repository roots after workspace topology changes. */
   forceTopologyRefresh?: boolean;
+  /**
+   * Recompute the working-tree content digest before returning. Mutation
+   * confirmation paths set this so a cached status cannot validate stale
+   * evidence after the user edits a dirty file.
+   */
+  freshChangeDigest?: boolean;
 };
 
 export type RepositoryStatus = {
@@ -195,7 +201,13 @@ export function createRepositoryService(
   const topologyByFolder = new Map<string, string[]>();
   const topologyInFlight = new Map<string, Promise<string[]>>();
   const gitDirByRoot = new Map<string, string>();
+  const refreshGenerationByRepo = new Map<string, number>();
   let topologyGeneration = 0;
+
+  function rememberRepository(repo: Repository): Repository {
+    cache.set(repo.id, repo);
+    return repo;
+  }
 
   async function rootsForFolder(folderPath: string): Promise<string[]> {
     const key = normalizePath(folderPath);
@@ -238,9 +250,12 @@ export function createRepositoryService(
     rootPath: string,
     workspaceFolderPath: string | null,
     trusted: boolean,
+    freshChangeDigest = false,
   ): Promise<Repository> {
     const normalizedRoot = normalizePath(rootPath);
     const id = stableRepoId(normalizedRoot);
+    const generation = (refreshGenerationByRepo.get(id) ?? 0) + 1;
+    refreshGenerationByRepo.set(id, generation);
     let gitDirPath = gitDirByRoot.get(normalizedRoot);
     if (!gitDirPath) {
       gitDirPath = await resolveGitDir(deps.execGit, normalizedRoot);
@@ -269,21 +284,11 @@ export function createRepositoryService(
     const files = status?.files ?? [];
     const currentBranch = statusBranch?.currentBranch ?? null;
     const dirty = files.some((file) => file.kind !== "ignored");
-    // Content digest of the pending changes, used to make confirmation evidence
-    // go stale when the user edits files after a dangerous dialog opened. Only
-    // computed for a dirty tree — a clean one has nothing to go stale against,
-    // and this keeps the refresh hot path free of extra file reads.
+    const previous = cache.get(id);
     const changeDigest = dirty
-      ? await computeChangeDigest(normalizedRoot, files).catch((error) => {
-          // A null digest means "unknown", which keeps confirmation evidence
-          // from going stale — a safety feature degrading silently. Log it so
-          // the degradation is visible in the output channel.
-          logger.warn("repository.changeDigest.failed", {
-            repoId: id,
-            ...errorLogFields(error),
-          });
-          return null;
-        })
+      ? freshChangeDigest
+        ? await computeChangeDigest(normalizedRoot, files)
+        : (previous?.changeDigest ?? null)
       : null;
     const repository: Repository = {
       id,
@@ -316,7 +321,30 @@ export function createRepositoryService(
             },
     };
     const headState = deriveRepositoryHeadState(repository);
-    return headState ? { ...repository, headState } : repository;
+    const resolved = headState ? { ...repository, headState } : repository;
+    if (refreshGenerationByRepo.get(id) === generation) {
+      rememberRepository(resolved);
+    }
+    if (dirty && !freshChangeDigest) {
+      void computeChangeDigest(normalizedRoot, files)
+        .then((digest) => {
+          if (refreshGenerationByRepo.get(id) !== generation) {
+            return;
+          }
+          const current = cache.get(id);
+          if (!current || current.changeDigest === digest || !current.dirty) {
+            return;
+          }
+          cache.set(id, { ...current, changeDigest: digest });
+        })
+        .catch((error) => {
+          logger.warn("repository.changeDigest.failed", {
+            repoId: id,
+            ...errorLogFields(error),
+          });
+        });
+    }
+    return resolved;
   }
 
   async function discoverRepositories(
@@ -348,8 +376,8 @@ export function createRepositoryService(
           explicit.rootPath,
           explicit.workspaceFolderPath,
           input.trusted,
+          input.freshChangeDigest,
         );
-        cache.set(refreshed.id, refreshed);
         return [refreshed];
       }
     }
@@ -401,6 +429,7 @@ export function createRepositoryService(
               rootPath,
               workspaceFolderForRoot(rootPath, input.workspaceFolders),
               input.trusted,
+              input.freshChangeDigest,
             ),
           );
         } catch (error) {
@@ -424,9 +453,6 @@ export function createRepositoryService(
         statusCache.delete(repoId);
       }
     }
-    for (const repo of repos) {
-      cache.set(repo.id, repo);
-    }
     return repos;
   }
 
@@ -435,13 +461,14 @@ export function createRepositoryService(
     if (!existing) {
       return null;
     }
-    const repo = await buildRepository(
-      existing.rootPath,
-      existing.workspaceFolderPath,
-      existing.trusted,
+    return rememberRepository(
+      await buildRepository(
+        existing.rootPath,
+        existing.workspaceFolderPath,
+        existing.trusted,
+        true,
+      ),
     );
-    cache.set(repoId, repo);
-    return repo;
   }
 
   function resolveRepositoryForResource(

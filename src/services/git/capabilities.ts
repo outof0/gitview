@@ -8,6 +8,8 @@ export type GitCapabilities = {
   supportsPathspecFromFile: boolean;
   supportsPorcelainV1Z: boolean;
   supportsMergeBaseForkPoint: boolean;
+  /** `git log --diff-merges=<mode>` was added in Git 2.31. */
+  supportsDiffMerges: boolean;
   supportsCommitGpgSign: boolean;
 };
 
@@ -43,6 +45,7 @@ export function deriveCapabilities(versionText: string): GitCapabilities {
     supportsPathspecFromFile: versionAtLeast(version, 2, 25),
     supportsPorcelainV1Z: versionAtLeast(version, 2, 11),
     supportsMergeBaseForkPoint: versionAtLeast(version, 2, 18),
+    supportsDiffMerges: versionAtLeast(version, 2, 31),
     supportsCommitGpgSign: versionAtLeast(version, 1, 7),
   };
 }

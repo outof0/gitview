@@ -130,6 +130,12 @@ function isRepoContainedRelativePath(value: unknown): value is string {
   return segments.every((seg) => seg !== "" && seg !== "." && seg !== "..");
 }
 
+const repoContainedPath: Validator = isRepoContainedRelativePath;
+const repoContainedPathArray: Validator = (value) =>
+  Array.isArray(value) &&
+  value.length > 0 &&
+  value.every(isRepoContainedRelativePath);
+
 const MENU_SHA_ACTIONS = new Set([
   "cherryPick",
   "revertCommit",
@@ -181,6 +187,7 @@ function isValidGitMenuActionPayload(value: unknown): boolean {
     "repoId",
     "action",
     "relativePath",
+    "selectedPaths",
     "commitSha",
     "commitMessage",
     "isFolder",
@@ -190,10 +197,19 @@ function isValidGitMenuActionPayload(value: unknown): boolean {
   if (!Object.keys(value).every((key) => allowed.has(key))) {
     return false;
   }
-  const { relativePath, commitSha, commitMessage, isFolder } = value as Record<
+  const { relativePath, selectedPaths, commitSha, commitMessage, isFolder } = value as Record<
     string,
     unknown
   >;
+  if (
+    selectedPaths !== undefined &&
+    (!Array.isArray(selectedPaths) ||
+      selectedPaths.length === 0 ||
+      !selectedPaths.every(isRepoContainedRelativePath) ||
+      action !== "rollback")
+  ) {
+    return false;
+  }
   if (
     value.reuseDiffPanel !== undefined &&
     typeof value.reuseDiffPanel !== "boolean"
@@ -214,6 +230,7 @@ function isValidGitMenuActionPayload(value: unknown): boolean {
     // anything else is a trust-boundary escape.
     return (
       relativePath === undefined &&
+      selectedPaths === undefined &&
       commitSha === undefined &&
       commitMessage === undefined
     );
@@ -305,6 +322,7 @@ const requestValidators = {
   "workspace.clone": shape({}),
   "workspace.manageTrust": shape({}),
   "workspace.collapsePanel": emptyPayload,
+  "workspace.toggleSidebar": emptyPayload,
   "repository.addRemote": shape({ repoId: stringValue }),
   "repo.refresh": shape({}, { repoId: stringValue }),
   "status.list": shape(
@@ -477,6 +495,15 @@ const requestValidators = {
     path: stringValue,
   }),
   "git.menuAction": isValidGitMenuActionPayload,
+  "rollback.openPanel": shape(
+    { repoId: stringValue, path: repoContainedPath },
+    { selectedPaths: repoContainedPathArray },
+  ),
+  "git.openContentDialog": shape(
+    { repoId: stringValue, dialog: oneOf("stash", "unstash") },
+    { index: (value) => value === null || nonNegativeInteger(value) },
+    true,
+  ),
   "diff.stageHunk": shape({
     repoId: stringValue,
     path: stringValue,

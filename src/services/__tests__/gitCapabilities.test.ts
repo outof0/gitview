@@ -11,6 +11,7 @@ describe("git capabilities", () => {
     expect(caps.supportsRestore).toBe(true);
     expect(caps.supportsWorktree).toBe(true);
     expect(caps.supportsPorcelainV1Z).toBe(true);
+    expect(caps.supportsDiffMerges).toBe(true);
   });
 
   it("disables modern commands for old Git", () => {
@@ -18,6 +19,16 @@ describe("git capabilities", () => {
     expect(caps.supportsSwitch).toBe(false);
     expect(caps.supportsRestore).toBe(false);
     expect(caps.supportsPorcelainV1Z).toBe(false);
+    expect(caps.supportsDiffMerges).toBe(false);
+  });
+
+  it("only enables diff-merges for Git 2.31 and newer", () => {
+    expect(deriveCapabilities("git version 2.30.9").supportsDiffMerges).toBe(
+      false,
+    );
+    expect(deriveCapabilities("git version 2.31.0").supportsDiffMerges).toBe(
+      true,
+    );
   });
 
   it("keeps capability caches scoped to each Git service instance", async () => {

@@ -13,7 +13,7 @@ import type {
   GitlabNote,
 } from "./gitlabApiTypes";
 
-export function mapGitlabState(mr: GitlabMergeRequest): ReviewItemState {
+function mapGitlabState(mr: GitlabMergeRequest): ReviewItemState {
   if (mr.state === "merged" || mr.merged_at) {
     return "merged";
   }

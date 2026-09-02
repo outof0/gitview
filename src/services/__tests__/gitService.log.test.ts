@@ -77,25 +77,12 @@ describe("GitService logFile and logFolder", () => {
   it("showCommit includes changed files from name-status output", async () => {
     const sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     const { service, calls } = makeFakeGit({
-      [`show --format=fuller --no-patch ${sha}`]: {
-        stdout: `commit ${sha} (aaaaaaa)
-Author: Jane Doe <jane@example.com>
-Commit: Jane Doe <jane@example.com>
-
-    Fix build
-`,
-        stderr: "",
-      },
-      [`show --format=%b --no-patch ${sha}`]: {
-        stdout: "",
+      [`show --no-patch --format=${LOG_FORMAT} ${sha}`]: {
+        stdout: sampleLogOutput("Fix build").replace("M\tsrc/app.ts\n", ""),
         stderr: "",
       },
       [`diff-tree --no-commit-id --name-status -r -m --root ${sha}`]: {
         stdout: "M\t.gitlab/ci/build.yml\nA\tsrc/new.ts\n",
-        stderr: "",
-      },
-      [`show -s --format=%at ${sha}`]: {
-        stdout: "1719000000\n",
         stderr: "",
       },
     });
@@ -120,7 +107,7 @@ describe("GitService logRepo graph scope", () => {
 
   it("loads user-facing refs without tool-owned checkpoints", async () => {
     const { service, calls } = makeFakeGit({
-      [`log --parents --name-status --format=${LOG_FORMAT} -n 200 --branches --remotes --tags HEAD`]: {
+      [`log --parents --diff-merges=first-parent --name-status --format=${LOG_FORMAT} -n 200 --branches --remotes --tags HEAD`]: {
         stdout: logOutput,
         stderr: "",
       },
@@ -133,14 +120,20 @@ describe("GitService logRepo graph scope", () => {
 
     expect(result.ok).toBe(true);
     expect(calls[0]!.args).toEqual(
-      expect.arrayContaining(["--branches", "--remotes", "--tags", "HEAD"]),
+      expect.arrayContaining([
+        "--diff-merges=first-parent",
+        "--branches",
+        "--remotes",
+        "--tags",
+        "HEAD",
+      ]),
     );
     expect(calls[0]!.args).not.toContain("--all");
   });
 
   it("keeps an explicit branch graph scoped to that branch", async () => {
     const { service, calls } = makeFakeGit({
-      [`log --parents --name-status --format=${LOG_FORMAT} -n 200 feature`]: {
+      [`log --parents --diff-merges=first-parent --name-status --format=${LOG_FORMAT} -n 200 feature`]: {
         stdout: logOutput,
         stderr: "",
       },
@@ -170,7 +163,7 @@ describe("GitService fileDiffAtCommit", () => {
         stdout: "export const x = 1;\n",
         stderr: "",
       },
-      "diff --numstat -- src/new.ts": {
+      [`diff-tree --no-commit-id --numstat -r -m --root ${sha} -- src/new.ts`]: {
         stdout: "1\t0\tsrc/new.ts\n",
         stderr: "",
       },
@@ -196,7 +189,7 @@ describe("GitService fileDiffAtCommit", () => {
       [`rev-parse ${sha}^`]: { stdout: `${parent}\n`, stderr: "" },
       [`show ${parent}:file.txt`]: { stdout: "old\n", stderr: "" },
       [`show ${sha}:file.txt`]: { stdout: "new\n", stderr: "" },
-      "diff --numstat -- file.txt": {
+      [`diff-tree --no-commit-id --numstat -r -m --root ${sha} -- file.txt`]: {
         stdout: "1\t1\tfile.txt\n",
         stderr: "",
       },
@@ -212,6 +205,69 @@ describe("GitService fileDiffAtCommit", () => {
       expect(result.diff.layout).toBe("split");
       expect(result.diff.left?.text).toBe("old\n");
       expect(result.diff.right?.text).toBe("new\n");
+    }
+  });
+
+  it("reuses the parent already loaded with the graph", async () => {
+    const sha = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+    const parent = "ffffffffffffffffffffffffffffffffffffffff";
+    const { service, calls } = makeFakeGit({
+      [`show ${parent}:cached.txt`]: { stdout: "old\n", stderr: "" },
+      [`show ${sha}:cached.txt`]: { stdout: "new\n", stderr: "" },
+    });
+
+    const result = await service.fileDiffAtCommit(
+      "/repo",
+      sha,
+      "cached.txt",
+      "M",
+      parent,
+    );
+
+    expect(result.ok).toBe(true);
+    expect(calls.map((call) => call.args[0])).toEqual(["show", "show"]);
+  });
+
+  it("detects a historical binary file while reading its blobs", async () => {
+    const sha = "1111111111111111111111111111111111111111";
+    const parent = "2222222222222222222222222222222222222222";
+    const { service } = makeFakeGit({
+      [`show ${parent}:asset.bin`]: { stdout: "old\u0000data", stderr: "" },
+      [`show ${sha}:asset.bin`]: { stdout: "new\u0000data", stderr: "" },
+    });
+
+    const result = await service.fileDiffAtCommit(
+      "/repo",
+      sha,
+      "asset.bin",
+      "M",
+      parent,
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.diff.binary).toBe(true);
+    }
+  });
+
+  it("surfaces blob read failures instead of rendering an empty side", async () => {
+    const sha = "3333333333333333333333333333333333333333";
+    const parent = "4444444444444444444444444444444444444444";
+    const { service } = makeFakeGit({
+      [`rev-parse ${sha}^`]: { stdout: `${parent}\n`, stderr: "" },
+      [`show ${parent}:broken.ts`]: { stdout: "old\n", stderr: "" },
+    });
+
+    const result = await service.fileDiffAtCommit(
+      "/repo",
+      sha,
+      "broken.ts",
+      "M",
+    );
+
+    expect(result).toMatchObject({ ok: false, code: "GIT_ERROR" });
+    if (!result.ok) {
+      expect(result.message).toContain("Could not read broken.ts");
     }
   });
 });

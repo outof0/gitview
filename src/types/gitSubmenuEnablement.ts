@@ -112,11 +112,26 @@ function hasLocalChanges(ctx: GitSubmenuEnablementContext): boolean {
   );
 }
 
-function hasStagedChanges(ctx: GitSubmenuEnablementContext): boolean {
+/**
+ * GitView's commit dialog accepts a path list and stages those paths before
+ * creating the commit. Requiring an already-staged index here therefore makes
+ * the Commit action look unavailable for the normal modified-file state.
+ */
+function hasCommittableChanges(ctx: GitSubmenuEnablementContext): boolean {
   if (ctx.hasStagedChanges) {
     return true;
   }
-  return scopedFiles(ctx).some((f) => f.staged);
+  const scoped = scopedFiles(ctx);
+  if (scoped.length > 0) {
+    return scoped.some(
+      (file) =>
+        file.kind !== "ignored" &&
+        file.kind !== "conflicted" &&
+        !file.conflicted &&
+        (fileHasRollbackableChanges(file) || file.kind === "unversioned"),
+    );
+  }
+  return Boolean(ctx.repository?.dirty);
 }
 
 function operationBlocksIntegrate(ctx: GitSubmenuEnablementContext): boolean {
@@ -206,12 +221,12 @@ export function evaluateGitSubmenuAction(
           reason: "Resolve merge conflicts before committing",
         };
       }
-      if (!hasStagedChanges(ctx)) {
-        return { enabled: false, reason: "Nothing staged to commit" };
+      if (!hasCommittableChanges(ctx)) {
+        return { enabled: false, reason: "No local changes to commit" };
       }
-      if (action === "commitAndPush" && (ctx.repository?.ahead ?? 0) === 0 && !hasUpstream(ctx)) {
-        return { enabled: false, reason: "No upstream branch to push" };
-      }
+      // The commit dialog can still commit and then offer upstream setup when
+      // this branch has no tracking branch yet, so do not hide the action at
+      // the menu level.
       return { enabled: true };
 
     case "fetch":

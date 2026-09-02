@@ -41,7 +41,8 @@ export function createPatchApi(execGit: GitExecFn) {
       await fs.writeFile(patchPath, patchContent, "utf8");
       return await fn(patchPath);
     } finally {
-      await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
+      // Cleanup must not replace the original error from `fn`.
+      await fs.rm(dir, { recursive: true, force: true }).catch(() => {}); // review-scope:allow silent-catch — temp-dir cleanup
     }
   }
 

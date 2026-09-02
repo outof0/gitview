@@ -7,10 +7,13 @@ import { createSelectedChangesApi } from "../git/selectedChanges";
 import { createHistoryApi } from "../git/history";
 import { createBranchCompareApi, writeFileAtomically } from "../git/branchCompare";
 import { computeChangeDigest } from "../git/changeDigest";
+import { createRepositoryService } from "../repositoryService";
+import { requireRollbackConfirmation } from "../../application/mutationPreconditions";
 import { createShelfStorage, type ShelfStorage } from "../../storage/shelfStorage";
 import type { GitExecFn } from "../git/types";
 import { NO_OPERATION } from "../../shared/types/operation";
 import {
+  createRollbackConfirmationEvidence,
   fingerprintRepository,
   matchesRepositoryFingerprint,
   type ConfirmationRepositoryState,
@@ -121,6 +124,49 @@ describe("data safety regressions", () => {
     const evidence = fingerprintRepository(stateAt(before));
     expect(matchesRepositoryFingerprint(stateAt(before), evidence)).toBe(true);
     expect(matchesRepositoryFingerprint(stateAt(after), evidence)).toBe(false);
+  });
+
+  it("refreshes repository confirmation digests before validating rollback", async () => {
+    repo = await createTempGitRepo();
+    await writeRepoFile(repo.root, "notes.txt", "first\n");
+
+    const repositoryService = createRepositoryService({
+      execGit,
+      discoverGitRoots: async () => [repo!.root],
+    });
+    const input = {
+      workspaceFolders: [{ uriPath: repo.root, name: "repo" }],
+      trusted: true,
+      freshChangeDigest: true,
+    };
+
+    const [before] = await repositoryService.discoverRepositories(input);
+    expect(before?.changeDigest).not.toBeNull();
+    if (!before) {
+      throw new Error("Expected a repository snapshot");
+    }
+
+    const confirmation = createRollbackConfirmationEvidence(
+      before,
+      ["notes.txt"],
+      [],
+    );
+
+    await writeRepoFile(repo.root, "notes.txt", "second\n");
+    const [after] = await repositoryService.discoverRepositories(input);
+    expect(after?.changeDigest).not.toBe(before.changeDigest);
+    if (!after) {
+      throw new Error("Expected a refreshed repository snapshot");
+    }
+
+    const validation = requireRollbackConfirmation(after, ["notes.txt"], [], {
+      evidence: confirmation,
+      typedValue: confirmation.expectedTypedValue,
+    });
+    expect(validation.ok).toBe(false);
+    if (!validation.ok) {
+      expect(validation.error.code).toBe("CONFIRMATION_STALE");
+    }
   });
 
   it("returns a null digest for a clean working tree", async () => {

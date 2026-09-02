@@ -46,7 +46,7 @@ describe("staging integration", () => {
     expect(await staging.listStagedPaths(repo.root)).toEqual(["staged.ts"]);
   });
 
-  it("rolls back tracked edits while keeping unrelated files", async () => {
+  it("rolls back staged added files while keeping unrelated files", async () => {
     repo = await createTempGitRepo();
     const staging = createStagingApi(execGit);
 
@@ -57,9 +57,31 @@ describe("staging integration", () => {
     await writeRepoFile(repo.root, "a.ts", "a-local\n");
     await staging.rollbackTrackedFiles(repo.root, ["a.ts"]);
 
-    const a = await import("fs/promises").then((fs) =>
-      fs.readFile(`${repo!.root}/a.ts`, "utf8"),
+    await expect(
+      import("fs/promises").then((fs) =>
+        fs.readFile(`${repo!.root}/a.ts`, "utf8"),
+      ),
+    ).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("rolls back staged-only edits and clears the index entry", async () => {
+    repo = await createTempGitRepo();
+    const staging = createStagingApi(execGit);
+    const status = createStatusApi(execGit);
+
+    const original = await import("fs/promises").then((fs) =>
+      fs.readFile(`${repo!.root}/README.md`, "utf8"),
     );
-    expect(a).toBe("a1\n");
+    await writeRepoFile(repo.root, "README.md", "staged-only\n");
+    await staging.stageFiles(repo.root, ["README.md"]);
+    await staging.rollbackTrackedFiles(repo.root, ["README.md"]);
+
+    const snapshot = await status.getStatus(repo.root, "r1");
+    expect(snapshot.files).toEqual([]);
+    await expect(
+      import("fs/promises").then((fs) =>
+        fs.readFile(`${repo!.root}/README.md`, "utf8"),
+      ),
+    ).resolves.toBe(original);
   });
 });

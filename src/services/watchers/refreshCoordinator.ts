@@ -85,6 +85,13 @@ export function createRefreshCoordinator(
       return () => undefined;
     }
     listeners.add(listener);
+    if (lastPayload.traceId !== "refresh-none") {
+      try {
+        listener(lastPayload);
+      } catch (error) {
+        logger.warn("refresh.listener.failed", errorLogFields(error));
+      }
+    }
     return () => listeners.delete(listener);
   }
 

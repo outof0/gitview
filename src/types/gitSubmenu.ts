@@ -18,13 +18,17 @@ export const GIT_SUBMENU_CONTEXT_GROUP = "z_git@1";
 /** Resolve conflict — first row inside the Git submenu when merge changes exist. */
 export const RESOLVE_CONFLICT_GROUP = "0_merge@1";
 
+/** Native keybindings must yield to shortcuts handled inside GitView webviews. */
+export const NOT_GITVIEW_WEBVIEW_FOCUS_WHEN =
+  "!(view == gitView.launcher || view == gitView.workspace)";
+
 /** Default chord for opening the merge resolver from the active editor. */
 export const RESOLVE_CONFLICT_KEYBINDING_WHEN =
-  "git.mergeChangesCount != 0 && editorTextFocus && resourceScheme == file && git.activeResourceHasMergeConflicts";
+  `git.mergeChangesCount != 0 && editorTextFocus && resourceScheme == file && git.activeResourceHasMergeConflicts && ${NOT_GITVIEW_WEBVIEW_FOCUS_WHEN}`;
 
 export type GitSubmenuScope = "resource" | "file" | "repository" | "merge";
 
-export type GitSubmenuHistoryAction = "showHistory";
+type GitSubmenuHistoryAction = "showHistory";
 
 export type GitSubmenuSpecialAction =
   | GitSubmenuHistoryAction
