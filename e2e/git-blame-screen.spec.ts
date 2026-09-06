@@ -11,6 +11,7 @@ import {
 import {
   expectBlameCommitHistoryPanel,
   expectBlameCompactBlockLayout,
+  expectGitLogGraphFitsCommitList,
   expectGitViewBlameScreen,
 } from "./helpers/git-screen-parity";
 
@@ -22,11 +23,12 @@ test.describe("Git Blame screen — compact layout", () => {
     page,
   }) => {
     const bootstrap = await loadBlameScreenBootstrap(TARGET);
+    const history = await loadHistoryScreenBootstrap(TARGET);
     const sample =
       bootstrap.lines.find((l) => l.text?.includes("class")) ??
       bootstrap.lines[0]!;
 
-    await openGitBlameScreen(page, bootstrap);
+    await openGitBlameScreen(page, bootstrap, history);
 
     await expectGitViewBlameScreen(page, {
       relativePath: TARGET,
@@ -35,12 +37,17 @@ test.describe("Git Blame screen — compact layout", () => {
     });
     await expectBlameCompactBlockLayout(page, bootstrap.lines);
     await expect(page.getByTestId("blame-sha-1")).toContainText(sample.author);
-    await expect(page.getByTestId("blame-sha-1")).toContainText(
+    await expect(page.getByTestId("blame-sha-1")).not.toContainText(
+      sample.summary,
+    );
+    await page.getByTestId("blame-sha-1").hover();
+    await expect(page.getByTestId("blame-commit-hover-card")).toContainText(
       sample.summary,
     );
     await expect(page.getByTestId(/^blame-sha-/)).toHaveCount(
       bootstrap.lines.length,
     );
+    await expectGitLogGraphFitsCommitList(page);
   });
 
   test("multi-line commit block repeats compact annotation on every line", async ({
@@ -63,7 +70,7 @@ test.describe("Git Blame screen — compact layout", () => {
     await expect(page.getByTestId("blame-sha-2")).toContainText(
       bootstrap.lines[1]!.author,
     );
-    await expect(page.getByTestId("blame-sha-2")).toContainText(
+    await expect(page.getByTestId("blame-sha-2")).not.toContainText(
       bootstrap.lines[1]!.summary,
     );
     await expect(page.locator(".nx-blame-annotate--filler")).toHaveCount(0);

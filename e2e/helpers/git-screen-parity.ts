@@ -12,6 +12,7 @@ import {
   groupBlameBlocks,
   type BlameBlockLine,
 } from "../../src/shared/lib/groupBlameBlocks";
+import { expectUiSurfaceLayout } from "./ui-system-contracts";
 
 type ScreenSurface = Frame | Page;
 import {
@@ -57,6 +58,7 @@ export async function expectGitViewScreen(
   await expect(surface.getByTestId("git-diff-app")).toBeVisible({
     timeout: 15_000,
   });
+  await expectUiSurfaceLayout(surface, "git-diff-app");
   if (opts.titlePart) {
     await expect(surface.getByTestId("git-diff-app")).toContainText(
       opts.titlePart,
@@ -85,6 +87,7 @@ export async function expectGitViewBlameScreen(
   await expect(surface.getByTestId("git-blame-app")).toBeVisible({
     timeout: 15_000,
   });
+  await expectUiSurfaceLayout(surface, "git-blame-app");
   await expect(surface.getByTestId("workspace-blame-panel")).toBeVisible();
   await expect(surface.getByTestId("blame-editor")).toBeVisible();
   await expect(surface.getByTestId("blame-git-log-pane")).toBeVisible();
@@ -218,12 +221,14 @@ export async function expectBlameSyntaxHighlight(
     await expect(
       monaco
         .locator(
-          '.mtk1, .mtk5, .mtk6, .mtk7, .mtk8, .mtk9, .mtk20, .syntax-keyword, .view-line span',
+          ".mtk1, .mtk5, .mtk6, .mtk7, .mtk8, .mtk9, .mtk20, .syntax-keyword, .view-line span",
         )
         .first(),
     ).toBeVisible({ timeout: 15_000 });
   } else {
-    await expect(monaco.locator(".view-line, .monaco-editor").first()).toBeVisible();
+    await expect(
+      monaco.locator(".view-line, .monaco-editor").first(),
+    ).toBeVisible();
   }
 }
 
@@ -257,6 +262,51 @@ export async function expectBlameCommitHistoryPanel(
   await expect(surface.getByTestId("git-commit-list")).toBeVisible();
 }
 
+export async function expectGitLogGraphFitsCommitList(
+  surface: ScreenSurface,
+): Promise<void> {
+  const graph = surface.getByTestId("git-log-graph");
+  const firstRow = surface.locator('[data-graph-row="true"]').first();
+  const firstDot = surface.locator('[data-testid^="git-log-graph-dot-"]').first();
+  await expect(graph).toBeVisible();
+  await expect(firstRow).toBeVisible();
+  await expect(firstDot).toBeVisible();
+
+  const graphWidth = Number(await graph.getAttribute("width"));
+  const metrics = await firstRow.evaluate((row) => {
+    const rowRect = row.getBoundingClientRect();
+    const subject = row.querySelector<HTMLElement>(
+      '[data-testid="git-commit-subject"]',
+    );
+    const subjectRect = subject?.getBoundingClientRect();
+    return {
+      rowWidth: rowRect.width,
+      subjectWidth: subjectRect?.width ?? 0,
+      subjectVisible:
+        subjectRect !== undefined &&
+        subjectRect.right > rowRect.left &&
+        subjectRect.left < rowRect.right,
+    };
+  });
+
+  expect(Number.isFinite(graphWidth)).toBe(true);
+  expect(graphWidth).toBeLessThanOrEqual(Math.max(68, metrics.rowWidth * 0.35));
+  expect(metrics.subjectVisible).toBe(true);
+  expect(metrics.subjectWidth).toBeGreaterThan(12);
+
+  const [rowBox, dotBox] = await Promise.all([
+    firstRow.boundingBox(),
+    firstDot.boundingBox(),
+  ]);
+  expect(rowBox).not.toBeNull();
+  expect(dotBox).not.toBeNull();
+  expect(
+    Math.abs(
+      (dotBox!.y + dotBox!.height / 2) - (rowBox!.y + rowBox!.height / 2),
+    ),
+  ).toBeLessThanOrEqual(3);
+}
+
 export async function expectGitViewHistoryScreen(
   surface: ScreenSurface,
   targetPath: string,
@@ -264,6 +314,7 @@ export async function expectGitViewHistoryScreen(
   await expect(surface.getByTestId("git-history-app")).toBeVisible({
     timeout: 15_000,
   });
+  await expectUiSurfaceLayout(surface, "git-history-app");
   await expect(surface.getByTestId("history-git-log-pane")).toBeVisible();
   await expect(surface.getByTestId("git-history-tool-window")).toBeVisible();
   await expect(surface.getByTestId("git-history-tool-window")).toContainText(

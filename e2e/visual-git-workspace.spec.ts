@@ -1,4 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
+import {
+  expectUiSurfaceAccessible,
+  expectUiSurfaceLayout,
+} from "./helpers/ui-system-contracts";
 
 const stateMarkers: Record<string, string> = {
   loading: "repository-state-loading",
@@ -25,14 +29,16 @@ async function openState(
   state: string,
   width = 1440,
   height = 900,
-  theme: "dark" | "high-contrast" = "dark",
+  theme: "dark" | "light" | "high-contrast" = "dark",
 ): Promise<void> {
   await page.setViewportSize({ width, height });
   await page.addInitScript((requestedTheme) => {
     const themeClass =
       requestedTheme === "high-contrast"
         ? "vscode-high-contrast"
-        : "vscode-dark";
+        : requestedTheme === "light"
+          ? "vscode-light"
+          : "vscode-dark";
     document.documentElement.classList.add(themeClass);
     document.body.classList.add(themeClass);
   }, theme);
@@ -109,6 +115,14 @@ test.describe("Visual — Git Workspace repository states", () => {
           caret: "hide",
         },
       );
+    });
+  }
+
+  for (const theme of ["dark", "light", "high-contrast"] as const) {
+    test(`a11y and contrast contracts in ${theme}`, async ({ page }) => {
+      await openState(page, "changed", 600, 500, theme);
+      await expectUiSurfaceLayout(page, "git-workspace-app");
+      await expectUiSurfaceAccessible(page, "git-workspace-app");
     });
   }
 });

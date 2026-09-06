@@ -6,6 +6,7 @@ import { test, expect } from "@playwright/test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { GIT_SUBMENU_AUDIT } from "../src/types/gitSubmenuAudit";
+import { GIT_SUBMENU_ITEMS } from "../src/types/gitSubmenu";
 import {
   acceptQuickPick,
   clickNativeGitMenu,
@@ -57,8 +58,14 @@ async function cachedNames(): Promise<string[]> {
 }
 
 test.describe("Native Explorer Git — audit matrix", () => {
-  test("audit manifest covers all 23 submenu commands", () => {
-    expect(GIT_SUBMENU_AUDIT).toHaveLength(23);
+  test("audit manifest covers every submenu command", () => {
+    expect(GIT_SUBMENU_AUDIT).toHaveLength(GIT_SUBMENU_ITEMS.length);
+    const audited = new Set(GIT_SUBMENU_AUDIT.map((row) => row.command));
+    for (const item of GIT_SUBMENU_ITEMS) {
+      expect(audited.has(item.command), `${item.command} needs an audit row`).toBe(
+        true,
+      );
+    }
     const commands = GIT_SUBMENU_AUDIT.map((row) => row.command).sort();
     expect(commands).toContain("gitView.showGitHistory");
     expect(commands).toContain("gitView.gitRebase");

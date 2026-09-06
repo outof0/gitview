@@ -28,6 +28,10 @@ import {
   openMergeResolverFor,
   pressMergeShortcut,
 } from "./helpers/native-merge";
+import {
+  expectUiSurfaceAccessible,
+  expectUiSurfaceLayout,
+} from "./helpers/ui-system-contracts";
 
 test.describe.configure({ mode: "serial" });
 
@@ -38,6 +42,14 @@ test.describe("Native merge resolver — Magic Merge", () => {
     const session = await launchNativeVsCode();
     try {
       const frame = await openMergeResolverFor(session, "magic-merge.txt");
+      await expectUiSurfaceLayout(frame, "merge-app");
+      await expectUiSurfaceAccessible(frame, "merge-app");
+      const viewOptions = frame.getByTestId("merge-view-options");
+      await viewOptions.click();
+      await expect(
+        frame.getByTestId("merge-view-options-whitespace-doNotIgnore"),
+      ).toBeVisible();
+      await viewOptions.click();
       const magicMerge = frame.getByLabel(
         /Magic Merge|Resolve simple conflicts/i,
       );
@@ -68,9 +80,7 @@ test.describe("Native merge resolver — Magic Merge", () => {
       await expect
         .poll(() => git(["ls-files", "-u", "--", "magic-merge.txt"]))
         .toBe("");
-      await expect
-        .poll(() => git(["show", ":magic-merge.txt"]))
-        .toBe(expected);
+      await expect.poll(() => git(["show", ":magic-merge.txt"])).toBe(expected);
     } finally {
       await closeNativeVsCode(session);
     }
@@ -192,8 +202,12 @@ test.describe("Native conflicts dialog — folder scope", () => {
       const menu = frame.getByTestId("conflicts-context-menu");
       await expect(menu).toBeVisible();
       await expect(menu.getByText("Merge...")).toHaveCount(0);
-      await expect(menu.getByTestId("conflicts-menu-accept-yours")).toHaveCount(0);
-      await expect(menu.getByTestId("conflicts-menu-accept-theirs")).toHaveCount(0);
+      await expect(menu.getByTestId("conflicts-menu-accept-yours")).toHaveCount(
+        0,
+      );
+      await expect(
+        menu.getByTestId("conflicts-menu-accept-theirs"),
+      ).toHaveCount(0);
       await expectGitSubmenuInFrame(frame, { isFolder: true });
     } finally {
       await closeNativeVsCode(session);

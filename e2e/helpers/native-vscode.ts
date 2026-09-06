@@ -81,20 +81,83 @@ export async function prepareMergeRepo(): Promise<void> {
   });
 }
 
+/**
+ * Files inside `$GIT_DIR` that prove an operation is still running, paired
+ * with the command that ends it.
+ *
+ * `git <op> --abort` fails when no such operation is running, which is why
+ * these used to be wrapped in `.catch(() => "")`. That swallow is what let a
+ * fixture reach "Commit and Push" with a merge still open — the run then
+ * died on `fatal: cannot do a partial commit during a merge` inside a test
+ * that had nothing to do with merging. Abort only what the marker proves is
+ * live, and let a real abort failure fail the run.
+ */
+const ACTIVE_OPERATION_MARKERS = [
+  { marker: "MERGE_HEAD", args: ["merge", "--abort"] },
+  { marker: "CHERRY_PICK_HEAD", args: ["cherry-pick", "--abort"] },
+  { marker: "REVERT_HEAD", args: ["revert", "--abort"] },
+  { marker: "rebase-merge", args: ["rebase", "--abort"] },
+  { marker: "rebase-apply", args: ["rebase", "--abort"] },
+] as const;
+
+async function activeOperationMarkers(): Promise<string[]> {
+  const gitDir = (await git(["rev-parse", "--absolute-git-dir"])).trim();
+  let entries: string[];
+  try {
+    entries = await fs.readdir(gitDir);
+  } catch (err) {
+    throw new Error(
+      `Cannot list ${gitDir} to check for an active Git operation: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    );
+  }
+  const known = new Set<string>(
+    ACTIVE_OPERATION_MARKERS.map((entry) => entry.marker),
+  );
+  return entries.filter((entry) => known.has(entry));
+}
+
+/** End every in-progress merge/rebase/cherry-pick/revert. Throws on failure. */
+async function abortActiveOperations(): Promise<void> {
+  for (const marker of await activeOperationMarkers()) {
+    const entry = ACTIVE_OPERATION_MARKERS.find(
+      (candidate) => candidate.marker === marker,
+    );
+    if (!entry) {
+      continue;
+    }
+    await git([...entry.args]);
+  }
+}
+
+/**
+ * Post-condition for every fixture reset: no operation may still be open.
+ * Without this, a half-cleaned fixture surfaces as a confusing failure in a
+ * later, unrelated test instead of at the reset that caused it.
+ */
+async function expectNoActiveOperation(): Promise<void> {
+  const remaining = await activeOperationMarkers();
+  if (remaining.length > 0) {
+    throw new Error(
+      `Git operation still active in ${TEST_WORKSPACE} after cleanup: ${remaining.join(", ")}`,
+    );
+  }
+}
+
 export async function prepareCleanGitRepo(): Promise<void> {
   await prepareMergeRepo();
-  await git(["merge", "--abort"]).catch(() => "");
-  await git(["rebase", "--abort"]).catch(() => "");
-  await git(["cherry-pick", "--abort"]).catch(() => "");
+  await abortActiveOperations();
   await git(["reset", "--hard", "HEAD"]);
   await git(["clean", "-fd"]);
-  await git(["stash", "clear"]).catch(() => "");
+  await git(["stash", "clear"]);
   await fs
     .rm(path.join(TEST_WORKSPACE, ".git", "gitview-shelves"), {
       recursive: true,
       force: true,
     })
     .catch(() => undefined);
+  await expectNoActiveOperation();
 }
 
 async function closeVsCodeSignInPrompt(page: Page): Promise<void> {
@@ -434,16 +497,38 @@ export async function closeNativeVsCode(
   session.stopSilentWatcher?.();
   const child = session.app.process();
   await Promise.race([
-    session.app.close(),
+    session.app.close().catch(() => undefined),
     new Promise((resolve) => setTimeout(resolve, 8_000)),
-  ]).catch(() => undefined);
-  if (!child.killed) {
+  ]);
+
+  const waitForExit = async (timeoutMs: number): Promise<boolean> => {
+    if (child.exitCode !== null || child.signalCode !== null) {
+      return true;
+    }
+    return new Promise((resolve) => {
+      const onExit = (): void => {
+        clearTimeout(timer);
+        resolve(true);
+      };
+      const timer = setTimeout(() => {
+        child.off("exit", onExit);
+        resolve(false);
+      }, timeoutMs);
+      child.once("exit", onExit);
+    });
+  };
+
+  if (!(await waitForExit(2_000))) {
+    child.kill("SIGTERM");
+  }
+  if (!(await waitForExit(5_000))) {
     child.kill("SIGKILL");
   }
-  await new Promise((resolve) => setTimeout(resolve, 1_500));
-  await fs
-    .rm(session.userDataDir, { recursive: true, force: true })
-    .catch(() => undefined);
+  if (!(await waitForExit(5_000))) {
+    throw new Error("VS Code did not exit before the next native E2E test");
+  }
+
+  await fs.rm(session.userDataDir, { recursive: true, force: true });
 }
 
 async function installNativeMenuClickHook(app: ElectronApp): Promise<void> {
@@ -708,7 +793,9 @@ export async function clickNativeGitMenu(
         globalThis.__gitviewNativeMenus = [];
         globalThis.__gitviewNativeMenuTargetLabels = expectedLabels;
       },
-      ["Git", menuLabel],
+      // Normalized ("..." not "…"): the hook compares against normalized
+      // labels, so a raw ellipsis would never match.
+      ["Git", expectedLabel],
     );
 
     await openExplorerContextMenu(page, resourceName);

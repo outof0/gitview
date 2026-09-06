@@ -15,6 +15,7 @@ import {
 } from "./helpers/git-screen-parity";
 import { createGitService } from "../out/services/gitService";
 import { TEST_WORKSPACE } from "./helpers/native-vscode";
+import { expectUiSurfaceAccessible } from "./helpers/ui-system-contracts";
 
 const TARGET = "README.md";
 const git = createGitService();
@@ -31,6 +32,16 @@ test.describe("Native — Git History screen", () => {
 
       const frame = await waitForGitViewHistoryFrame(session.app);
       await expectGitViewHistoryScreen(frame, TARGET);
+      await expectUiSurfaceAccessible(frame, "git-history-tool-window");
+      const moreFilters = frame.getByTestId("git-history-more-filters");
+      await expect(moreFilters).toBeVisible();
+      await moreFilters.click();
+      await expect(
+        frame.getByTestId("git-history-more-filters-popover"),
+      ).toBeVisible();
+      await expect(
+        frame.getByTestId("git-history-compact-branch-filter"),
+      ).toBeVisible();
 
       const repoRoot = (await git.findRepoRoot(TEST_WORKSPACE))!;
       const log = await git.logFile(repoRoot, TARGET, { limit: 5 });
