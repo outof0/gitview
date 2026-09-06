@@ -313,6 +313,8 @@ export function BlameCodeEditor({
           scrollbar: {
             vertical: "auto",
             horizontal: "auto",
+            verticalScrollbarSize: 8,
+            horizontalScrollbarSize: 8,
             useShadows: false,
           },
         });

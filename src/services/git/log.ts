@@ -269,12 +269,12 @@ export function createLogApi(execGit: GitExecFn) {
       args.push("--first-parent");
     }
 
-    // The workspace Log's "All commits" view is a repository graph, not only
-    // the ancestry reachable from HEAD. Without --all, unmerged local and
-    // remote branches never reach the graph layout and every history appears
-    // as a single straight lane.
+    // Include the user-facing graph refs, but not Git's entire ref namespace.
+    // `--all` also traverses refs/cline/*, refs/codex/* and other tool-owned
+    // checkpoints; those synthetic commits can have unchanged trees and crowd
+    // real history out of the bounded result.
     if (query?.range === "all" && !query.branch?.trim()) {
-      args.push("--all");
+      args.push("--branches", "--remotes", "--tags", "HEAD");
     }
 
     if (query?.range === "incoming" || query?.range === "outgoing") {

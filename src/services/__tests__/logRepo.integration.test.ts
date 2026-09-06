@@ -73,4 +73,40 @@ describe("logRepo integration", () => {
     const logCall = calls.find((args) => args[0] === "log");
     expect(logCall?.includes("origin/main..HEAD")).toBe(true);
   });
+
+  it("keeps tool-owned checkpoint refs out of the repository graph", async () => {
+    repo = await createTempGitRepo();
+    const log = createLogApi(execGit);
+
+    await execGit(repo.root, ["checkout", "-b", "feature"]);
+    await writeRepoFile(repo.root, "feature.txt", "user branch\n");
+    await execGit(repo.root, ["add", "feature.txt"]);
+    await execGit(repo.root, ["commit", "-m", "User branch commit"]);
+    await execGit(repo.root, ["checkout", "main"]);
+
+    await execGit(repo.root, ["checkout", "-b", "checkpoint-source"]);
+    await writeRepoFile(repo.root, "checkpoint.txt", "tool checkpoint\n");
+    await execGit(repo.root, ["add", "checkpoint.txt"]);
+    await execGit(repo.root, ["commit", "-m", "Tool checkpoint commit"]);
+    const { stdout: checkpointSha } = await execGit(repo.root, ["rev-parse", "HEAD"]);
+    await execGit(repo.root, ["checkout", "main"]);
+    await execGit(repo.root, ["branch", "-D", "checkpoint-source"]);
+    await execGit(repo.root, [
+      "update-ref",
+      "refs/cline/checkpoints/test/1",
+      checkpointSha.trim(),
+    ]);
+
+    const result = await log.logRepo(repo.root, { range: "all", limit: 50 });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.commits.some((commit) => commit.subject === "User branch commit")).toBe(
+        true,
+      );
+      expect(
+        result.commits.some((commit) => commit.subject === "Tool checkpoint commit"),
+      ).toBe(false);
+    }
+  });
 });

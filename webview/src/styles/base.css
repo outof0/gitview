@@ -208,10 +208,17 @@ input[type="checkbox"]:not(.sr-only):checked::after {
   position: absolute;
 }
 
-/* VS Code themed Webkit scrollbars */
+/* Compact overlay-style scrollbars: macOS-sized visuals with an 8px hit area. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(
+      --vscode-scrollbarSlider-background,
+      rgba(121, 121, 121, 0.3)
+    ) transparent;
+}
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
@@ -221,7 +228,9 @@ input[type="checkbox"]:not(.sr-only):checked::after {
     --vscode-scrollbarSlider-background,
     rgba(121, 121, 121, 0.3)
   );
-  border-radius: 0px;
+  background-clip: padding-box;
+  border: 1px solid transparent;
+  border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(

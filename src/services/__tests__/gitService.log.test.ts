@@ -118,9 +118,9 @@ Commit: Jane Doe <jane@example.com>
 describe("GitService logRepo graph scope", () => {
   const logOutput = sampleLogOutput("Repository graph commit");
 
-  it("loads every ref for the All commits graph", async () => {
+  it("loads user-facing refs without tool-owned checkpoints", async () => {
     const { service, calls } = makeFakeGit({
-      [`log --parents --name-status --format=${LOG_FORMAT} -n 200 --all`]: {
+      [`log --parents --name-status --format=${LOG_FORMAT} -n 200 --branches --remotes --tags HEAD`]: {
         stdout: logOutput,
         stderr: "",
       },
@@ -132,7 +132,10 @@ describe("GitService logRepo graph scope", () => {
     });
 
     expect(result.ok).toBe(true);
-    expect(calls[0]!.args).toContain("--all");
+    expect(calls[0]!.args).toEqual(
+      expect.arrayContaining(["--branches", "--remotes", "--tags", "HEAD"]),
+    );
+    expect(calls[0]!.args).not.toContain("--all");
   });
 
   it("keeps an explicit branch graph scoped to that branch", async () => {

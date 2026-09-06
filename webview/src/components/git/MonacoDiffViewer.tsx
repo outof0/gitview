@@ -9,6 +9,7 @@ import { applyGitViewMonacoTheme } from "../../lib/monacoTheme";
 import { detectLanguage } from "../merge/syntax";
 import { getMonacoIfLoaded, loadMonaco } from "../merge/monacoSetup";
 import { cn } from "../../lib/cn";
+import { resolveThemeColor } from "../../lib/webviewTheme";
 import {
   buildDiffNavigationHunks,
   type DiffNavigationHunk,
@@ -127,6 +128,7 @@ function applyDiffDecorations(
   modifiedCollection: import("monaco-editor/editor").editor.IEditorDecorationsCollection | null,
   hunks: readonly DiffNavigationHunk[],
   activeHunkIndex: number,
+  colors: DiffOverviewColors,
 ): number {
   const originalDecorations: import("monaco-editor/editor").editor.IModelDeltaDecoration[] = [];
   const modifiedDecorations: import("monaco-editor/editor").editor.IModelDeltaDecoration[] = [];
@@ -142,12 +144,12 @@ function applyDiffDecorations(
     const active = hunkIndex === activeHunkIndex ? "monaco-diff-active" : "";
     const classes = [tone, active].filter(Boolean).join(" ");
     const overviewColor = active
-      ? "var(--ring, var(--nx-modified-bar))"
+      ? colors.active
       : hunk.kind === "added"
-        ? "var(--nx-added-bar)"
+        ? colors.added
         : hunk.kind === "removed"
-          ? "var(--nx-deleted-bar)"
-          : "var(--nx-modified-bar)";
+          ? colors.removed
+          : colors.modified;
     for (let line = startLine; line <= endLine; line += 1) {
       decorations.push({
         range: new monaco.Range(line, 1, line, 1),
@@ -194,14 +196,32 @@ function applyDiffDecorations(
   return hunks.length;
 }
 
+type DiffOverviewColors = {
+  active: string;
+  added: string;
+  removed: string;
+  modified: string;
+};
+
+function readDiffOverviewColors(element: Element): DiffOverviewColors {
+  const modified =
+    resolveThemeColor(element, "--nx-modified-bar") || "transparent";
+  return {
+    active: resolveThemeColor(element, "--ring") || modified,
+    added: resolveThemeColor(element, "--nx-added-bar") || modified,
+    removed: resolveThemeColor(element, "--nx-deleted-bar") || modified,
+    modified,
+  };
+}
+
 /** The strip owns the pane's right edge, so Monaco's gutter and slider stand down. */
 function originalPaneOptions(sideBySide: boolean): Monaco.editor.IEditorOptions {
   return {
     lineNumbers: sideBySide ? "off" : "on",
     scrollbar: {
       vertical: sideBySide ? "hidden" : "auto",
-      verticalScrollbarSize: 10,
-      horizontalScrollbarSize: 10,
+      verticalScrollbarSize: 8,
+      horizontalScrollbarSize: 8,
     },
   };
 }
@@ -337,8 +357,8 @@ export function MonacoDiffViewer({
       scrollbar: {
         vertical: "auto",
         horizontal: "auto",
-        verticalScrollbarSize: 10,
-        horizontalScrollbarSize: 10,
+        verticalScrollbarSize: 8,
+        horizontalScrollbarSize: 8,
         useShadows: false,
       },
       renderGutterMenu: false,
@@ -429,6 +449,7 @@ export function MonacoDiffViewer({
         modifiedDecorationsRef.current,
         hunks,
         activeHunkIndexRef.current,
+        readDiffOverviewColors(hostRef.current!),
       );
       onDiffCountChangeRef.current?.(count);
       return count;
@@ -440,6 +461,7 @@ export function MonacoDiffViewer({
         modifiedDecorationsRef.current,
         navigationHunksRef.current,
         activeHunkIndexRef.current,
+        readDiffOverviewColors(hostRef.current!),
       );
     };
     const findHunkAtLine = (
@@ -644,15 +666,16 @@ export function MonacoDiffViewer({
       if (activeHunkIndexRef.current >= hunks.length) {
         activeHunkIndexRef.current = -1;
       }
-      applyDiffDecorations(
-        monacoApi,
-        originalDecorationsRef.current,
-        modifiedDecorationsRef.current,
-        hunks,
-        activeHunkIndexRef.current,
-      );
       onDiffCountChangeRef.current?.(hunks.length);
     }
+    applyDiffDecorations(
+      monacoApi,
+      originalDecorationsRef.current,
+      modifiedDecorationsRef.current,
+      navigationHunksRef.current,
+      activeHunkIndexRef.current,
+      readDiffOverviewColors(hostRef.current!),
+    );
     // Text changed → Monaco recomputes diff async. getLineChanges() is null
     // until then, so poll until onDidUpdateDiff fires, otherwise toolbar
     // stays "Comparing…" when clicking rapidly between files (same language).
