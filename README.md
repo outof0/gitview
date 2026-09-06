@@ -6,6 +6,9 @@
 
 Resolve merge conflicts from real Git index stages (base / ours / theirs), not just `<<<<<<<` markers. Includes file history, blame, compare, and Git actions from the editor context menu.
 
+![Git History panel](docs/previews/04-git-history.png)
+![Native context menu](docs/previews/01-git-context-menu-crop.png)
+
 ## Features
 
 - **True 3-way merge** — built from Git stages `:1:` / `:2:` / `:3:`
@@ -41,7 +44,7 @@ Reporting a vulnerability: see [SECURITY.md](SECURITY.md) — please do not open
 ## Installation
 
 ```bash
-# Marketplace (after publish)
+# VS Code Marketplace
 code --install-extension gitview.gitview
 
 # Local VSIX

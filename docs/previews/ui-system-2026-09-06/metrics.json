@@ -1,0 +1,234 @@
+[
+  {
+    "name": "gitHistory-dark-1400x860.png",
+    "app": "gitHistory",
+    "theme": "dark",
+    "w": 1400,
+    "h": 860,
+    "doc": {
+      "scrollW": 1400,
+      "clientW": 1400,
+      "scrollH": 860,
+      "clientH": 860
+    },
+    "body": {
+      "scrollW": 1400,
+      "clientW": 1400,
+      "scrollH": 860,
+      "clientH": 860
+    },
+    "root": {
+      "scrollW": 1400,
+      "clientW": 1400,
+      "scrollH": 860,
+      "clientH": 860
+    },
+    "rootChildren": 1,
+    "rootText": "Playground\n|\nscreen: conflictList\nHide panel\nConflict list\nMerge (TS)\nMerge (tal",
+    "bodyBg": "rgb(30, 30, 30)",
+    "bodyColor": "rgb(212, 212, 212)"
+  },
+  {
+    "name": "gitHistory-dark-780x700.png",
+    "app": "gitHistory",
+    "theme": "dark",
+    "w": 780,
+    "h": 700,
+    "doc": {
+      "scrollW": 780,
+      "clientW": 780,
+      "scrollH": 700,
+      "clientH": 700
+    },
+    "body": {
+      "scrollW": 780,
+      "clientW": 780,
+      "scrollH": 700,
+      "clientH": 700
+    },
+    "root": {
+      "scrollW": 780,
+      "clientW": 780,
+      "scrollH": 700,
+      "clientH": 700
+    },
+    "rootChildren": 1,
+    "rootText": "Playground\n|\nscreen: conflictList\nHide panel\nConflict list\nMerge (TS)\nMerge (tal",
+    "bodyBg": "rgb(30, 30, 30)",
+    "bodyColor": "rgb(212, 212, 212)"
+  },
+  {
+    "name": "gitHistory-dark-400x640.png",
+    "app": "gitHistory",
+    "theme": "dark",
+    "w": 400,
+    "h": 640,
+    "doc": {
+      "scrollW": 400,
+      "clientW": 400,
+      "scrollH": 640,
+      "clientH": 640
+    },
+    "body": {
+      "scrollW": 400,
+      "clientW": 400,
+      "scrollH": 640,
+      "clientH": 640
+    },
+    "root": {
+      "scrollW": 400,
+      "clientW": 400,
+      "scrollH": 640,
+      "clientH": 640
+    },
+    "rootChildren": 1,
+    "rootText": "Playground\n|\nscreen: conflictList\nHide panel\nConflict list\nMerge (TS)\nMerge (tal",
+    "bodyBg": "rgb(30, 30, 30)",
+    "bodyColor": "rgb(212, 212, 212)"
+  },
+  {
+    "name": "gitHistory-dark-220x640.png",
+    "app": "gitHistory",
+    "theme": "dark",
+    "w": 220,
+    "h": 640,
+    "doc": {
+      "scrollW": 220,
+      "clientW": 220,
+      "scrollH": 640,
+      "clientH": 640
+    },
+    "body": {
+      "scrollW": 220,
+      "clientW": 220,
+      "scrollH": 640,
+      "clientH": 640
+    },
+    "root": {
+      "scrollW": 220,
+      "clientW": 220,
+      "scrollH": 640,
+      "clientH": 640
+    },
+    "rootChildren": 1,
+    "rootText": "Playground\n|\nscreen: conflictList\nHide panel\nConflict list\nMerge (TS)\nMerge (tal",
+    "bodyBg": "rgb(30, 30, 30)",
+    "bodyColor": "rgb(212, 212, 212)"
+  },
+  {
+    "name": "gitMenu-dark-1400x860.png",
+    "app": "gitMenu",
+    "theme": "dark",
+    "w": 1400,
+    "h": 860,
+    "doc": {
+      "scrollW": 1400,
+      "clientW": 1400,
+      "scrollH": 860,
+      "clientH": 860
+    },
+    "body": {
+      "scrollW": 1400,
+      "clientW": 1400,
+      "scrollH": 860,
+      "clientH": 860
+    },
+    "root": {
+      "scrollW": 1400,
+      "clientW": 1400,
+      "scrollH": 860,
+      "clientH": 860
+    },
+    "rootChildren": 1,
+    "rootText": "Visual fixture — Git context menu\nHISTORY\nShow History\nCompare with Revision…\nCo",
+    "bodyBg": "rgb(30, 30, 30)",
+    "bodyColor": "rgb(212, 212, 212)"
+  },
+  {
+    "name": "gitMenu-dark-220x640.png",
+    "app": "gitMenu",
+    "theme": "dark",
+    "w": 220,
+    "h": 640,
+    "doc": {
+      "scrollW": 220,
+      "clientW": 220,
+      "scrollH": 640,
+      "clientH": 640
+    },
+    "body": {
+      "scrollW": 220,
+      "clientW": 220,
+      "scrollH": 640,
+      "clientH": 640
+    },
+    "root": {
+      "scrollW": 220,
+      "clientW": 220,
+      "scrollH": 640,
+      "clientH": 640
+    },
+    "rootChildren": 1,
+    "rootText": "Visual fixture — Git context menu\nHISTORY\nShow History\nCompare with Revision…\nCo",
+    "bodyBg": "rgb(30, 30, 30)",
+    "bodyColor": "rgb(212, 212, 212)"
+  },
+  {
+    "name": "merge-dark-1400x860.png",
+    "app": "merge",
+    "theme": "dark",
+    "w": 1400,
+    "h": 860,
+    "doc": {
+      "scrollW": 1400,
+      "clientW": 1400,
+      "scrollH": 860,
+      "clientH": 860
+    },
+    "body": {
+      "scrollW": 1400,
+      "clientW": 1400,
+      "scrollH": 860,
+      "clientH": 860
+    },
+    "root": {
+      "scrollW": 1400,
+      "clientW": 1400,
+      "scrollH": 860,
+      "clientH": 860
+    },
+    "rootChildren": 1,
+    "rootText": "Playground\n|\nscreen: conflictList\nHide panel\nConflict list\nMerge (TS)\nMerge (tal",
+    "bodyBg": "rgb(30, 30, 30)",
+    "bodyColor": "rgb(212, 212, 212)"
+  },
+  {
+    "name": "gitHistory-light-1400x860.png",
+    "app": "gitHistory",
+    "theme": "light",
+    "w": 1400,
+    "h": 860,
+    "doc": {
+      "scrollW": 1400,
+      "clientW": 1400,
+      "scrollH": 860,
+      "clientH": 860
+    },
+    "body": {
+      "scrollW": 1400,
+      "clientW": 1400,
+      "scrollH": 860,
+      "clientH": 860
+    },
+    "root": {
+      "scrollW": 1400,
+      "clientW": 1400,
+      "scrollH": 860,
+      "clientH": 860
+    },
+    "rootChildren": 1,
+    "rootText": "Playground\n|\nscreen: conflictList\nHide panel\nConflict list\nMerge (TS)\nMerge (tal",
+    "bodyBg": "rgb(255, 255, 255)",
+    "bodyColor": "rgb(59, 59, 59)"
+  }
+]

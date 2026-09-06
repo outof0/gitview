@@ -67,6 +67,7 @@ pull request:
 | Command                       | Required for                                             | Evidence                                                                                           |
 | ----------------------------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | `pnpm run check:architecture` | Any source-boundary change                               | Layering, purity, cycles, process ownership, exceptions                                            |
+| `pnpm run check:ui-system`    | Any webview UI change                                    | Primitive adoption, semantic theme access, geometry tokens, radii, and scroll ownership ratchet    |
 | `pnpm run quality`            | Every pull request                                       | Architecture, documentation, types, lint, coverage, production build, bundle and package contracts |
 | `pnpm run test:int`           | Host, Git, filesystem, lifecycle, or VS Code API changes | Real extension host and Git repository behavior                                                    |
 | `pnpm run test:e2e`           | User workflow, command, protocol, or UI changes          | Native/webview workflow behavior                                                                   |

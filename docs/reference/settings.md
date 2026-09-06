@@ -62,6 +62,14 @@ Defaults match `package.json` → `contributes.configuration`.
 | `gitView.gitlabReviewToken` | `string` | `""` | **Deprecated** plaintext fallback; prefer Set GitLab Review Token… |
 | `gitView.gitlabApiBaseUrl` | `string` | `https://gitlab.com/api/v4` | GitLab REST base |
 
+## Remote links
+
+| Setting | Type | Default | Description |
+| --- | --- | --- | --- |
+| `gitView.remoteName` | `string` | `"origin"` | Remote used for Open on Remote / Copy Remote Link |
+| `gitView.remoteLinkRefMode` | `string` | `"auto"` | Pinned ref: `auto` (pushed commit, else an existing remote branch; local-only path links are refused) · `branch` · `commit` |
+| `gitView.remoteLinkCustomTemplate` | `string` | `""` | URL template for unrecognised hosts (`{base}` `{repo}` `{ref}` `{sha}` `{path}` `{startLine}` `{endLine}`) |
+
 ## Commit checks
 
 | Setting | Type | Default | Description |

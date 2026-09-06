@@ -5,5 +5,4 @@ See [AGENTS.md](AGENTS.md) — it is the single source of truth for agent instru
 Claude-specific reminders:
 
 - Verify UI changes in real VS Code with Playwright and look at the screenshot before reporting a task complete. Passing vitest proves nothing about whether a feature surfaces.
-- Run `pnpm run typecheck && pnpm run lint && pnpm run check:architecture && pnpm run test:unit` before saying a change is done.
-- This working copy is not a git checkout; do not offer to commit.
+- Run `pnpm run quality` before saying a change is done. It is the aggregate gate (9 steps: architecture, docs, deadcode, typecheck, lint, coverage, build, bundle, package). `test:unit` alone does not check coverage thresholds and neither does it build, so it is not enough.

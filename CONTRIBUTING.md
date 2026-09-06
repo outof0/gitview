@@ -6,19 +6,72 @@ User-facing docs live under [`docs/`](docs/README.md) (**Guide** · **Reference*
 
 Using an AI coding agent? Point it at [AGENTS.md](AGENTS.md).
 
+## Quickstart
+
+Prerequisites: **Node >= 18** and **pnpm 9.12.0** (`package.json` pins `packageManager`).
+Do not use `npm` or `yarn` — this repository has a pnpm lockfile only.
+
+```bash
+git clone https://github.com/outof0/gitview.git
+cd gitview
+pnpm install
+pnpm run test:setup     # generates test-conflict-repo/ and test-clean-repo/
+```
+
+Then open the folder in VS Code and press **F5**. `.vscode/launch.json` has three
+configurations — **Run Extension (Merge Conflicts)** is the useful one, because it opens a
+second VS Code window already sitting in a repository with live merge conflicts. The other
+two are **Run Extension** (your own folder) and **Run Extension (Clean Git Menu)**.
+
+In that second window, open the workspace panel with **GitView: Open Git workspace** from the
+Command Palette, or right-click any file in a Git repository.
+
+Before you open a PR:
+
+```bash
+pnpm run quality        # the full gate — 9 steps, takes several minutes
+```
+
+`quality` = `check:architecture → check:docs → check:deadcode → typecheck → lint →
+test:coverage → build → check:bundle → check:package`. The four commands in
+[AGENTS.md](AGENTS.md) are a fast inner loop, not the gate: `test:unit` skips coverage
+thresholds and the build.
+
+More: [docs/contribute/development.md](docs/contribute/development.md) for watch tasks and
+the Vite mock preview. The individual test suites are described under
+[Test layers](#test-layers).
+
 ## Architecture
 
 ```
 src/
-  core/          Pure merge engine (no vscode, no I/O)
-  services/      Git + filesystem adapters
-  webview/       Host ↔ React RPC bridge
-  commands/      VS Code command handlers
-  types/         Shared TypeScript contracts
-  config/        VS Code settings readers
+  core/           Pure merge engine (no vscode, no I/O)
+  types/          Shared TypeScript contracts
+  shared/         Protocol + helpers shared with the webview
+  services/       Git + filesystem adapters
+  webviewHost/    Host-side request handlers (~7.2k LOC — this is where orchestration lives)
+  webview/        Host ↔ React bridge: panels and view providers
+  commands/       VS Code command handlers
+  config/         VS Code settings readers
+  storage/        Persistent state
+  application/    DI container type + mutation preconditions (not a use-case layer)
+  observability/  Logging
+  util/           Helpers — not a leaf, some of them spawn git
+  test/           Mocha integration harness
 
-webview/         React UI (Vite), talks to host via postMessage
+webview/src/      React UI (Vite), talks to host via postMessage
+  apps/           Top-level surfaces (GitWorkspaceApp, GitDiffApp, …)
+  components/     UI — the largest layer at ~20k LOC
+  hooks/          Controller and data loading
+  stores/         zustand stores
+  protocol/       postMessage client: requestId, version, timeout
+  lib/            Pure helpers
+  screens/        Route-level screens
 ```
+
+Which directory may import which is enforced, not advisory: `pnpm run check:architecture`
+currently passes with **0 exceptions** over 482 production modules. See
+[AGENTS.md](AGENTS.md) for the full layering table before adding an import across layers.
 
 ### Pure `core/` contract
 
@@ -191,6 +244,20 @@ pnpm run quality
 ```
 
 6. For host or webview workflow changes, run the relevant integration/e2e scope (`pnpm run test:int`, `pnpm run test:e2e`).
+7. Before requesting review, find out what your diff actually owes:
+
+```bash
+pnpm run review:scope
+```
+
+It prints the zones you touched, the gates and checklists that apply to them,
+whether the diff is inside the review budget, and any risky patterns it can
+detect mechanically.
+
+Reviewers: the process, severity prefixes, and per-zone checklists are in
+[the code review standard](docs/maintainers/code-review.md). Work the six
+passes in order — most review budget is wasted on naming while correctness
+goes unchecked.
 
 ### Message protocol checklist
 

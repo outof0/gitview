@@ -27,6 +27,9 @@ export default defineConfig({
     // the file; everything else stays on the fast node environment.
     include: [
       "src/**/*.test.ts",
+      // Release and CI scripts are plain ESM; their guards are unit-tested
+      // against throwaway Git repositories.
+      "scripts/**/__tests__/**/*.test.mjs",
       "webview/**/__tests__/**/*.test.ts",
       "webview/**/__tests__/**/*.test.tsx",
     ],

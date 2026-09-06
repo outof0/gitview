@@ -1,0 +1,462 @@
+[
+  {
+    "app": "gitHistory",
+    "theme": "dark",
+    "name": "gitHistory",
+    "width": 1400,
+    "file": "docs/previews/ui-system-2026-09-06/batch4/gitHistory-1400.png",
+    "overflowX": 0,
+    "buttons": [
+      {
+        "text": "Branches",
+        "borderWidth": "1px",
+        "borderStyle": "solid",
+        "borderColor": "rgba(127, 127, 127, 0.35)",
+        "height": 22,
+        "fontSize": "11px",
+        "display": "flex"
+      },
+      {
+        "text": "Refresh",
+        "borderWidth": "1px",
+        "borderStyle": "solid",
+        "borderColor": "rgba(127, 127, 127, 0.35)",
+        "height": 22,
+        "fontSize": "11px",
+        "display": "flex"
+      },
+      {
+        "text": "More",
+        "borderWidth": "1px",
+        "borderStyle": "solid",
+        "borderColor": "rgba(127, 127, 127, 0.35)",
+        "height": 0,
+        "fontSize": "11px",
+        "display": "inline-flex"
+      }
+    ]
+  },
+  {
+    "app": "gitHistory",
+    "theme": "dark",
+    "name": "gitHistory",
+    "width": 1100,
+    "file": "docs/previews/ui-system-2026-09-06/batch4/gitHistory-1100.png",
+    "overflowX": 0,
+    "buttons": [
+      {
+        "text": "Branches",
+        "borderWidth": "1px",
+        "borderStyle": "solid",
+        "borderColor": "rgba(127, 127, 127, 0.35)",
+        "height": 22,
+        "fontSize": "11px",
+        "display": "flex"
+      },
+      {
+        "text": "Refresh",
+        "borderWidth": "1px",
+        "borderStyle": "solid",
+        "borderColor": "rgba(127, 127, 127, 0.35)",
+        "height": 22,
+        "fontSize": "11px",
+        "display": "flex"
+      },
+      {
+        "text": "More",
+        "borderWidth": "1px",
+        "borderStyle": "solid",
+        "borderColor": "rgba(127, 127, 127, 0.35)",
+        "height": 0,
+        "fontSize": "11px",
+        "display": "inline-flex"
+      }
+    ]
+  },
+  {
+    "app": "gitHistory",
+    "theme": "dark",
+    "name": "gitHistory",
+    "width": 860,
+    "file": "docs/previews/ui-system-2026-09-06/batch4/gitHistory-860.png",
+    "overflowX": 0,
+    "buttons": [
+      {
+        "text": "Branches",
+        "borderWidth": "1px",
+        "borderStyle": "solid",
+        "borderColor": "rgba(127, 127, 127, 0.35)",
+        "height": 22,
+        "fontSize": "11px",
+        "display": "flex"
+      },
+      {
+        "text": "Refresh",
+        "borderWidth": "1px",
+        "borderStyle": "solid",
+        "borderColor": "rgba(127, 127, 127, 0.35)",
+        "height": 22,
+        "fontSize": "11px",
+        "display": "flex"
+      },
+      {
+        "text": "More",
+        "borderWidth": "1px",
+        "borderStyle": "solid",
+        "borderColor": "rgba(127, 127, 127, 0.35)",
+        "height": 0,
+        "fontSize": "11px",
+        "display": "inline-flex"
+      }
+    ]
+  },
+  {
+    "app": "gitHistory",
+    "theme": "dark",
+    "name": "gitHistory",
+    "width": 640,
+    "file": "docs/previews/ui-system-2026-09-06/batch4/gitHistory-640.png",
+    "overflowX": 0,
+    "buttons": [
+      {
+        "text": "Branches",
+        "borderWidth": "1px",
+        "borderStyle": "solid",
+        "borderColor": "rgba(127, 127, 127, 0.35)",
+        "height": 22,
+        "fontSize": "11px",
+        "display": "flex"
+      },
+      {
+        "text": "Refresh",
+        "borderWidth": "1px",
+        "borderStyle": "solid",
+        "borderColor": "rgba(127, 127, 127, 0.35)",
+        "height": 0,
+        "fontSize": "11px",
+        "display": "inline-flex"
+      },
+      {
+        "text": "More",
+        "borderWidth": "1px",
+        "borderStyle": "solid",
+        "borderColor": "rgba(127, 127, 127, 0.35)",
+        "height": 22,
+        "fontSize": "11px",
+        "display": "inline-flex"
+      }
+    ]
+  },
+  {
+    "app": "gitHistory",
+    "theme": "dark",
+    "name": "gitHistory",
+    "width": 420,
+    "file": "docs/previews/ui-system-2026-09-06/batch4/gitHistory-420.png",
+    "overflowX": 0,
+    "buttons": [
+      {
+        "text": "Branches",
+        "borderWidth": "1px",
+        "borderStyle": "solid",
+        "borderColor": "rgba(127, 127, 127, 0.35)",
+        "height": 22,
+        "fontSize": "11px",
+        "display": "flex"
+      },
+      {
+        "text": "Refresh",
+        "borderWidth": "1px",
+        "borderStyle": "solid",
+        "borderColor": "rgba(127, 127, 127, 0.35)",
+        "height": 0,
+        "fontSize": "11px",
+        "display": "inline-flex"
+      },
+      {
+        "text": "More",
+        "borderWidth": "1px",
+        "borderStyle": "solid",
+        "borderColor": "rgba(127, 127, 127, 0.35)",
+        "height": 22,
+        "fontSize": "11px",
+        "display": "inline-flex"
+      }
+    ]
+  },
+  {
+    "app": "merge",
+    "theme": "dark",
+    "name": "merge",
+    "width": 1400,
+    "file": "docs/previews/ui-system-2026-09-06/batch4/merge-1400.png",
+    "overflowX": 0,
+    "buttons": []
+  },
+  {
+    "app": "merge",
+    "theme": "dark",
+    "name": "merge",
+    "width": 1100,
+    "file": "docs/previews/ui-system-2026-09-06/batch4/merge-1100.png",
+    "overflowX": 0,
+    "buttons": []
+  },
+  {
+    "app": "merge",
+    "theme": "dark",
+    "name": "merge",
+    "width": 860,
+    "file": "docs/previews/ui-system-2026-09-06/batch4/merge-860.png",
+    "overflowX": 0,
+    "buttons": []
+  },
+  {
+    "app": "merge",
+    "theme": "dark",
+    "name": "merge",
+    "width": 640,
+    "file": "docs/previews/ui-system-2026-09-06/batch4/merge-640.png",
+    "overflowX": 0,
+    "buttons": []
+  },
+  {
+    "app": "merge",
+    "theme": "dark",
+    "name": "merge",
+    "width": 420,
+    "file": "docs/previews/ui-system-2026-09-06/batch4/merge-420.png",
+    "overflowX": 0,
+    "buttons": []
+  },
+  {
+    "app": "gitMenu",
+    "theme": "dark",
+    "name": "gitMenu",
+    "width": 1400,
+    "file": "docs/previews/ui-system-2026-09-06/batch4/gitMenu-1400.png",
+    "overflowX": 0,
+    "buttons": []
+  },
+  {
+    "app": "gitMenu",
+    "theme": "dark",
+    "name": "gitMenu",
+    "width": 1100,
+    "file": "docs/previews/ui-system-2026-09-06/batch4/gitMenu-1100.png",
+    "overflowX": 0,
+    "buttons": []
+  },
+  {
+    "app": "gitMenu",
+    "theme": "dark",
+    "name": "gitMenu",
+    "width": 860,
+    "file": "docs/previews/ui-system-2026-09-06/batch4/gitMenu-860.png",
+    "overflowX": 0,
+    "buttons": []
+  },
+  {
+    "app": "gitMenu",
+    "theme": "dark",
+    "name": "gitMenu",
+    "width": 640,
+    "file": "docs/previews/ui-system-2026-09-06/batch4/gitMenu-640.png",
+    "overflowX": 0,
+    "buttons": []
+  },
+  {
+    "app": "gitMenu",
+    "theme": "dark",
+    "name": "gitMenu",
+    "width": 420,
+    "file": "docs/previews/ui-system-2026-09-06/batch4/gitMenu-420.png",
+    "overflowX": 0,
+    "buttons": []
+  },
+  {
+    "app": "gitHistory",
+    "theme": "light",
+    "name": "gitHistory-light",
+    "width": 1400,
+    "file": "docs/previews/ui-system-2026-09-06/batch4/gitHistory-light-1400.png",
+    "overflowX": 0,
+    "buttons": [
+      {
+        "text": "Branches",
+        "borderWidth": "1px",
+        "borderStyle": "solid",
+        "borderColor": "rgba(127, 127, 127, 0.35)",
+        "height": 22,
+        "fontSize": "11px",
+        "display": "flex"
+      },
+      {
+        "text": "Refresh",
+        "borderWidth": "1px",
+        "borderStyle": "solid",
+        "borderColor": "rgba(127, 127, 127, 0.35)",
+        "height": 22,
+        "fontSize": "11px",
+        "display": "flex"
+      },
+      {
+        "text": "More",
+        "borderWidth": "1px",
+        "borderStyle": "solid",
+        "borderColor": "rgba(127, 127, 127, 0.35)",
+        "height": 0,
+        "fontSize": "11px",
+        "display": "inline-flex"
+      }
+    ]
+  },
+  {
+    "app": "gitHistory",
+    "theme": "light",
+    "name": "gitHistory-light",
+    "width": 1100,
+    "file": "docs/previews/ui-system-2026-09-06/batch4/gitHistory-light-1100.png",
+    "overflowX": 0,
+    "buttons": [
+      {
+        "text": "Branches",
+        "borderWidth": "1px",
+        "borderStyle": "solid",
+        "borderColor": "rgba(127, 127, 127, 0.35)",
+        "height": 22,
+        "fontSize": "11px",
+        "display": "flex"
+      },
+      {
+        "text": "Refresh",
+        "borderWidth": "1px",
+        "borderStyle": "solid",
+        "borderColor": "rgba(127, 127, 127, 0.35)",
+        "height": 22,
+        "fontSize": "11px",
+        "display": "flex"
+      },
+      {
+        "text": "More",
+        "borderWidth": "1px",
+        "borderStyle": "solid",
+        "borderColor": "rgba(127, 127, 127, 0.35)",
+        "height": 0,
+        "fontSize": "11px",
+        "display": "inline-flex"
+      }
+    ]
+  },
+  {
+    "app": "gitHistory",
+    "theme": "light",
+    "name": "gitHistory-light",
+    "width": 860,
+    "file": "docs/previews/ui-system-2026-09-06/batch4/gitHistory-light-860.png",
+    "overflowX": 0,
+    "buttons": [
+      {
+        "text": "Branches",
+        "borderWidth": "1px",
+        "borderStyle": "solid",
+        "borderColor": "rgba(127, 127, 127, 0.35)",
+        "height": 22,
+        "fontSize": "11px",
+        "display": "flex"
+      },
+      {
+        "text": "Refresh",
+        "borderWidth": "1px",
+        "borderStyle": "solid",
+        "borderColor": "rgba(127, 127, 127, 0.35)",
+        "height": 22,
+        "fontSize": "11px",
+        "display": "flex"
+      },
+      {
+        "text": "More",
+        "borderWidth": "1px",
+        "borderStyle": "solid",
+        "borderColor": "rgba(127, 127, 127, 0.35)",
+        "height": 0,
+        "fontSize": "11px",
+        "display": "inline-flex"
+      }
+    ]
+  },
+  {
+    "app": "gitHistory",
+    "theme": "light",
+    "name": "gitHistory-light",
+    "width": 640,
+    "file": "docs/previews/ui-system-2026-09-06/batch4/gitHistory-light-640.png",
+    "overflowX": 0,
+    "buttons": [
+      {
+        "text": "Branches",
+        "borderWidth": "1px",
+        "borderStyle": "solid",
+        "borderColor": "rgba(127, 127, 127, 0.35)",
+        "height": 22,
+        "fontSize": "11px",
+        "display": "flex"
+      },
+      {
+        "text": "Refresh",
+        "borderWidth": "1px",
+        "borderStyle": "solid",
+        "borderColor": "rgba(127, 127, 127, 0.35)",
+        "height": 0,
+        "fontSize": "11px",
+        "display": "inline-flex"
+      },
+      {
+        "text": "More",
+        "borderWidth": "1px",
+        "borderStyle": "solid",
+        "borderColor": "rgba(127, 127, 127, 0.35)",
+        "height": 22,
+        "fontSize": "11px",
+        "display": "inline-flex"
+      }
+    ]
+  },
+  {
+    "app": "gitHistory",
+    "theme": "light",
+    "name": "gitHistory-light",
+    "width": 420,
+    "file": "docs/previews/ui-system-2026-09-06/batch4/gitHistory-light-420.png",
+    "overflowX": 0,
+    "buttons": [
+      {
+        "text": "Branches",
+        "borderWidth": "1px",
+        "borderStyle": "solid",
+        "borderColor": "rgba(127, 127, 127, 0.35)",
+        "height": 22,
+        "fontSize": "11px",
+        "display": "flex"
+      },
+      {
+        "text": "Refresh",
+        "borderWidth": "1px",
+        "borderStyle": "solid",
+        "borderColor": "rgba(127, 127, 127, 0.35)",
+        "height": 0,
+        "fontSize": "11px",
+        "display": "inline-flex"
+      },
+      {
+        "text": "More",
+        "borderWidth": "1px",
+        "borderStyle": "solid",
+        "borderColor": "rgba(127, 127, 127, 0.35)",
+        "height": 22,
+        "fontSize": "11px",
+        "display": "inline-flex"
+      }
+    ]
+  }
+]
