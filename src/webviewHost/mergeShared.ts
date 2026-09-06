@@ -1,5 +1,5 @@
 import type { SpecialConflictKind } from "../core/types";
-import { resolveRepoRelativePath } from "../util/repoPath";
+import { resolveRepoRelativeRealPath } from "../util/repoPath";
 
 export const DISCARD_BACK_MESSAGE =
   "Discard unsaved changes and return to the conflict list?";
@@ -63,7 +63,11 @@ export async function requireMergeTargetFilePath(
   | { ok: true; absolutePath: string; relativePath: string }
   | { ok: false; code: string; message: string }
 > {
-  const resolved = resolveRepoRelativePath(repoRoot, relativePath);
+  // Lexical containment is insufficient for a write target: the final path
+  // component may be a symlink pointing outside the repository. Resolve links
+  // before accepting the file, and let callers write atomically so a later
+  // swap replaces the link rather than following it.
+  const resolved = await resolveRepoRelativeRealPath(repoRoot, relativePath);
   if (!resolved.ok) {
     return { ok: false, code: resolved.code, message: resolved.message };
   }

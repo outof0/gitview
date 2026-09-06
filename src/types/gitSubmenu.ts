@@ -265,6 +265,33 @@ export const GIT_SUBMENU_ITEMS = [
     testId: "git-menu-rebase",
     feature: "Rebase branch",
   },
+  {
+    command: "gitView.gitOpenOnRemote",
+    action: "openOnRemote",
+    title: "Open on Remote",
+    group: "7_remote@1",
+    scope: "resource",
+    testId: "git-menu-open-on-remote",
+    feature: "Open file, folder, or commit on the remote host",
+  },
+  {
+    command: "gitView.gitCopyRemoteLink",
+    action: "copyRemoteLink",
+    title: "Copy Remote Link",
+    group: "7_remote@2",
+    scope: "resource",
+    testId: "git-menu-copy-remote-link",
+    feature: "Copy remote-host link for a file, folder, or commit",
+  },
+  {
+    command: "gitView.gitCopyRemoteLinkMarkdown",
+    action: "copyRemoteLinkMarkdown",
+    title: "Copy Remote Link as Markdown",
+    group: "7_remote@3",
+    scope: "resource",
+    testId: "git-menu-copy-remote-link-markdown",
+    feature: "Copy remote-host link as Markdown",
+  },
 ] as const satisfies readonly GitSubmenuItem[];
 
 export type GitSubmenuRenderOptions = {
@@ -294,6 +321,8 @@ export function gitSubmenuSectionLabel(groupKey: string): string | null {
       return "Branch & temporary work";
     case "6_integrate":
       return "Integrate";
+    case "7_remote":
+      return "Remote link";
     default:
       return null;
   }

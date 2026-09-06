@@ -16,6 +16,21 @@ async function writeExecutable(filePath: string, content: string): Promise<void>
   await fs.writeFile(filePath, content, { mode: 0o755 });
 }
 
+/**
+ * Deletes a rebase temp directory.
+ *
+ * Every call site runs this in a `finally`, so throwing here would replace the
+ * rebase failure the caller is about to see with an unrelated filesystem error
+ * — the opposite of useful diagnostics. A leftover directory under the OS temp
+ * dir leaks disk, not correctness, so the error is dropped deliberately, in
+ * exactly one place, where the reason stays visible to the next reader.
+ */
+async function removeTempDir(dir: string): Promise<void> {
+  await fs
+    .rm(dir, { recursive: true, force: true })
+    .catch(() => {}); // review-scope:allow silent-catch — see the doc comment
+}
+
 async function runWithEditors(
   execGit: GitExecFn,
   repoRoot: string,
@@ -60,7 +75,7 @@ async function runWithEditors(
     // The todo, the sequence editor and the message editor all live in this
     // temp directory. A failed or aborted rebase used to leave every one of
     // them behind, and the stale todo could be picked up by a later run.
-    await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
+    await removeTempDir(dir);
   }
 }
 
@@ -145,7 +160,7 @@ export function createRebaseApi(execGit: GitExecFn) {
     try {
       await runWithEditors(execGit, repoRoot, `${sha}^`, todo, { messagePath });
     } finally {
-      await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
+      await removeTempDir(dir);
     }
   }
 

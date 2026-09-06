@@ -73,6 +73,7 @@ export function createPatchHandlers(ctx: TemporaryWorkContext) {
         const snapshot = emitShelfSnapshot(
           repo.id,
           await shelf.listShelves(repo.rootPath, repo.id),
+          requestId,
         );
         deps.postMessage(
           createHostResponse(requestId, "shelf.importPatch", { entry, snapshot }),

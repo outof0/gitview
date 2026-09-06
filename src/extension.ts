@@ -1,42 +1,12 @@
 import * as vscode from "vscode";
 import { activateGitView } from "./activation";
 
-// Suppress noisy deprecations and non-critical telemetry failures that surface
-// as "Exception has occurred" in the Debug Console when running the
-// Extension Development Host (e.g. `url.parse()` DEP0169 and
-// `Missing dataLength in event` from Application Insights).
-if (typeof process !== "undefined" && typeof process.on === "function") {
-  try {
-    process.on("warning", (warning: unknown) => {
-      const w = warning as { message?: string; code?: string; name?: string };
-      const msg = String(w.message ?? w);
-      const code = String(w.code ?? "");
-      if (msg.includes("url.parse()") || code === "DEP0169" || msg.includes("DEP0169")) {
-        return;
-      }
-      // Re-emit other warnings so they remain visible
-      // eslint-disable-next-line no-console
-      console.warn(warning as never);
-    });
-  } catch {}
-  try {
-    const ignoreDataLength = (err: unknown): boolean => {
-      const msg = err instanceof Error ? err.message : String(err);
-      return msg.includes("Missing dataLength in event");
-    };
-    process.on("uncaughtException", (err) => {
-      if (ignoreDataLength(err)) {
-        return;
-      }
-      throw err;
-    });
-    process.on("unhandledRejection", (reason) => {
-      if (ignoreDataLength(reason)) {
-        return;
-      }
-    });
-  } catch {}
-}
+// Deliberately no process-level "uncaughtException" or "warning" handlers.
+// The extension host is one process shared with VS Code and every other
+// installed extension: registering such a handler replaces their crash and
+// warning semantics with ours, and any filter installed here decides for the
+// whole process which failures get reported. Filter dependency noise at its
+// source instead.
 import { openGitWorkspace } from "./webview/openGitWorkspace";
 import { openGitView } from "./webview/openGitView";
 import {
@@ -47,9 +17,12 @@ import {
   gitCommitAndPush,
   gitCompareWithBranch,
   gitCompareWithRevision,
+  gitCopyRemoteLink,
+  gitCopyRemoteLinkMarkdown,
   gitCreateBranch,
   gitFetch,
   gitMerge,
+  gitOpenOnRemote,
   gitPull,
   gitPush,
   gitRebase,
@@ -64,11 +37,33 @@ import {
   gitUnstash,
 } from "./commands/gitMenuActions";
 import { registerGitMenuCommand } from "./commands/registerGitMenuCommands";
+import { resolveRepoRoot } from "./commands/gitMenuActionsHelpers";
+import { createNativeGitMutationRunner } from "./commands/nativeGitMutation";
 import {
   createReviewAuthService,
   promptAndStoreReviewToken,
 } from "./services/review/reviewAuth";
 import type { GitViewExtensionApi } from "./publicApi";
+
+const NATIVE_MUTATING_GIT_COMMANDS = new Set([
+  "gitView.gitRollback",
+  "gitView.gitAdd",
+  "gitView.gitUnstage",
+  "gitView.gitCommit",
+  "gitView.gitCommitAndPush",
+  "gitView.gitFetch",
+  "gitView.gitPull",
+  "gitView.gitPush",
+  "gitView.gitSync",
+  "gitView.gitStash",
+  "gitView.gitUnstash",
+  "gitView.gitShelve",
+  "gitView.gitUnshelve",
+  "gitView.gitMerge",
+  "gitView.gitRebase",
+  "gitView.gitCheckoutBranch",
+  "gitView.gitCreateBranch",
+]);
 
 export type {
   Disposable,
@@ -100,6 +95,12 @@ export function activate(
     handler: Parameters<typeof vscode.commands.registerCommand>[1],
   ) => vscode.commands.registerCommand(id, handler);
 
+  const runNativeMutation = createNativeGitMutationRunner({
+    repositoryMutationSerializer: gitView.repositoryMutationSerializer,
+    syncOperationCoordinator: gitView.syncOperationCoordinator,
+    stableRepoId: gitView.repositoryService.stableRepoId,
+  });
+
   const registerGit = (
     id: string,
     handler: (
@@ -107,7 +108,24 @@ export function activate(
       workspaceRoot: string | undefined,
       ...args: unknown[]
     ) => void | Promise<void>,
-  ) => registerGitMenuCommand(register, id, handler);
+  ) =>
+    registerGitMenuCommand(register, id, async (resource, workspaceRoot, ...args) => {
+      const execute = async (): Promise<void> => {
+        await handler(resource, workspaceRoot, ...args);
+      };
+      if (!NATIVE_MUTATING_GIT_COMMANDS.has(id)) {
+        return execute();
+      }
+      const repoRoot = await resolveRepoRoot(
+        resource,
+        workspaceRoot,
+        gitView.commandRuntime,
+      );
+      if (!repoRoot) {
+        return execute();
+      }
+      await runNativeMutation(repoRoot, execute);
+    });
 
   const reviewAuth = createReviewAuthService(context.secrets);
 
@@ -275,6 +293,21 @@ export function activate(
         gitView.commandRuntime,
         gitView.gitMenuPresentation,
       ),
+    ),
+    registerGit("gitView.gitOpenOnRemote", (resource, workspaceRoot) =>
+      gitOpenOnRemote(resource, workspaceRoot, gitView.commandRuntime),
+    ),
+    registerGit("gitView.gitCopyRemoteLink", (resource, workspaceRoot) =>
+      gitCopyRemoteLink(resource, workspaceRoot, gitView.commandRuntime),
+    ),
+    registerGit(
+      "gitView.gitCopyRemoteLinkMarkdown",
+      (resource, workspaceRoot) =>
+        gitCopyRemoteLinkMarkdown(
+          resource,
+          workspaceRoot,
+          gitView.commandRuntime,
+        ),
     ),
     registerGit("gitView.gitCreateBranch", (resource, workspaceRoot) =>
       gitCreateBranch(

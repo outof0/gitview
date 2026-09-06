@@ -119,6 +119,7 @@ export async function dispatchRepo(
         protocolVersion: PROTOCOL_VERSION,
         type: "repo.snapshot",
         payload: snapshot,
+        requestId: request.requestId,
       });
 
       // A refresh is an aggregate UI operation, not repository discovery
@@ -132,6 +133,7 @@ export async function dispatchRepo(
           protocolVersion: PROTOCOL_VERSION,
           type: "status.snapshot",
           payload: await buildStatusForRepository(ctx, activeRepo),
+          requestId: request.requestId,
         });
       }
       deps.postMessage(
@@ -174,6 +176,7 @@ export async function dispatchRepo(
         protocolVersion: PROTOCOL_VERSION,
         type: "status.snapshot",
         payload: snapshot,
+        requestId: request.requestId,
       });
       deps.postMessage(
         createHostResponse(request.requestId, "status.list", snapshot),

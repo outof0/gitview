@@ -10,6 +10,7 @@ import {
 } from "../../shared/protocol";
 import type { ProtectionService } from "../../services/protectionService";
 import type { RepositoryService } from "../../services/repositoryService";
+import type { RepositoryMutationSerializer } from "../../services/repositoryMutationSerializer";
 import type { RefreshCoordinator } from "../../services/watchers/refreshCoordinator";
 import {
   createSyncOperationCoordinator,
@@ -25,6 +26,11 @@ export type MutationHandlerDeps = {
   protectionService: ProtectionService;
   refreshCoordinator: RefreshCoordinator;
   syncOperationCoordinator?: SyncOperationCoordinator;
+  /**
+   * The router's own mutation queue. The sync handlers check it before starting
+   * so a pull cannot overlap a queued mutation on the same repository.
+   */
+  repositoryMutationSerializer?: RepositoryMutationSerializer;
   commitCheckService?: CommitCheckService;
   trusted?: boolean;
   getTrusted?: () => boolean;

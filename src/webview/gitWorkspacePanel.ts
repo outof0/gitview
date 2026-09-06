@@ -148,6 +148,7 @@ function createRouter(
     protectionService: gitView.protectionService,
     refreshCoordinator: gitView.refreshCoordinator,
     syncOperationCoordinator: gitView.syncOperationCoordinator,
+    repositoryMutationSerializer: gitView.repositoryMutationSerializer,
     changelistStorage: gitView.changelistStorage,
     shelfStorage: gitView.shelfStorage,
     branchFavoriteStorage: gitView.branchFavoriteStorage,

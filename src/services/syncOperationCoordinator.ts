@@ -16,7 +16,7 @@ import type {
   SyncRootStatus,
 } from "../shared/types/sync";
 import { NOOP_LOGGER, errorLogFields, type Logger } from "../observability/logger";
-import { toUserFacingGitError } from "../util/safeLog";
+import { sanitizeLogMessage, toUserFacingGitError } from "../util/safeLog";
 
 const RECENT_OPERATION_LIMIT = 20;
 const RECENT_OPERATION_TTL_MS = 5 * 60_000;
@@ -83,6 +83,8 @@ export interface SyncOperationCoordinator {
   run(options: RunSyncOperationOptions): Promise<SyncTerminalEvent>;
   cancel(operationId: string): SyncCancelResult;
   subscribe(listener: SyncOperationListener): () => void;
+  /** True while a synchronization operation is running for the repository. */
+  hasActive(repoId: string): boolean;
   dispose(): void;
 }
 
@@ -104,10 +106,14 @@ export function classifySyncFailure(error: unknown): SyncFailureOutcome {
   const structured = isGitViewStructuredError(error) ? error : null;
   const classification = structured ? null : classifyGitError(error);
   const code = structured?.code ?? classification?.code ?? "GIT_COMMAND_FAILED";
+  // A structured error's message can itself carry raw Git stderr (for example
+  // a PUSH_REJECTED built from push output), which may embed a credential-
+  // bearing remote URL. Sanitize both paths — never surface either verbatim.
   const message =
-    structured?.message ??
-    (toUserFacingGitError(error) ||
-      "The Git synchronization operation failed.");
+    structured?.message
+      ? sanitizeLogMessage(structured.message)
+      : (toUserFacingGitError(error) ||
+        "The Git synchronization operation failed.");
   switch (code) {
     case "AUTH_REQUIRED":
       return { kind: "auth_required", message };
@@ -525,6 +531,10 @@ export function createSyncOperationCoordinator(
     return () => listeners.delete(listener);
   }
 
+  function hasActive(repoId: string): boolean {
+    return activeByRepoId.has(repoId);
+  }
+
   function dispose(): void {
     if (disposed) {
       return;
@@ -541,5 +551,5 @@ export function createSyncOperationCoordinator(
     recentTerminalIds.length = 0;
   }
 
-  return { run, cancel, subscribe, dispose };
+  return { run, cancel, subscribe, hasActive, dispose };
 }

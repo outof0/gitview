@@ -148,7 +148,8 @@ describe("messageRouter worktree handlers", () => {
     });
     const completed = sent.find(
       (message) =>
-        (message as { requestId?: string }).requestId === "worktree-submit",
+        (message as { requestId?: string }).requestId === "worktree-submit" &&
+        (message as { type?: string }).type === "worktree.remove",
     ) as { ok?: boolean };
     expect(completed.ok).toBe(true);
     expect(execGit).toHaveBeenCalledWith("/repo", [

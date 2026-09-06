@@ -124,6 +124,7 @@ export function createDiffHandlers(deps: DiffHandlerDeps) {
         protocolVersion: PROTOCOL_VERSION,
         type: "diff.result",
         payload: document,
+        requestId,
       });
       deps.postMessage(
         createHostResponse(requestId, "diff.open", document),

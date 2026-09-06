@@ -11,25 +11,16 @@ import {
 import { createRepositoryMutationSerializer } from "../services/repositoryMutationSerializer";
 import { createMessageRouterContext } from "./messageRouterContext";
 import type { MessageRouterDeps } from "./messageRouterTypes";
-import { resolveDispatcher } from "./messageRouterRoutes";
+import {
+  isMutationRequestType,
+  isSelfSerializingRequestType,
+  resolveDispatcher,
+} from "./messageRouterRoutes";
 import { createProtocolExtensionRegistry } from "./protocolExtensionRegistry";
 import { NOOP_LOGGER, errorLogFields } from "../observability/logger";
 import { toUserFacingGitError } from "../util/safeLog";
 
 export type { MessageRouterDeps } from "./messageRouterTypes";
-
-/**
- * Long-running sync operations are already guarded by the sync operation
- * coordinator, and they can take minutes. Queueing everything behind them would
- * freeze the panel, so they stay outside the per-repository queue.
- */
-const SELF_SERIALIZING_REQUEST_TYPES = new Set<string>([
-  "sync.fetch",
-  "sync.pull",
-  "sync.push",
-  "sync.updateAllRoots",
-  "sync.cancel",
-]);
 
 function requestRepoId(request: { payload?: unknown }): string | null {
   const payload = request.payload;
@@ -41,12 +32,17 @@ function requestRepoId(request: { payload?: unknown }): string | null {
 }
 
 export function createMessageRouter(deps: MessageRouterDeps) {
-  const ctx = createMessageRouterContext(deps);
+  const mutations =
+    deps.repositoryMutationSerializer ?? createRepositoryMutationSerializer();
+  // Handlers see the same serializer instance the router queues with, so the
+  // sync handlers can tell whether a mutation is queued for their repository.
+  const ctx = createMessageRouterContext({
+    ...deps,
+    repositoryMutationSerializer: mutations,
+  });
   const logger = deps.logger ?? NOOP_LOGGER;
   const protocolExtensions =
     deps.protocolExtensionRegistry ?? createProtocolExtensionRegistry({ logger });
-  const mutations =
-    deps.repositoryMutationSerializer ?? createRepositoryMutationSerializer();
 
   function toRouterError(error: unknown): GitViewStructuredError {
     if (isGitViewStructuredError(error)) {
@@ -160,8 +156,29 @@ export function createMessageRouter(deps: MessageRouterDeps) {
       // a checkout issued from one panel must not race a reset or a refresh from
       // another, or the refresh payloads describe a repository neither request
       // actually produced.
+      //
+      // Sync operations are coordinated separately and can take minutes, so they
+      // stay outside this queue — but a pull must not overlap a checkout or a
+      // reset on the same repository either. Both directions fail fast: the
+      // mutation types below are rejected while a sync is active, and the sync
+      // handlers refuse to start while this queue is still busy. Read-only
+      // requests are unaffected on both sides.
       const repoId = requestRepoId(request);
-      if (repoId && !SELF_SERIALIZING_REQUEST_TYPES.has(request.type)) {
+      if (repoId && isMutationRequestType(request.type)) {
+        if (ctx.deps.syncOperationCoordinator?.hasActive(repoId)) {
+          deps.postMessage(
+            createHostError(
+              request.requestId,
+              createError(
+                "OPERATION_IN_PROGRESS",
+                "A synchronization operation is running for this repository. Wait for it to finish or cancel it, then try again.",
+              ),
+            ),
+          );
+          return;
+        }
+        await mutations.run(repoId, dispatchRequest);
+      } else if (repoId && !isSelfSerializingRequestType(request.type)) {
         await mutations.run(repoId, dispatchRequest);
       } else {
         await dispatchRequest();

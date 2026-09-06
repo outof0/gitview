@@ -65,6 +65,7 @@ export function createReviewHandlerContext(deps: ReviewHandlerDeps) {
     repo: Repository,
     providerId: string,
     reviewId: string,
+    requestId?: string,
   ) {
     const details = await registry.openReview(repo, providerId, reviewId);
     if (details) {
@@ -72,6 +73,7 @@ export function createReviewHandlerContext(deps: ReviewHandlerDeps) {
         protocolVersion: 1,
         type: "review.details",
         payload: details,
+        requestId,
       });
     }
   }

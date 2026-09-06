@@ -40,7 +40,7 @@ export function createReviewMutationHandlers(ctx: ReviewHandlerContext) {
       }
       try {
         await registry.submitReview(repo, providerId, reviewId, event, body);
-        await publishReviewDetails(repo, providerId, reviewId);
+        await publishReviewDetails(repo, providerId, reviewId, requestId);
         deps.postMessage(
           createHostResponse(requestId, "review.submit", { ok: true }),
         );
@@ -149,7 +149,7 @@ export function createReviewMutationHandlers(ctx: ReviewHandlerContext) {
       }
       try {
         await registry.mergeReview(repo, providerId, reviewId, method);
-        await publishReviewDetails(repo, providerId, reviewId);
+        await publishReviewDetails(repo, providerId, reviewId, requestId);
         deps.postMessage(
           createHostResponse(requestId, "review.merge", { ok: true }),
         );
@@ -199,7 +199,7 @@ export function createReviewMutationHandlers(ctx: ReviewHandlerContext) {
       }
       try {
         await registry.closeReview(repo, providerId, reviewId);
-        await publishReviewDetails(repo, providerId, reviewId);
+        await publishReviewDetails(repo, providerId, reviewId, requestId);
         deps.postMessage(
           createHostResponse(requestId, "review.close", { ok: true }),
         );
@@ -249,7 +249,7 @@ export function createReviewMutationHandlers(ctx: ReviewHandlerContext) {
       }
       try {
         await registry.reopenReview(repo, providerId, reviewId);
-        await publishReviewDetails(repo, providerId, reviewId);
+        await publishReviewDetails(repo, providerId, reviewId, requestId);
         deps.postMessage(
           createHostResponse(requestId, "review.reopen", { ok: true }),
         );
@@ -303,7 +303,7 @@ export function createReviewMutationHandlers(ctx: ReviewHandlerContext) {
           providerId,
           reviewId,
         );
-        await publishReviewDetails(repo, providerId, reviewId);
+        await publishReviewDetails(repo, providerId, reviewId, requestId);
         deps.postMessage(
           createHostResponse(requestId, "review.deleteSourceBranch", {
             ok: true,

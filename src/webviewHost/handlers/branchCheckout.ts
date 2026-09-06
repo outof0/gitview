@@ -166,7 +166,14 @@ export function createBranchCheckoutHandlers(ctx: BranchHandlerContext) {
         }
         const checkoutOptions = { smart: opts?.smart, force: opts?.force };
         try {
-          if (targetRef.includes("/")) {
+          // Same classification as the single-repo checkout above: a ref
+          // containing "/" can still be an ordinary local branch such as
+          // `feature/login`, and spelling-based checks check it out as a new
+          // branch named after its last path segment.
+          if (
+            (await branches.resolveRefKind(repo.rootPath, targetRef)) ===
+            "remote"
+          ) {
             await branches.checkoutRemoteAsTracking(
               repo.rootPath,
               targetRef,

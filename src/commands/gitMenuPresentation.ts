@@ -36,6 +36,8 @@ export interface GitMenuPresentation {
   openCreateBranchDialog?(request: {
     workspaceRoot: string;
     repoId?: string;
+    /** Resolved repository root — preferred over re-resolving (nested repos). */
+    repoRoot?: string;
     startPoint?: string;
   }): Promise<void>;
   /**
@@ -61,5 +63,7 @@ export interface GitMenuPresentation {
   openBranchesDialog?(request: {
     workspaceRoot: string;
     repoId?: string;
+    /** Resolved repository root — preferred over re-resolving (nested repos). */
+    repoRoot?: string;
   }): Promise<void>;
 }

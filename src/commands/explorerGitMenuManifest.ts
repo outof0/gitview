@@ -267,6 +267,24 @@ export const EXPLORER_GIT_SUBMENU_FEATURE_SPECS = [
     expectedCommand: "gitView.open",
     coverage: "functional-integration",
   },
+  {
+    featureId: "REMOTE-LINK-001",
+    feature: "Open file, folder, or commit on the remote host",
+    expectedCommand: "gitView.gitOpenOnRemote",
+    coverage: "functional-integration",
+  },
+  {
+    featureId: "REMOTE-LINK-002",
+    feature: "Copy remote-host link for a file, folder, or commit",
+    expectedCommand: "gitView.gitCopyRemoteLink",
+    coverage: "functional-integration",
+  },
+  {
+    featureId: "REMOTE-LINK-003",
+    feature: "Copy remote-host link as Markdown",
+    expectedCommand: "gitView.gitCopyRemoteLinkMarkdown",
+    coverage: "functional-integration",
+  },
 ] as const satisfies readonly ExplorerGitSubmenuFeatureSpec[];
 
 export const FILE_ONLY_COMMANDS = GIT_SUBMENU_COMMAND_SPECS.filter(

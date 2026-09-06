@@ -28,6 +28,18 @@ export interface ShelfStorage {
   getPatch(repoRoot: string, shelfId: string): Promise<string | null>;
   add(repoRoot: string, record: StoredShelfRecord): Promise<ShelfEntry>;
   remove(repoRoot: string, shelfId: string): Promise<boolean>;
+  /**
+   * Durable copy of a patch written before any working-tree cleanup runs, so a
+   * failed shelve always leaves something on disk to recover from. Returns the
+   * absolute path to surface in errors.
+   */
+  saveRecoveryPatch(
+    repoRoot: string,
+    shelfId: string,
+    patch: string,
+  ): Promise<string>;
+  /** Best effort. Never throws — a leftover recovery file is not dangerous. */
+  removeRecoveryPatch(repoRoot: string, shelfId: string): Promise<void>;
 }
 
 export class ShelfStorageCorruptionError extends Error {
@@ -268,5 +280,38 @@ export function createShelfStorage(
     });
   }
 
-  return { list, getEntry, getPatch, add, remove };
+  async function saveRecoveryPatch(
+    repoRoot: string,
+    shelfId: string,
+    patch: string,
+  ): Promise<string> {
+    const paths = await pathsFor(repoRoot);
+    const recoveryPath = path.join(paths.dir, `recovery-${shelfId}.patch`);
+    await writeFileAtomic(recoveryPath, patch);
+    return recoveryPath;
+  }
+
+  async function removeRecoveryPatch(
+    repoRoot: string,
+    shelfId: string,
+  ): Promise<void> {
+    try {
+      const paths = await pathsFor(repoRoot);
+      await fs.rm(path.join(paths.dir, `recovery-${shelfId}.patch`), {
+        force: true,
+      });
+    } catch {
+      // A leftover recovery file is annoying, not dangerous.
+    }
+  }
+
+  return {
+    list,
+    getEntry,
+    getPatch,
+    add,
+    remove,
+    saveRecoveryPatch,
+    removeRecoveryPatch,
+  };
 }

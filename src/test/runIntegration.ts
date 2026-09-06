@@ -4,6 +4,7 @@ import * as path from "path";
 import { downloadAndUnzipVSCode, runTests } from "@vscode/test-electron";
 import { prepareSilentVsCodeApp } from "./helpers/silentVsCodeApp";
 import { resolveDownloadedVsCodeExecutable } from "./helpers/vscodeExecutable";
+import { resolveVsCodeTargetVersion } from "./helpers/vscodeTargetVersion";
 
 // Entry point invoked by `pnpm test:int`. Downloads (on first run) and launches
 // a real VS Code instance with this extension loaded, opening the
@@ -37,9 +38,14 @@ async function main(): Promise<void> {
     ),
   );
 
+  const targetVersion = resolveVsCodeTargetVersion();
+  console.log(`Integration tests on VS Code ${targetVersion}`);
   try {
     const vscodeExecutablePath = await resolveDownloadedVsCodeExecutable(
-      await downloadAndUnzipVSCode({ extensionDevelopmentPath }),
+      await downloadAndUnzipVSCode({
+        extensionDevelopmentPath,
+        version: targetVersion,
+      }),
     );
     if (silent) {
       await prepareSilentVsCodeApp(vscodeExecutablePath);

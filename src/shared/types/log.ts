@@ -33,7 +33,7 @@ export type LogQueryFilters = {
   path?: string;
   /** File history uses --follow; folder history scopes to directory. */
   isFolder?: boolean;
-  /** Full-repo log (annotate mode) — ignores path scoping. */
+  /** Explicit full-repository log — ignores path scoping. */
   scope?: "repo";
   grep?: string;
   range?: LogQueryRange;

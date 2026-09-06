@@ -55,6 +55,7 @@ export function createReviewListHandlers(ctx: ReviewHandlerContext) {
           protocolVersion: 1,
           type: "review.snapshot",
           payload: snapshot,
+          requestId,
         });
         deps.postMessage(
           createHostResponse(requestId, "review.list", snapshot),
@@ -109,6 +110,7 @@ export function createReviewListHandlers(ctx: ReviewHandlerContext) {
           protocolVersion: 1,
           type: "review.details",
           payload: details,
+          requestId,
         });
         deps.postMessage(createHostResponse(requestId, "review.open", details));
       } catch (err) {

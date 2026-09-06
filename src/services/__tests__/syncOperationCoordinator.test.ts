@@ -206,4 +206,31 @@ describe("syncOperationCoordinator", () => {
       classifySyncFailure(new Error("fatal: SSL certificate problem: self-signed certificate")),
     ).toMatchObject({ kind: "certificate" });
   });
+
+  it("reports hasActive only while an operation runs for the repository", async () => {
+    const coordinator = createSyncOperationCoordinator({
+      createOperationId: () => "sync-ha",
+    });
+    let release!: () => void;
+    const gate = new Promise<void>((done) => {
+      release = done;
+    });
+
+    const running = coordinator.run({
+      requestId: "fetch-ha",
+      operation: "fetch",
+      repositories: [repository],
+      phase: "fetching",
+      execute: async () => {
+        await gate;
+      },
+      refresh: async () => undefined,
+    });
+
+    expect(coordinator.hasActive("repo-1")).toBe(true);
+    expect(coordinator.hasActive("repo-2")).toBe(false);
+    release();
+    await running;
+    expect(coordinator.hasActive("repo-1")).toBe(false);
+  });
 });

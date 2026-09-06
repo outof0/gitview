@@ -61,6 +61,15 @@ describe("getWebviewHtml", () => {
     expect(html).toMatch(/https:\/\/webview\.test\/assets\/index\.css/);
   });
 
+  it("cache-busts every local asset and replaces a stuck loading placeholder", async () => {
+    const html = await getWebviewHtml(makeWebview(), extUri);
+    const jsVersion = html.match(/index\.js\?v=([^"&]+)/)?.[1];
+    const cssVersion = html.match(/index\.css\?v=([^"&]+)/)?.[1];
+    expect(jsVersion).toBeTruthy();
+    expect(cssVersion).toBe(jsVersion);
+    expect(html).toContain("JavaScript bundle did not start");
+  });
+
   it("reports a clear build hint when webview dist is missing", async () => {
     const vscode = await import("vscode");
     vi.mocked(vscode.workspace.fs.readFile).mockRejectedValueOnce(
@@ -92,5 +101,28 @@ describe("getWebviewHtml", () => {
         `<meta property="csp-nonce" nonce="${scriptNonce ?? ""}"`,
       ),
     );
+  });
+
+  it("replaces an existing CSP meta tag instead of duplicating it", async () => {
+    const vscode = await import("vscode");
+    vi.mocked(vscode.workspace.fs.readFile).mockResolvedValueOnce(
+      new TextEncoder().encode(
+        `<!DOCTYPE html>
+<html><head>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'">
+<script type="module" src="/assets/index.js"></script>
+</head><body><div id="root"></div></body></html>`,
+      ),
+    );
+    const html = await getWebviewHtml(makeWebview(), extUri);
+    expect(html.match(/Content-Security-Policy/g)?.length).toBe(1);
+    expect(html).toMatch(/script-src 'nonce-/);
+  });
+
+  it("boots the requested app instead of the merge default", async () => {
+    const html = await getWebviewHtml(makeWebview(), extUri, {
+      app: "gitHistory",
+    });
+    expect(html).toMatch(/window\.__GITVIEW_APP__="gitHistory"/);
   });
 });

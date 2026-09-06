@@ -406,4 +406,176 @@ describe("messageRouter v1", () => {
       }),
     ]);
   });
+
+  it("rejects a repository mutation while a sync operation is active", async () => {
+    const execGit: GitExecFn = async () => ({ stdout: "", stderr: "" });
+    const repositoryService = createRepositoryService({
+      execGit,
+      discoverGitRoots: async () => [],
+    });
+    const refreshCoordinator = createRefreshCoordinator({
+      execGit,
+      repositoryService,
+      getWorkspaceFolders: () => [],
+      getTrusted: () => true,
+    });
+    const sent: unknown[] = [];
+    const router = createMessageRouter({
+      execGit,
+      repositoryService,
+      protectionService: createProtectionService([]),
+      refreshCoordinator,
+      // A pull is in flight for `repo`. Staging must fail fast instead of
+      // racing it.
+      syncOperationCoordinator: {
+        run: () => {
+          throw new Error("not used");
+        },
+        cancel: () => ({
+          operationId: "",
+          accepted: false,
+          reason: "not_found" as const,
+          message: "",
+        }),
+        subscribe: () => () => undefined,
+        hasActive: (repoId: string) => repoId === "repo",
+        dispose: () => undefined,
+      },
+      trusted: true,
+      workspaceFolders: [],
+      postMessage: (message) => sent.push(message),
+    });
+
+    await router.handleRawMessage({
+      protocolVersion: PROTOCOL_VERSION,
+      requestId: "stage-during-sync",
+      type: "changes.stage",
+      payload: { repoId: "repo", paths: ["a.ts"] },
+    });
+
+    expect(sent).toEqual([
+      expect.objectContaining({
+        requestId: "stage-during-sync",
+        error: expect.objectContaining({ code: "OPERATION_IN_PROGRESS" }),
+      }),
+    ]);
+  });
+
+  it("rejects git.menuAction while a sync operation is active", async () => {
+    const execGit: GitExecFn = async () => ({ stdout: "", stderr: "" });
+    const repositoryService = createRepositoryService({
+      execGit,
+      discoverGitRoots: async () => [],
+    });
+    const refreshCoordinator = createRefreshCoordinator({
+      execGit,
+      repositoryService,
+      getWorkspaceFolders: () => [],
+      getTrusted: () => true,
+    });
+    const sent: unknown[] = [];
+    const router = createMessageRouter({
+      execGit,
+      repositoryService,
+      protectionService: createProtectionService([]),
+      refreshCoordinator,
+      // git.menuAction fans out to pull/push/checkout, so it must fail fast
+      // while a sync is active like any other mutation.
+      syncOperationCoordinator: {
+        run: () => {
+          throw new Error("not used");
+        },
+        cancel: () => ({
+          operationId: "",
+          accepted: false,
+          reason: "not_found" as const,
+          message: "",
+        }),
+        subscribe: () => () => undefined,
+        hasActive: (repoId: string) => repoId === "repo",
+        dispose: () => undefined,
+      },
+      trusted: true,
+      workspaceFolders: [],
+      postMessage: (message) => sent.push(message),
+    });
+
+    await router.handleRawMessage({
+      protocolVersion: PROTOCOL_VERSION,
+      requestId: "menu-during-sync",
+      type: "git.menuAction",
+      payload: { repoId: "repo", action: "pull" },
+    });
+
+    expect(sent).toEqual([
+      expect.objectContaining({
+        requestId: "menu-during-sync",
+        error: expect.objectContaining({ code: "OPERATION_IN_PROGRESS" }),
+      }),
+    ]);
+  });
+
+  it("keeps read-only requests working while a sync operation is active", async () => {
+    const execGit = makeExecGit(
+      {
+        "rev-parse --show-toplevel": { stdout: "/repo\n", stderr: "" },
+        "rev-parse --git-dir": { stdout: ".git\n", stderr: "" },
+        "rev-parse HEAD": { stdout: "abc\n", stderr: "" },
+        "status --porcelain=v1 -z -b": {
+          stdout: "## main\0 M file.ts\0",
+          stderr: "",
+        },
+      },
+      verifyReject,
+    );
+    const repositoryService = createRepositoryService({
+      execGit,
+      discoverGitRoots: async () => ["/repo"],
+    });
+    const refreshCoordinator = createRefreshCoordinator({
+      execGit,
+      repositoryService,
+      getWorkspaceFolders: () => [{ uriPath: "/repo", name: "repo" }],
+      getTrusted: () => true,
+    });
+    const sent: unknown[] = [];
+    const router = createMessageRouter({
+      execGit,
+      repositoryService,
+      protectionService: createProtectionService([]),
+      refreshCoordinator,
+      syncOperationCoordinator: {
+        run: () => {
+          throw new Error("not used");
+        },
+        cancel: () => ({
+          operationId: "",
+          accepted: false,
+          reason: "not_found" as const,
+          message: "",
+        }),
+        subscribe: () => () => undefined,
+        hasActive: () => true,
+        dispose: () => undefined,
+      },
+      trusted: true,
+      workspaceFolders: [{ uriPath: "/repo", name: "repo" }],
+      postMessage: (message) => sent.push(message),
+    });
+
+    await router.handleRawMessage({
+      protocolVersion: PROTOCOL_VERSION,
+      requestId: "status-during-sync",
+      type: "status.list",
+      payload: { repoId: "repo" },
+    });
+
+    expect(
+      sent.some(
+        (message) =>
+          (message as { error?: { code?: string } }).error?.code ===
+          "OPERATION_IN_PROGRESS",
+      ),
+    ).toBe(false);
+  });
 });

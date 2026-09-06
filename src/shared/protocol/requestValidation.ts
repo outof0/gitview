@@ -1,4 +1,4 @@
-import { isGitMenuAction } from "../../types/gitMenu";
+import { isGitMenuAction, isRepoWideGitMenuAction } from "../../types/gitMenu";
 import { isConfirmationSubmission } from "../types/confirmation";
 import { isSafeGitOperand } from "../lib/gitOperand";
 import type { WebviewToHost } from "./webviewToHost";
@@ -42,6 +42,7 @@ function arrayOf(item: Validator): Validator {
 }
 
 const stringArray = arrayOf(stringValue);
+const gitOperandArray = arrayOf(gitOperand);
 const nonNegativeIntegerArray = arrayOf(nonNegativeInteger);
 
 function shape(
@@ -78,8 +79,8 @@ const emptyPayload = shape({}, {}, true);
 const repoOnly = shape({ repoId: stringValue });
 const repoPath = shape({ repoId: stringValue, path: stringValue });
 const repoPaths = shape({ repoId: stringValue, paths: stringArray });
-const repoSha = shape({ repoId: stringValue, sha: stringValue });
-const repoShas = shape({ repoId: stringValue, shas: stringArray });
+const repoSha = shape({ repoId: stringValue, sha: gitOperand });
+const repoShas = shape({ repoId: stringValue, shas: gitOperandArray });
 const repoName = shape({ repoId: stringValue, name: stringValue });
 const repoIndex = shape({ repoId: stringValue, index: nonNegativeInteger });
 
@@ -100,6 +101,164 @@ const reviewFilters = shape(
     search: stringValue,
   },
 );
+/**
+ * Lexical repo-relative path check (protocol layer cannot resolve the repo
+ * root, so containment against the real repository happens at the
+ * command/service boundary). Rejects absolute paths, `..` segments, and
+ * empty/current-dir segments — the shapes that become option injection or
+ * cross-repository resolution downstream.
+ */
+function isRepoContainedRelativePath(value: unknown): value is string {
+  if (typeof value !== "string" || value.length === 0) {
+    return false;
+  }
+  if (value.startsWith("/") || value.startsWith("\\")) {
+    return false;
+  }
+  if (value.includes("\0") || value.includes("\r") || value.includes("\n")) {
+    return false;
+  }
+  const normalized = value.replace(/\\/g, "/");
+  if (
+    normalized === "." ||
+    normalized === "./" ||
+    normalized.endsWith("/")
+  ) {
+    return false;
+  }
+  const segments = normalized.split("/");
+  return segments.every((seg) => seg !== "" && seg !== "." && seg !== "..");
+}
+
+const MENU_SHA_ACTIONS = new Set([
+  "cherryPick",
+  "revertCommit",
+  "checkoutRevision",
+  "copyCommitId",
+  "getFromRevision",
+  "compareWithLocal",
+  "showRevisionDiff",
+  "openOnRemote",
+  "copyRemoteLink",
+  "copyRemoteLinkMarkdown",
+]);
+
+const MENU_PATH_REQUIRED_ACTIONS = new Set([
+  "getFromRevision",
+  "openFile",
+  "compareWithLocal",
+  "showRevisionDiff",
+]);
+
+/**
+ * Actions that silently no-op in the dispatcher without a SHA (each is
+ * guarded by `if (commitSha)`). Accepting them sha-less would acknowledge
+ * `{ok: true}` for work that never happened.
+ */
+const MENU_SHA_REQUIRED_ACTIONS = new Set([
+  "cherryPick",
+  "revertCommit",
+  "checkoutRevision",
+  "getFromRevision",
+  "compareWithLocal",
+  "showRevisionDiff",
+]);
+
+const MENU_MESSAGE_ACTIONS = new Set(["copyCommitMessage"]);
+
+function isValidGitMenuActionPayload(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const { repoId, action } = value;
+  if (typeof repoId !== "string" || repoId.length === 0) {
+    return false;
+  }
+  if (typeof action !== "string" || !isGitMenuAction(action)) {
+    return false;
+  }
+  const allowed = new Set([
+    "repoId",
+    "action",
+    "relativePath",
+    "commitSha",
+    "commitMessage",
+    "isFolder",
+    "reuseDiffPanel",
+    "openInActiveColumn",
+  ]);
+  if (!Object.keys(value).every((key) => allowed.has(key))) {
+    return false;
+  }
+  const { relativePath, commitSha, commitMessage, isFolder } = value as Record<
+    string,
+    unknown
+  >;
+  if (
+    value.reuseDiffPanel !== undefined &&
+    typeof value.reuseDiffPanel !== "boolean"
+  ) {
+    return false;
+  }
+  if (
+    value.openInActiveColumn !== undefined &&
+    typeof value.openInActiveColumn !== "boolean"
+  ) {
+    return false;
+  }
+  if (isFolder !== undefined && typeof isFolder !== "boolean") {
+    return false;
+  }
+  if (isRepoWideGitMenuAction(action)) {
+    // Command-only actions carry no file/commit operands over the protocol;
+    // anything else is a trust-boundary escape.
+    return (
+      relativePath === undefined &&
+      commitSha === undefined &&
+      commitMessage === undefined
+    );
+  }
+  if (relativePath !== undefined && !isRepoContainedRelativePath(relativePath)) {
+    return false;
+  }
+  if (commitSha !== undefined && !isSafeGitOperand(commitSha)) {
+    return false;
+  }
+  if (commitMessage !== undefined) {
+    if (!MENU_MESSAGE_ACTIONS.has(action)) {
+      return false;
+    }
+    if (typeof commitMessage !== "string") {
+      return false;
+    }
+  }
+  if (commitSha !== undefined && !MENU_SHA_ACTIONS.has(action)) {
+    return false;
+  }
+  if (MENU_PATH_REQUIRED_ACTIONS.has(action)) {
+    if (!isRepoContainedRelativePath(relativePath)) {
+      return false;
+    }
+    // getFromRevision / compareWithLocal / showRevisionDiff require BOTH a
+    // path and a SHA. Returning after the path check alone accepts a valid
+    // path with a missing SHA, which the dispatcher then silently no-ops on
+    // while acknowledging success.
+    if (MENU_SHA_REQUIRED_ACTIONS.has(action)) {
+      return typeof commitSha === "string" && isSafeGitOperand(commitSha);
+    }
+    return true;
+  }
+  if (action === "copyCommitId") {
+    return typeof commitSha === "string";
+  }
+  if (MENU_SHA_REQUIRED_ACTIONS.has(action)) {
+    return typeof commitSha === "string";
+  }
+  if (action === "copyCommitMessage") {
+    return typeof commitMessage === "string";
+  }
+  return true;
+}
 const discardAction: Validator = (value) => {
   if (!isRecord(value)) {
     return false;
@@ -117,7 +276,7 @@ const commitCheckKinds = arrayOf(
   oneOf("hooks", "todo", "analyze", "reformat", "optimizeImports"),
 );
 const selectedChanges = shape(
-  { repoId: stringValue, sha: stringValue, path: stringValue },
+  { repoId: stringValue, sha: gitOperand, path: stringValue },
   {
     hunkIndexes: nonNegativeIntegerArray,
     lines: lineSelections,
@@ -126,7 +285,7 @@ const selectedChanges = shape(
   },
 );
 const dropSelectedChanges = shape(
-  { repoId: stringValue, sha: stringValue, path: stringValue },
+  { repoId: stringValue, sha: gitOperand, path: stringValue },
   {
     hunkIndexes: nonNegativeIntegerArray,
     lines: lineSelections,
@@ -317,20 +476,7 @@ const requestValidators = {
     sha: stringValue,
     path: stringValue,
   }),
-  "git.menuAction": shape(
-    {
-      repoId: stringValue,
-      action: (value) => typeof value === "string" && isGitMenuAction(value),
-    },
-    {
-      relativePath: stringValue,
-      commitSha: stringValue,
-      commitMessage: stringValue,
-      isFolder: booleanValue,
-      reuseDiffPanel: booleanValue,
-      openInActiveColumn: booleanValue,
-    },
-  ),
+  "git.menuAction": isValidGitMenuActionPayload,
   "diff.stageHunk": shape({
     repoId: stringValue,
     path: stringValue,
@@ -361,7 +507,7 @@ const requestValidators = {
   "log.reset": shape(
     {
       repoId: stringValue,
-      sha: stringValue,
+      sha: gitOperand,
       mode: oneOf("soft", "mixed", "hard", "keep"),
     },
     {
@@ -375,24 +521,24 @@ const requestValidators = {
   ),
   "log.createBranchFromCommit": shape({
     repoId: stringValue,
-    name: stringValue,
-    sha: stringValue,
+    name: gitOperand,
+    sha: gitOperand,
   }),
   "log.dropCommit": shape(
-    { repoId: stringValue, sha: stringValue },
+    { repoId: stringValue, sha: gitOperand },
     {
       confirmed: booleanValue,
       confirmation: isConfirmationSubmission,
     },
   ),
   "log.editMessage": shape(
-    { repoId: stringValue, sha: stringValue, message: stringValue },
+    { repoId: stringValue, sha: gitOperand, message: stringValue },
     { confirmed: booleanValue },
   ),
   "log.rewrite": shape(
     {
       repoId: stringValue,
-      sha: stringValue,
+      sha: gitOperand,
       action: oneOf("squash", "fixup", "drop"),
     },
     {

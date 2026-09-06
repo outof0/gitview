@@ -9,7 +9,7 @@ describe("GitService blameFile", () => {
         stdout: "1\t0\tsrc/app.ts\n",
         stderr: "",
       },
-      "blame --line-porcelain -M -C HEAD -- src/app.ts": {
+      "blame --line-porcelain -M HEAD -- src/app.ts": {
         stdout: blamePorcelain,
         stderr: "",
       },
@@ -61,12 +61,12 @@ describe("GitService blameFile", () => {
       if (key === "diff --numstat -- new.ts") {
         return Promise.resolve({ stdout: "1\t0\tnew.ts\n", stderr: "" });
       }
-      if (key === "blame --line-porcelain -M -C HEAD -- new.ts") {
+      if (key === "blame --line-porcelain -M HEAD -- new.ts") {
         return Promise.reject(
           new Error("fatal: no such path new.ts in HEAD"),
         );
       }
-      if (key === "blame --line-porcelain -M -C -- new.ts") {
+      if (key === "blame --line-porcelain -M -- new.ts") {
         return Promise.resolve({
           stdout: blamePorcelain.replace("src/app.ts", "new.ts"),
           stderr: "",
@@ -88,7 +88,7 @@ describe("GitService blameFile", () => {
         stdout: "1\t0\tsrc/app.ts\n",
         stderr: "",
       },
-      "blame --line-porcelain -M -C HEAD -- src/app.ts": {
+      "blame --line-porcelain -M HEAD -- src/app.ts": {
         stdout: blamePorcelain,
         stderr: "",
       },
@@ -111,7 +111,7 @@ describe("GitService blameFile", () => {
       if (key === "diff --numstat -- src/app.ts") {
         return Promise.resolve({ stdout: "1\t0\tsrc/app.ts\n", stderr: "" });
       }
-      if (key === "blame --line-porcelain -M -C MERGE_HEAD -- src/app.ts") {
+      if (key === "blame --line-porcelain -M MERGE_HEAD -- src/app.ts") {
         return Promise.resolve({ stdout: blamePorcelain, stderr: "" });
       }
       return Promise.reject(new Error(`Unexpected: ${key}`));

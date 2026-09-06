@@ -68,6 +68,11 @@ const shelfStorage: ShelfStorage = {
   getPatch: vi.fn(async () => null),
   add: vi.fn(),
   remove: vi.fn(async () => false),
+  saveRecoveryPatch: vi.fn(
+    async (_repoRoot: string, shelfId: string) =>
+      `/tmp/recovery-${shelfId}.patch`,
+  ),
+  removeRecoveryPatch: vi.fn(async () => undefined),
 };
 
 describe("git submenu context", () => {

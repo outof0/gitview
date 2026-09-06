@@ -75,10 +75,11 @@ describe("log.query / log.commitDetail / log.fileAtRevision handlers", () => {
     const logOutput = sampleLogOutput("Fix greeting");
     const execGit = makeExecGit({
       ...baseRepoResponses,
-      [`log --follow --name-status --format=${LOG_FORMAT} -n 200 -- src/app.ts`]: {
-        stdout: logOutput,
-        stderr: "",
-      },
+      [`log --parents --follow --name-status --format=${LOG_FORMAT} -n 200 -- src/app.ts`]:
+        {
+          stdout: logOutput,
+          stderr: "",
+        },
     });
     const { router, sent, repoId } = await setupRouter(execGit);
 
@@ -105,13 +106,22 @@ describe("log.query / log.commitDetail / log.fileAtRevision handlers", () => {
           (m as { type?: string }).type === "log.snapshot",
       ),
     ).toBe(true);
+    // The request-driven event carries its request id so the webview can
+    // drop it when a newer same-key request supersedes it.
+    const event = sent.find(
+      (m) =>
+        typeof m === "object" &&
+        m !== null &&
+        (m as { type?: string }).type === "log.snapshot",
+    ) as { requestId?: string };
+    expect(event?.requestId).toBe("log-1");
   });
 
   it("log.query scopes to a folder when isFolder is true", async () => {
     const logOutput = sampleLogOutput("Folder change");
     const execGit = makeExecGit({
       ...baseRepoResponses,
-      [`log --name-status --format=${LOG_FORMAT} -n 200 -- src/`]: {
+      [`log --parents --name-status --format=${LOG_FORMAT} -n 200 -- src/`]: {
         stdout: logOutput,
         stderr: "",
       },
@@ -191,7 +201,7 @@ Commit: Jane Doe <jane@example.com>
         stdout: "",
         stderr: "",
       },
-      [`show --name-status --format= ${sha}`]: {
+      [`diff-tree --no-commit-id --name-status -r -m --root ${sha}`]: {
         stdout: "M\tsrc/app.ts\n",
         stderr: "",
       },

@@ -20,6 +20,7 @@ import { subscribeToGitRepositoryChanges } from "./util/vscodeGit";
 import { createReviewAuthService } from "./services/review/reviewAuth";
 import { createReviewProviderRegistry } from "./services/review/providerRegistry";
 import { createProtocolExtensionRegistry } from "./webviewHost/protocolExtensionRegistry";
+import { createRepositoryMutationSerializer } from "./services/repositoryMutationSerializer";
 import type { BlameCacheEntry } from "./services/git/types";
 import { readGitWorkspaceSettings } from "./config/readGitWorkspaceSettings";
 import { createOutputChannelLogger } from "./observability/vscodeLogger";
@@ -124,6 +125,7 @@ export function activateGitView(
         .get<string>("gitlabApiBaseUrl", "https://gitlab.com/api/v4") ?? "",
   });
   const protocolExtensionRegistry = createProtocolExtensionRegistry({ logger });
+  const repositoryMutationSerializer = createRepositoryMutationSerializer();
 
   const refreshCoordinator = createRefreshCoordinator({
     execGit: git.execGit,
@@ -243,6 +245,7 @@ export function activateGitView(
     reviewProviderRegistry,
     protocolExtensionRegistry,
     blameCache,
+    repositoryMutationSerializer,
     dispose: () => {
       if (disposed) {
         return;

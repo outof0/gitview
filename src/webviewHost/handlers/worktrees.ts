@@ -58,7 +58,10 @@ export function createWorktreeHandlers(deps: WorktreeHandlerDeps) {
     return check.repository;
   }
 
-  async function emitWorktreeSnapshot(repo: { id: string; rootPath: string }) {
+  async function emitWorktreeSnapshot(
+    repo: { id: string; rootPath: string },
+    requestId?: string,
+  ) {
     const entries = await worktrees.listWorktrees(repo.rootPath, repo.rootPath);
     const snapshot = {
       repoId: repo.id,
@@ -69,6 +72,7 @@ export function createWorktreeHandlers(deps: WorktreeHandlerDeps) {
       protocolVersion: PROTOCOL_VERSION,
       type: "worktree.snapshot",
       payload: snapshot,
+      requestId,
     });
     return snapshot;
   }
@@ -85,7 +89,7 @@ export function createWorktreeHandlers(deps: WorktreeHandlerDeps) {
         );
         return;
       }
-      const snapshot = await emitWorktreeSnapshot(repo);
+      const snapshot = await emitWorktreeSnapshot(repo, requestId);
       deps.postMessage(
         createHostResponse(requestId, "worktree.list", snapshot),
       );
@@ -112,7 +116,7 @@ export function createWorktreeHandlers(deps: WorktreeHandlerDeps) {
       }
       try {
         await worktrees.addWorktree(repo.rootPath, worktreePath.trim(), opts);
-        const snapshot = await emitWorktreeSnapshot(repo);
+        const snapshot = await emitWorktreeSnapshot(repo, requestId);
         deps.postMessage(
           createHostResponse(requestId, "worktree.add", {
             path: worktreePath.trim(),
@@ -212,7 +216,7 @@ export function createWorktreeHandlers(deps: WorktreeHandlerDeps) {
         }
 
         await worktrees.removeWorktree(repo.rootPath, target.path, target.dirty);
-        const snapshot = await emitWorktreeSnapshot(repo);
+        const snapshot = await emitWorktreeSnapshot(repo, requestId);
         deps.postMessage(
           createHostResponse(requestId, "worktree.remove", {
             path: target.path,

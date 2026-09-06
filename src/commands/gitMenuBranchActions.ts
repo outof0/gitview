@@ -99,7 +99,10 @@ export async function gitCreateBranch(
   }
 
   if (presentation?.openCreateBranchDialog) {
-    await presentation.openCreateBranchDialog({ workspaceRoot: repoRoot });
+    await presentation.openCreateBranchDialog({
+      workspaceRoot: repoRoot,
+      repoRoot,
+    });
     return;
   }
 
@@ -138,8 +141,11 @@ export async function gitCheckoutBranch(
   }
 
   if (presentation?.openBranchesDialog) {
+    // Pass the resolved root, not the original workspace root: re-resolving
+    // inside the presentation would land on the parent of a nested repo.
     await presentation.openBranchesDialog({
-      workspaceRoot: workspaceRoot ?? "",
+      workspaceRoot: repoRoot,
+      repoRoot,
     });
     return;
   }

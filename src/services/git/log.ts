@@ -7,7 +7,10 @@ import type {
   LogOptions,
   LogResult,
 } from "../../types/blame";
-import { changesFromSideRevisionRange, resolveMergeRefs } from "../mergeHistory";
+import {
+  changesFromSideRevisionRange,
+  resolveMergeRefs,
+} from "../mergeHistory";
 import {
   LOG_FORMAT,
   parseGitLogWithNameStatus,
@@ -51,6 +54,7 @@ export function createLogApi(execGit: GitExecFn) {
     try {
       const { stdout } = await execGit(repoRoot, [
         "log",
+        "--parents",
         "--follow",
         "--name-status",
         `--format=${LOG_FORMAT}`,
@@ -98,6 +102,7 @@ export function createLogApi(execGit: GitExecFn) {
     try {
       const { stdout } = await execGit(repoRoot, [
         "log",
+        "--parents",
         "--name-status",
         `--format=${LOG_FORMAT}`,
         `-n`,
@@ -145,6 +150,7 @@ export function createLogApi(execGit: GitExecFn) {
 
     const args = [
       "log",
+      "--parents",
       "--name-status",
       `--format=${LOG_FORMAT}`,
       `-n`,
@@ -190,10 +196,17 @@ export function createLogApi(execGit: GitExecFn) {
       const [meta, body, nameStatus, atOut] = await Promise.all([
         execGit(repoRoot, ["show", "--format=fuller", "--no-patch", sha]),
         execGit(repoRoot, ["show", "--format=%b", "--no-patch", sha]),
+        // Split merge diffs by parent so annotate can show files touched by a
+        // merge instead of presenting the misleading empty file pane. diff-tree
+        // asks Git for names/statuses directly and avoids constructing show's
+        // commit presentation for every parent.
         execGit(repoRoot, [
-          "show",
+          "diff-tree",
+          "--no-commit-id",
           "--name-status",
-          "--format=",
+          "-r",
+          "-m",
+          "--root",
           sha,
         ]),
         execGit(repoRoot, ["show", "-s", "--format=%at", sha]),
@@ -230,6 +243,7 @@ export function createLogApi(execGit: GitExecFn) {
     const query = opts as LogQueryFilters | undefined;
     const args = [
       "log",
+      "--parents",
       "--name-status",
       `--format=${LOG_FORMAT}`,
       `-n`,
@@ -253,6 +267,14 @@ export function createLogApi(execGit: GitExecFn) {
     }
     if (query?.firstParent) {
       args.push("--first-parent");
+    }
+
+    // The workspace Log's "All commits" view is a repository graph, not only
+    // the ancestry reachable from HEAD. Without --all, unmerged local and
+    // remote branches never reach the graph layout and every history appears
+    // as a single straight lane.
+    if (query?.range === "all" && !query.branch?.trim()) {
+      args.push("--all");
     }
 
     if (query?.range === "incoming" || query?.range === "outgoing") {

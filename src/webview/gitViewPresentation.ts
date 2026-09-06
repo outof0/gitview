@@ -47,6 +47,206 @@ type BlamePanelState = {
 
 const blamePanels = new Map<string, BlamePanelState>();
 
+/**
+ * Editor-area GitView tabs (diff/compare, blame) that can render a branch
+ * overlay in place. New Branch / Branches from the native Git submenu prefer
+ * posting to the currently active one instead of opening a new tab.
+ *
+ * Interaction contract (approved): overlay delivery is repo-scoped and
+ * queued until the webview is ready. The caller passes the repository it resolved from the
+ * clicked resource; only a visible panel registered for that repository
+ * (or a registration with unknown repository, which matches anything) is
+ * eligible, and the fallback panel opens unless delivery resolves true.
+ * There is deliberately no native Quick Pick/InputBox branch here: when no
+ * presentation exists the command layer already falls back to native UI, so
+ * a second fallback inside the presentation would make the surface depend
+ * on editor focus — the Branches E2E failure mode.
+ */
+export type GitViewOverlayTarget = {
+  reveal: () => void;
+  /** Resolve true only when the webview accepted the message. */
+  deliver: (message: HostToWebview) => Promise<boolean>;
+};
+
+type PendingOverlayMessage = {
+  message: HostToWebview;
+  resolve: (delivered: boolean) => void;
+};
+
+type OverlayRegistration = {
+  post: (message: HostToWebview) => Promise<boolean>;
+  /** Repository the panel currently shows, or null when unknown. */
+  repoId: string | null;
+  /** True once the webview completed its ready handshake. */
+  ready: boolean;
+  /** Overlay requests parked until the ready handshake completes. */
+  pending: PendingOverlayMessage[];
+};
+
+/** How long a boot-time overlay request waits for the ready handshake. */
+export const OVERLAY_DELIVERY_TIMEOUT_MS = 10_000;
+
+const overlayPanels = new Map<vscode.WebviewPanel, OverlayRegistration>();
+let lastActiveOverlayPanel: vscode.WebviewPanel | null = null;
+
+function trackOverlayPanel(
+  panel: vscode.WebviewPanel,
+  post: (message: HostToWebview) => Promise<boolean>,
+  repoId: string | null,
+): void {
+  const registration: OverlayRegistration = {
+    post,
+    repoId,
+    ready: false,
+    pending: [],
+  };
+  overlayPanels.set(panel, registration);
+  panel.onDidDispose(() => {
+    overlayPanels.delete(panel);
+    // A disposed panel never becomes ready: fail every parked request so its
+    // caller falls through to the dedicated panel instead of hanging.
+    for (const parked of registration.pending.splice(0)) {
+      parked.resolve(false);
+    }
+    if (lastActiveOverlayPanel === panel) {
+      lastActiveOverlayPanel = null;
+    }
+  });
+  panel.onDidChangeViewState((event) => {
+    if (event.webviewPanel.active) {
+      lastActiveOverlayPanel = panel;
+    } else if (lastActiveOverlayPanel === panel) {
+      lastActiveOverlayPanel = null;
+    }
+  });
+}
+
+export function updateOverlayPanelRepo(
+  panel: vscode.WebviewPanel,
+  repoId: string | null,
+): void {
+  const registration = overlayPanels.get(panel);
+  if (registration) {
+    registration.repoId = repoId;
+  }
+}
+
+/**
+ * Mark a panel's webview as ready and flush parked overlay requests in order.
+ * Call this from the panel's `webview.ready` handler.
+ */
+export function markOverlayPanelReady(panel: vscode.WebviewPanel): void {
+  const registration = overlayPanels.get(panel);
+  if (!registration || registration.ready) {
+    return;
+  }
+  registration.ready = true;
+  for (const parked of registration.pending.splice(0)) {
+    void postToOverlayPanel(panel, parked.message).then(parked.resolve);
+  }
+}
+
+function postToOverlayPanel(
+  panel: vscode.WebviewPanel,
+  message: HostToWebview,
+): Promise<boolean> {
+  const registration = overlayPanels.get(panel);
+  if (!registration) {
+    return Promise.resolve(false);
+  }
+  try {
+    return Promise.resolve(registration.post(message)).then(
+      (posted) =>
+        posted === true &&
+        overlayPanels.get(panel)?.ready === true,
+      () => false,
+    );
+  } catch {
+    return Promise.resolve(false);
+  }
+}
+
+/**
+ * Overlay delivery queued until the ready handshake.
+ *
+ * `webview.postMessage() === true` only means the message was posted — VS Code
+ * explicitly does not guarantee a listener received it. Panels register before
+ * their webview boots, so resolving true on a bare post lets a boot-time
+ * action vanish while the caller suppresses its fallback. Instead a request
+ * for a not-yet-ready panel parks until `markOverlayPanelReady` flushes it,
+ * and resolves false when the panel is disposed or the handshake never
+ * arrives — the caller then falls through to the dedicated panel.
+ */
+function deliverToOverlayPanel(
+  panel: vscode.WebviewPanel,
+  message: HostToWebview,
+): Promise<boolean> {
+  const registration = overlayPanels.get(panel);
+  if (!registration) {
+    return Promise.resolve(false);
+  }
+  if (registration.ready) {
+    return postToOverlayPanel(panel, message);
+  }
+  return new Promise<boolean>((resolve) => {
+    registration.pending.push({ message, resolve });
+    const timer = setTimeout(() => {
+      const index = registration.pending.findIndex(
+        (parked) => parked.resolve === resolve,
+      );
+      if (index >= 0) {
+        registration.pending.splice(index, 1);
+        resolve(false);
+      }
+    }, OVERLAY_DELIVERY_TIMEOUT_MS);
+    if (typeof timer === "object" && timer !== null && "unref" in timer) {
+      (timer as unknown as { unref(): void }).unref();
+    }
+  });
+}
+
+/**
+ * A GitView editor tab that can host a branch overlay right now.
+ *
+ * Only panels registered for the requested repository (or with unknown
+ * repository) are eligible, so repo B's dialog can never render on repo A's
+ * tab. Prefers the focused tab; falls back to the most recently focused
+ * visible one (right-clicking Explorer moves focus to the sidebar, so
+ * requiring focus would send the common case to a new tab anyway). Never
+ * picks a merely open background tab.
+ */
+export function getGitViewOverlayTarget(
+  repoId?: string,
+): GitViewOverlayTarget | null {
+  const panels = [...overlayPanels.keys()];
+  const candidates = repoId
+    ? panels.filter((panel) => {
+        const registration = overlayPanels.get(panel)?.repoId;
+        return registration === null || registration === undefined
+          ? true
+          : registration === repoId;
+      })
+    : panels;
+  const picked =
+    candidates.find((panel) => panel.active) ??
+    (lastActiveOverlayPanel?.visible &&
+    candidates.includes(lastActiveOverlayPanel)
+      ? lastActiveOverlayPanel
+      : undefined) ??
+    candidates.find((panel) => panel.visible);
+  if (!picked) {
+    return null;
+  }
+  const registration = overlayPanels.get(picked);
+  if (!registration) {
+    return null;
+  }
+  return {
+    reveal: () => picked.reveal(undefined, true),
+    deliver: (message) => deliverToOverlayPanel(picked, message),
+  };
+}
+
 function diffPanelKey(relativePath: string, workspaceRoot?: string): string {
   return `${workspaceRoot ?? ""}:diff:${relativePath}`;
 }
@@ -167,6 +367,7 @@ async function revealOrCreateDiffPanel(
     poster.dispose();
     diffPanels.delete(key);
   });
+  trackOverlayPanel(panel, (message) => Promise.resolve(webview.postMessage(message)), repoId ?? null);
 
   // Compare menu actions that open another compare update THIS panel.
   const postDiffPreview = async (preview: GitViewPreviewPayload) => {
@@ -174,6 +375,7 @@ async function revealOrCreateDiffPanel(
       (await resolveDiffRepoId(options, workspaceRoot, preview.relativePath)) ??
       repoId;
     panel.title = preview.title;
+    updateOverlayPanelRepo(panel, nextRepoId ?? null);
     await poster.postMessage(
       createHostEvent("diff.preview", { ...preview, repoId: nextRepoId }),
     );
@@ -194,6 +396,7 @@ async function revealOrCreateDiffPanel(
     void (async () => {
       const request = parseWebviewRequest(raw);
       if (request?.type === "webview.ready") {
+        markOverlayPanelReady(panel);
         poster.postMessage(
           createHostResponse(request.requestId, "webview.ready", {
             surface: request.payload.surface,
@@ -361,6 +564,7 @@ async function revealOrCreateBlamePanel(
     poster.dispose();
     blamePanels.delete(key);
   });
+  trackOverlayPanel(panel, (message) => Promise.resolve(webview.postMessage(message)), resolvedRepoId ?? null);
   const router = createGitViewPanelRouter(
     context,
     gitView,
@@ -393,6 +597,7 @@ async function revealOrCreateBlamePanel(
       request?.type === "webview.ready" &&
       request.payload.surface === "gitBlame"
     ) {
+      markOverlayPanelReady(panel);
       await router.handleRawMessage(raw);
       postMessage(createHostEvent("blame.preview", payload));
       return;

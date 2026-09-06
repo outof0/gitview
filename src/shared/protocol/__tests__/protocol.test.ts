@@ -419,4 +419,43 @@ describe("protocol", () => {
     expect(err.ok).toBe(false);
     expect(err.error.code).toBe("REPOSITORY_NOT_FOUND");
   });
+
+  it("rejects option-shaped git operands in commit sha fields", () => {
+    // `{ mode: "soft", sha: "--hard" }` used to validate and then produce
+    // `git reset --soft --hard`, a hard reset that destroys uncommitted work
+    // without the hard-reset confirmation.
+    expect(
+      parseWebviewRequestResult({
+        protocolVersion: PROTOCOL_VERSION,
+        requestId: "reset-opt-1",
+        type: "log.reset",
+        payload: { repoId: "repo", sha: "--hard", mode: "soft" },
+      }),
+    ).toMatchObject({ ok: false, code: "INVALID_REQUEST" });
+
+    // `--abort`/`--continue` would otherwise drive an in-progress
+    // cherry-pick through a field that is supposed to carry a commit.
+    expect(
+      parseWebviewRequestResult({
+        protocolVersion: PROTOCOL_VERSION,
+        requestId: "cherry-opt-1",
+        type: "log.cherryPick",
+        payload: { repoId: "repo", sha: "--abort" },
+      }),
+    ).toMatchObject({ ok: false, code: "INVALID_REQUEST" });
+
+    expect(
+      parseWebviewRequestResult({
+        protocolVersion: PROTOCOL_VERSION,
+        requestId: "drop-opt-1",
+        type: "log.dropSelectedChanges",
+        payload: {
+          repoId: "repo",
+          sha: "--hard",
+          path: "file.txt",
+          hunkIndexes: [0],
+        },
+      }),
+    ).toMatchObject({ ok: false, code: "INVALID_REQUEST" });
+  });
 });

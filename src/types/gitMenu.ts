@@ -18,6 +18,9 @@ export const GIT_MENU_WEBVIEW_ACTIONS = [
   "showHistoryForFile",
   "compareWithLocal",
   "showRevisionDiff",
+  "openOnRemote",
+  "copyRemoteLink",
+  "copyRemoteLinkMarkdown",
 ] as const;
 
 /** Repo-wide actions — context menu + command palette; no file path required. */

@@ -30,19 +30,21 @@ export function createBranchCompareHandlers(ctx: BranchHandlerContext) {
       };
     },
 
-    emitCompareSnapshot(snapshot: BranchCompareSnapshot) {
+    emitCompareSnapshot(snapshot: BranchCompareSnapshot, requestId?: string) {
       deps.postMessage({
         protocolVersion: PROTOCOL_VERSION,
         type: "branch.compare.snapshot",
         payload: snapshot,
+        requestId,
       });
     },
 
-    emitCompareDiff(document: WorkspaceDiffDocument) {
+    emitCompareDiff(document: WorkspaceDiffDocument, requestId?: string) {
       deps.postMessage({
         protocolVersion: PROTOCOL_VERSION,
         type: "diff.result",
         payload: document,
+        requestId,
       });
     },
 
@@ -79,7 +81,7 @@ export function createBranchCompareHandlers(ctx: BranchHandlerContext) {
           selectedRef,
           "current",
         );
-        this.emitCompareSnapshot(snapshot);
+        this.emitCompareSnapshot(snapshot, requestId);
 
         const targetPath = filePath?.trim() || snapshot.files[0]?.path;
         let document: WorkspaceDiffDocument | undefined;
@@ -95,7 +97,7 @@ export function createBranchCompareHandlers(ctx: BranchHandlerContext) {
           );
           if (built) {
             document = built;
-            this.emitCompareDiff(built);
+            this.emitCompareDiff(built, requestId);
           }
         }
 
@@ -148,7 +150,7 @@ export function createBranchCompareHandlers(ctx: BranchHandlerContext) {
           selectedRef,
           "workingTree",
         );
-        this.emitCompareSnapshot(snapshot);
+        this.emitCompareSnapshot(snapshot, requestId);
 
         const targetPath = filePath?.trim() || snapshot.files[0]?.path;
         let document: WorkspaceDiffDocument | undefined;
@@ -164,7 +166,7 @@ export function createBranchCompareHandlers(ctx: BranchHandlerContext) {
           );
           if (built) {
             document = built;
-            this.emitCompareDiff(built);
+            this.emitCompareDiff(built, requestId);
           }
         }
 
@@ -303,7 +305,7 @@ export function createBranchCompareHandlers(ctx: BranchHandlerContext) {
           );
           return;
         }
-        this.emitCompareDiff(document);
+        this.emitCompareDiff(document, requestId);
         deps.postMessage(
           createHostResponse(requestId, "branch.compareFile", document),
         );

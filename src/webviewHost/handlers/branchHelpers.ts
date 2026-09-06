@@ -115,6 +115,7 @@ export function createBranchHandlerContext(deps: BranchHandlerDeps) {
       protocolVersion: 1,
       type: "branch.snapshot",
       payload: snapshot,
+      requestId,
     });
     if (requestId && responseType) {
       deps.postMessage(createHostResponse(requestId, responseType, snapshot));

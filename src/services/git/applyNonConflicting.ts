@@ -1,7 +1,7 @@
-import * as path from "path";
 import { reflowResultRanges, serializeResult } from "../../core/serialize";
 import { buildChangeBlocks } from "../../core/threeWay";
-import { createFileService } from "../fileService";
+import { createFileService, encodeFileContent, writeBufferAtomically } from "../fileService";
+import { resolveRepoRelativeRealPath } from "../../util/repoPath";
 import { createMergeApi } from "./merge";
 import type { GitExecFn } from "./types";
 
@@ -23,6 +23,13 @@ export function createApplyNonConflictingApi(execGit: GitExecFn) {
 
     for (const entry of unmerged) {
       const relativePath = entry.relativePath;
+      // Unmerged paths come from Git output; resolve symlinks before any
+      // worktree write so a linked entry cannot redirect content outside.
+      const resolved = await resolveRepoRelativeRealPath(repoRoot, relativePath);
+      if (!resolved.ok) {
+        skipped.push(relativePath);
+        continue;
+      }
       if (await merge.isBinaryFile(repoRoot, relativePath)) {
         skipped.push(relativePath);
         continue;
@@ -39,7 +46,7 @@ export function createApplyNonConflictingApi(execGit: GitExecFn) {
         continue;
       }
 
-      const absolutePath = path.join(repoRoot, relativePath);
+      const absolutePath = resolved.absolutePath;
       const fileInfo = await files.readFile(absolutePath);
       const reflowed = reflowResultRanges(blocks);
       const content = serializeResult(
@@ -47,10 +54,14 @@ export function createApplyNonConflictingApi(execGit: GitExecFn) {
         fileInfo.eol,
         fileInfo.hasFinalNewline,
       );
-      await files.writeFile(absolutePath, content, {
-        eol: fileInfo.eol,
-        hasFinalNewline: fileInfo.hasFinalNewline,
-      });
+      await writeBufferAtomically(
+        repoRoot,
+        absolutePath,
+        encodeFileContent(content, {
+          eol: fileInfo.eol,
+          hasFinalNewline: fileInfo.hasFinalNewline,
+        }),
+      );
       await merge.addFile(repoRoot, relativePath);
       applied.push(relativePath);
     }

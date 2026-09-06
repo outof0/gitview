@@ -97,6 +97,15 @@ export type HostToWebview =
       "git.openDialog",
       { dialog: GitPanelSurface; relativePath?: string }
     >
+  /**
+   * Native Git submenu asks the currently active GitView editor-area tab
+   * (diff/compare or blame) to render New Branch / Branches as an overlay
+   * instead of opening a new tab.
+   */
+  | HostEvent<
+      "git.openOverlay",
+      { surface: "createBranch" | "branches"; repoId: string; startPoint?: string }
+    >
   | HostEvent<
       "notification",
       { level: "info" | "warning" | "error"; message: string }
@@ -122,6 +131,8 @@ export type HostToWebview =
         pushed?: boolean;
         pushRejected?: boolean;
         upstreamRequired?: boolean;
+        /** Sanitized push-phase failure; the commit itself landed. */
+        pushError?: string;
       }
     >
   | HostResponse<"sync.fetch", { ok: boolean }>
@@ -376,6 +387,7 @@ export const HOST_EVENT_TYPES = [
   "merge.showConflictList",
   "blame.annotateRequest",
   "git.openDialog",
+  "git.openOverlay",
   "notification",
 ] as const satisfies readonly HostToWebviewEventType[];
 

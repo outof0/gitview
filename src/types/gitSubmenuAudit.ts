@@ -187,6 +187,27 @@ export const GIT_SUBMENU_AUDIT = [
     integration: "gitView.open",
     nativeE2e: "e2e/native-vscode-git-submenu.spec.ts",
   },
+  {
+    command: "gitView.gitOpenOnRemote",
+    title: "Open on Remote",
+    surface: "gitview-panel",
+    integration: "gitOpenOnRemote",
+    nativeE2e: "e2e/native-remote-link.spec.ts",
+  },
+  {
+    command: "gitView.gitCopyRemoteLink",
+    title: "Copy Remote Link",
+    surface: "gitview-panel",
+    integration: "gitCopyRemoteLink",
+    nativeE2e: "e2e/native-remote-link.spec.ts",
+  },
+  {
+    command: "gitView.gitCopyRemoteLinkMarkdown",
+    title: "Copy Remote Link as Markdown",
+    surface: "gitview-panel",
+    integration: "gitCopyRemoteLinkMarkdown",
+    nativeE2e: "e2e/native-remote-link.spec.ts",
+  },
 ] as const satisfies readonly GitSubmenuAuditEntry[];
 
 const auditByCommand = new Map<string, GitSubmenuAuditEntry>(

@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { toUserFacingGitError } from "../util/safeLog";
 import { warnNoGitRepository } from "./gitMenuContext";
 import {
   getGitCommandRuntime,
@@ -13,7 +14,9 @@ async function assertPushSucceeded(
 ): Promise<void> {
   const result = await getGitCommandRuntime(runtime).gitService.push(repoRoot);
   if (result.rejected || result.stderr) {
-    throw new Error(result.stderr || "Git push was rejected.");
+    throw new Error(
+      toUserFacingGitError(result.stderr || "Git push was rejected."),
+    );
   }
 }
 
@@ -32,7 +35,7 @@ export async function gitFetch(
     await refreshAfterGitMutation(runtime);
   } catch (err) {
     void vscode.window.showErrorMessage(
-      err instanceof Error ? err.message : String(err),
+      toUserFacingGitError(err) || "The Git fetch operation failed.",
     );
   }
 }
@@ -56,7 +59,7 @@ export async function gitPull(
     await refreshAfterGitMutation(runtime);
   } catch (err) {
     void vscode.window.showErrorMessage(
-      err instanceof Error ? err.message : String(err),
+      toUserFacingGitError(err) || "The Git pull operation failed.",
     );
   }
 }
@@ -76,7 +79,7 @@ export async function gitPush(
     await refreshAfterGitMutation(runtime);
   } catch (err) {
     void vscode.window.showErrorMessage(
-      err instanceof Error ? err.message : String(err),
+      toUserFacingGitError(err) || "The Git operation failed.",
     );
   }
 }
@@ -103,7 +106,7 @@ export async function gitSync(
     await refreshAfterGitMutation(runtime);
   } catch (err) {
     void vscode.window.showErrorMessage(
-      err instanceof Error ? err.message : String(err),
+      toUserFacingGitError(err) || "The Git operation failed.",
     );
   }
 }

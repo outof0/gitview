@@ -68,10 +68,53 @@ describe("applySuggestionToFile", () => {
     expect(await fs.readFile(outside, "utf8")).toBe("safe\n");
   });
 
+  it("preserves the executable bit when applying a suggestion", async () => {
+    const { repoRoot, absolute } = await makeRepoWithFile(
+      "run.sh",
+      "#!/bin/sh\nold\n",
+    );
+    await fs.chmod(absolute, 0o755);
+    await applySuggestionToFile(repoRoot, "run.sh", 2, undefined, "new");
+    expect(await fs.readFile(absolute, "utf8")).toBe("#!/bin/sh\nnew\n");
+    expect((await fs.stat(absolute)).mode & 0o777).toBe(0o755);
+  });
+
   it("rejects absolute paths", async () => {
     const { repoRoot } = await makeRepoWithFile("inside.txt", "keep\n");
     await expect(
       applySuggestionToFile(repoRoot, "/etc/passwd", 1, undefined, "x"),
     ).rejects.toThrow(/relative path|Invalid|inside the repository/i);
+  });
+
+  it("refuses a final-component symlink pointing outside the repo", async () => {
+    tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "gitview-apply-sug-"));
+    const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), "gitview-outside-"));
+    try {
+      const outsideFile = path.join(outsideDir, "secret.txt");
+      await fs.writeFile(outsideFile, "original\n");
+      await fs.symlink(outsideFile, path.join(tmpRoot, "tracked-link"));
+      await expect(
+        applySuggestionToFile(tmpRoot, "tracked-link", 1, undefined, "overwritten"),
+      ).rejects.toThrow(/relative path|Invalid|inside the repository/i);
+      expect(await fs.readFile(outsideFile, "utf8")).toBe("original\n");
+    } finally {
+      await fs.rm(outsideDir, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses writes through a symlinked parent directory", async () => {
+    tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "gitview-apply-sug-"));
+    const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), "gitview-outside-"));
+    try {
+      const outsideFile = path.join(outsideDir, "secret.txt");
+      await fs.writeFile(outsideFile, "original\n");
+      await fs.symlink(outsideDir, path.join(tmpRoot, "linked-dir"));
+      await expect(
+        applySuggestionToFile(tmpRoot, "linked-dir/secret.txt", 1, undefined, "overwritten"),
+      ).rejects.toThrow(/relative path|Invalid|inside the repository/i);
+      expect(await fs.readFile(outsideFile, "utf8")).toBe("original\n");
+    } finally {
+      await fs.rm(outsideDir, { recursive: true, force: true });
+    }
   });
 });

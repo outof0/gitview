@@ -17,7 +17,7 @@ describe("GitService logChangesFromSide", () => {
       }
       if (
         key ===
-        `log --name-status --format=${LOG_FORMAT} -n 100 base..HEAD -- src/app.ts`
+        `log --parents --name-status --format=${LOG_FORMAT} -n 100 base..HEAD -- src/app.ts`
       ) {
         return Promise.resolve({ stdout: logOutput, stderr: "" });
       }
@@ -48,7 +48,7 @@ describe("GitService logFile and logFolder", () => {
 
   it("logFile parses commit history", async () => {
     const { service } = makeFakeGit({
-      [`log --follow --name-status --format=${LOG_FORMAT} -n 100 -- src/app.ts`]:
+      [`log --parents --follow --name-status --format=${LOG_FORMAT} -n 100 -- src/app.ts`]:
         {
           stdout: logOutput,
           stderr: "",
@@ -64,7 +64,7 @@ describe("GitService logFile and logFolder", () => {
 
   it("logFolder queries folder path with trailing slash", async () => {
     const { service, calls } = makeFakeGit({
-      [`log --name-status --format=${LOG_FORMAT} -n 100 -- src/`]: {
+      [`log --parents --name-status --format=${LOG_FORMAT} -n 100 -- src/`]: {
         stdout: logOutput,
         stderr: "",
       },
@@ -90,7 +90,7 @@ Commit: Jane Doe <jane@example.com>
         stdout: "",
         stderr: "",
       },
-      [`show --name-status --format= ${sha}`]: {
+      [`diff-tree --no-commit-id --name-status -r -m --root ${sha}`]: {
         stdout: "M\t.gitlab/ci/build.yml\nA\tsrc/new.ts\n",
         stderr: "",
       },
@@ -110,9 +110,49 @@ Commit: Jane Doe <jane@example.com>
       ]);
     }
     expect(calls.map((call) => call.args.join(" "))).not.toContain(
-      `show --name-status --format= --no-patch ${sha}`,
+      `show -m --name-status --format= ${sha}`,
     );
   });
+});
+
+describe("GitService logRepo graph scope", () => {
+  const logOutput = sampleLogOutput("Repository graph commit");
+
+  it("loads every ref for the All commits graph", async () => {
+    const { service, calls } = makeFakeGit({
+      [`log --parents --name-status --format=${LOG_FORMAT} -n 200 --all`]: {
+        stdout: logOutput,
+        stderr: "",
+      },
+    });
+
+    const result = await service.logRepo("/repo", {
+      range: "all",
+      limit: 200,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(calls[0]!.args).toContain("--all");
+  });
+
+  it("keeps an explicit branch graph scoped to that branch", async () => {
+    const { service, calls } = makeFakeGit({
+      [`log --parents --name-status --format=${LOG_FORMAT} -n 200 feature`]: {
+        stdout: logOutput,
+        stderr: "",
+      },
+    });
+
+    const result = await service.logRepo("/repo", {
+      range: "all",
+      branch: "feature",
+      limit: 200,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(calls[0]!.args).not.toContain("--all");
+  });
+
 });
 
 describe("GitService fileDiffAtCommit", () => {

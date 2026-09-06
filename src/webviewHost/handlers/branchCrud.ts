@@ -101,7 +101,7 @@ export function createBranchCrudHandlers(ctx: BranchHandlerContext) {
           }
         }
         await deps.refreshCoordinator.refreshNow(repo.id);
-        await emitBranchSnapshot(repo);
+        await emitBranchSnapshot(repo, requestId);
         deps.postMessage(
           createHostResponse(requestId, "branch.rename", { name: trimmedNew }),
         );
@@ -181,7 +181,7 @@ export function createBranchCrudHandlers(ctx: BranchHandlerContext) {
           }
         }
         await deps.refreshCoordinator.refreshNow(repo.id);
-        await emitBranchSnapshot(repo);
+        await emitBranchSnapshot(repo, requestId);
         deps.postMessage(
           createHostResponse(requestId, "branch.delete", { name: trimmed }),
         );

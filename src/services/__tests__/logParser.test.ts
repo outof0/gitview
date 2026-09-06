@@ -72,6 +72,29 @@ A\tsrc/new.ts
     expect(commits[0]?.parentShas?.length).toBeGreaterThan(0);
     expect(commits[0]?.changedFiles.length).toBeGreaterThan(0);
   });
+
+  it("deduplicates paths emitted once per merge parent", () => {
+    const output = `${LOG_RECORD_MARKER}
+abc1234567890123456789012345678901234567890
+abc1234
+John Doe
+john@example.com
+1719000000
+Merge feature
+1111111111111111111111111111111111111111 2222222222222222222222222222222222222222
+
+
+${LOG_RECORD_END}
+M\tsrc/app.ts
+M\tsrc/app.ts
+A\tsrc/new.ts
+`;
+
+    expect(parseGitLogWithNameStatus(output)[0]?.changedFiles).toEqual([
+      { path: "src/app.ts", status: "M" },
+      { path: "src/new.ts", status: "A" },
+    ]);
+  });
 });
 
 describe("parseShowCommitOutput", () => {
@@ -96,5 +119,23 @@ Commit: John Doe <john@example.com>
       body: "Detailed body",
       changedFiles: [{ path: "src/app.ts", status: "M" }],
     });
+  });
+
+  it("deduplicates merge-parent file entries", () => {
+    const sha = "a".repeat(40);
+    const meta = `commit ${sha}
+Author: John Doe <john@example.com>
+
+    Merge feature
+`;
+    const commit = parseShowCommitOutput(
+      meta,
+      "",
+      "M\tsrc/app.ts\nM\tsrc/app.ts\n",
+      "1719000000",
+    );
+    expect(commit?.changedFiles).toEqual([
+      { path: "src/app.ts", status: "M" },
+    ]);
   });
 });

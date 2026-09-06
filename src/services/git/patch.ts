@@ -8,6 +8,8 @@ export type PatchApplyOptions = {
   reverse?: boolean;
   strip?: number;
   directory?: string;
+  /** Apply to the index instead of the working tree (`git apply --cached`). */
+  cached?: boolean;
 };
 
 export function createPatchApi(execGit: GitExecFn) {
@@ -50,6 +52,9 @@ export function createPatchApi(execGit: GitExecFn) {
   ): Promise<void> {
     await withTempPatch(patchContent, async (patchPath) => {
       const args = ["apply"];
+      if (opts?.cached) {
+        args.push("--cached");
+      }
       if (opts?.checkOnly) {
         args.push("--check");
       }

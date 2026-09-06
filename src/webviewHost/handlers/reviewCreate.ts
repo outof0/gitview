@@ -104,7 +104,7 @@ export function createReviewCreateHandlers(ctx: ReviewHandlerContext) {
           reviewId,
           opts,
         );
-        await publishReviewDetails(repo, providerId, reviewId);
+        await publishReviewDetails(repo, providerId, reviewId, requestId);
         deps.postMessage(
           createHostResponse(requestId, "review.createLineComment", result),
         );

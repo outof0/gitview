@@ -73,6 +73,17 @@ function parseChangedFile(line: string): GitChangedFile | null {
   return { path, status };
 }
 
+function parseChangedFiles(lines: Iterable<string>): GitChangedFile[] {
+  const filesByPath = new Map<string, GitChangedFile>();
+  for (const line of lines) {
+    const file = parseChangedFile(line.trim());
+    if (file && !filesByPath.has(file.path)) {
+      filesByPath.set(file.path, file);
+    }
+  }
+  return [...filesByPath.values()];
+}
+
 export function parseGitLogWithNameStatus(output: string): GitCommitEntry[] {
   const commits: GitCommitEntry[] = [];
   const chunks = output.split(`${LOG_RECORD_MARKER}\n`).filter((c) => c.trim());
@@ -106,18 +117,12 @@ export function parseGitLogWithNameStatus(output: string): GitCommitEntry[] {
     const refs = parseLogDecorations(decorateLine);
     const body = bodyParts.join("\n").trim() || undefined;
 
-    const changedFiles: GitChangedFile[] = [];
     const statusBlock = chunk.slice(endIdx + `\n${LOG_RECORD_END}\n`.length);
-    for (const line of statusBlock.split("\n")) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith(LOG_RECORD_MARKER)) {
-        continue;
-      }
-      const file = parseChangedFile(trimmed);
-      if (file) {
-        changedFiles.push(file);
-      }
-    }
+    const changedFiles = parseChangedFiles(
+      statusBlock
+        .split("\n")
+        .filter((line) => line.trim() && !line.trim().startsWith(LOG_RECORD_MARKER)),
+    );
 
     commits.push({
       sha,
@@ -155,17 +160,7 @@ export function parseShowCommitOutput(
   }
 
   const sha = shaMatch[1]!;
-  const changedFiles: GitChangedFile[] = [];
-  for (const line of nameStatusOutput.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed) {
-      continue;
-    }
-    const file = parseChangedFile(trimmed);
-    if (file) {
-      changedFiles.push(file);
-    }
-  }
+  const changedFiles = parseChangedFiles(nameStatusOutput.split("\n"));
 
   const body = bodyOutput.trim() || undefined;
   const authorTime = authorTimeStr ? Number.parseInt(authorTimeStr, 10) : 0;

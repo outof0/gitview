@@ -32,4 +32,9 @@ export {
   gitGetFromRevision,
   gitOpenFile,
 } from "./gitMenuHistoryActions";
+export {
+  gitOpenOnRemote,
+  gitCopyRemoteLink,
+  gitCopyRemoteLinkMarkdown,
+} from "./gitMenuRemoteLinkActions";
 export { runGitMenuAction } from "./gitMenuActionDispatcher";

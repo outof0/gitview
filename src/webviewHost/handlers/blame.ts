@@ -108,6 +108,7 @@ export function createBlameHandlers(deps: BlameHandlerDeps) {
         protocolVersion: PROTOCOL_VERSION,
         type: "blame.snapshot",
         payload: snapshot,
+        requestId,
       });
       deps.postMessage(createHostResponse(requestId, "blame.query", snapshot));
     },

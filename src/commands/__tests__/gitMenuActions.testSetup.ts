@@ -47,6 +47,9 @@ vi.mock("vscode", () => ({
     fs: {
       stat: vi.fn(async () => ({})),
     },
+    getConfiguration: vi.fn(() => ({
+      get: (_key: string, fallback?: unknown) => fallback,
+    })),
     getWorkspaceFolder: vi.fn((uri: { fsPath: string }) => {
       if (uri.fsPath === "/repo-b" || uri.fsPath.startsWith("/repo-b/")) {
         return { uri: { fsPath: "/repo-b" } };
@@ -65,6 +68,7 @@ vi.mock("vscode", () => ({
   },
   env: {
     clipboard: { writeText: vi.fn() },
+    openExternal: vi.fn(),
   },
   commands: {
     executeCommand: vi.fn(),

@@ -13,6 +13,7 @@ import type { ReviewProviderRegistry } from "../services/review/providerRegistry
 import type { ProtocolExtensionRegistry } from "../webviewHost/protocolExtensionRegistry";
 import type { BlameCacheEntry } from "../services/git/types";
 import type { Logger } from "../observability/logger";
+import type { RepositoryMutationSerializer } from "../services/repositoryMutationSerializer";
 
 /** Instance-scoped application services shared by VS Code adapters. */
 export interface GitViewContext {
@@ -31,5 +32,6 @@ export interface GitViewContext {
   reviewProviderRegistry: ReviewProviderRegistry;
   protocolExtensionRegistry: ProtocolExtensionRegistry;
   blameCache: Map<string, BlameCacheEntry>;
+  repositoryMutationSerializer: RepositoryMutationSerializer;
   dispose(): void;
 }

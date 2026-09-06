@@ -129,27 +129,49 @@ export function createCommitMutationHandlers(ctx: MutationHandlerContext) {
           skipHooks: payload.skipHooks,
         });
 
+        // The commit has landed at this point — the repository already
+        // changed. Everything below is a post-commit phase: a push or refresh
+        // failure must report partial success (carrying the new sha), never a
+        // bare commit failure that invites a retry of an already-landed commit.
         let pushed = false;
         let pushRejected = false;
         let upstreamRequired = false;
+        let pushError: string | undefined;
         if (payload.pushAfter) {
-          const needsUpstream = !(await hasUpstream(deps.execGit, repo.rootPath));
-          if (needsUpstream) {
-            upstreamRequired = true;
-          } else {
-            const pushResult = await sync.push(repo.rootPath);
-            pushed = !pushResult.rejected;
-            pushRejected = pushResult.rejected;
+          try {
+            const needsUpstream = !(await hasUpstream(deps.execGit, repo.rootPath));
+            if (needsUpstream) {
+              upstreamRequired = true;
+            } else {
+              const pushResult = await sync.push(repo.rootPath);
+              pushed = !pushResult.rejected;
+              pushRejected = pushResult.rejected;
+              if (pushResult.rejected) {
+                pushError =
+                  gitCommandError(
+                    pushResult.stderr || "Push was rejected by the remote.",
+                  ) || undefined;
+              }
+            }
+          } catch (err) {
+            pushError = gitCommandError(err) || undefined;
           }
         }
 
-        await refreshAfterMutation(repo.id);
+        try {
+          await refreshAfterMutation(repo.id);
+        } catch {
+          // Refresh is bookkeeping after a landed commit. A failure here must
+          // not convert the landed commit into a reported failure; the UI
+          // reconciles on the next refresh.
+        }
         deps.postMessage(
           createHostResponse(requestId, "commit.create", {
             sha: result.sha,
             pushed,
             pushRejected,
             upstreamRequired,
+            ...(pushError ? { pushError } : {}),
           }),
         );
       } catch (err) {

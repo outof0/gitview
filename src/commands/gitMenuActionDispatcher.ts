@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import type { GitViewContext } from "../application/gitViewContext";
 import type { GitMenuActionPayload } from "../types/gitMenu";
+import { assertSafeGitOperand } from "../shared/lib/gitOperand";
 import {
   gitAdd,
   gitCommit,
@@ -25,6 +26,11 @@ import {
   gitMerge,
   gitRebase,
 } from "./gitMenuBranchActions";
+import {
+  gitCopyRemoteLink,
+  gitCopyRemoteLinkMarkdown,
+  gitOpenOnRemote,
+} from "./gitMenuRemoteLinkActions";
 import {
   gitCherryPick,
   gitCheckoutRevision,
@@ -52,6 +58,17 @@ import {
 
 export type { DiffPreviewPoster };
 
+function assertRepoRelativePath(relativePath: string): void {
+  if (!relativePath || relativePath.startsWith("/") || relativePath.startsWith("\\")) {
+    throw new Error("Invalid repository path.");
+  }
+  const normalized = relativePath.replace(/\\/g, "/");
+  const segments = normalized.split("/");
+  if (segments.some((seg) => seg === "" || seg === "." || seg === "..")) {
+    throw new Error("Invalid repository path.");
+  }
+}
+
 /** Central dispatcher for webview git:menuAction messages. */
 export async function runGitMenuAction(
   context: vscode.ExtensionContext,
@@ -60,6 +77,16 @@ export async function runGitMenuAction(
   postDiffPreview?: DiffPreviewPoster,
   gitView?: GitViewContext,
 ): Promise<void> {
+  // Service-boundary re-validation: the protocol validator already enforces
+  // per-action operands, but this dispatcher is also reachable from other
+  // callers, so never forward an option-like SHA or a traversal path to Git
+  // or repository resolution.
+  if (payload.commitSha !== undefined) {
+    assertSafeGitOperand(payload.commitSha, "commit SHA");
+  }
+  if (payload.relativePath !== undefined) {
+    assertRepoRelativePath(payload.relativePath);
+  }
   const runtime = gitView?.commandRuntime;
   const presentation = gitView?.gitMenuPresentation;
   let uri = resolveResourceUri(payload.relativePath, undefined, workspaceRoot);
@@ -176,6 +203,24 @@ export async function runGitMenuAction(
       break;
     case "rebase":
       await gitRebase(uri, workspaceRoot, runtime, presentation);
+      break;
+    case "openOnRemote":
+      await gitOpenOnRemote(uri, workspaceRoot, runtime, {
+        commitSha,
+        isFolder,
+      });
+      break;
+    case "copyRemoteLink":
+      await gitCopyRemoteLink(uri, workspaceRoot, runtime, {
+        commitSha,
+        isFolder,
+      });
+      break;
+    case "copyRemoteLinkMarkdown":
+      await gitCopyRemoteLinkMarkdown(uri, workspaceRoot, runtime, {
+        commitSha,
+        isFolder,
+      });
       break;
     case "cherryPick":
       if (commitSha) {

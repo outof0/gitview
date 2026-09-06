@@ -142,6 +142,46 @@ describe("RepositoryService", () => {
     });
   });
 
+  it("does not serve a cached repoId after its folder leaves the workspace", async () => {
+    const execGit = makeExecGit(
+      {
+        "rev-parse --show-toplevel": { stdout: "/repo\n", stderr: "" },
+        "rev-parse --git-dir": { stdout: ".git\n", stderr: "" },
+        "rev-parse HEAD": { stdout: "abc123\n", stderr: "" },
+        remote: { stdout: "origin\n", stderr: "" },
+        "status --porcelain=v1 -z -b": {
+          stdout: "## main...origin/main\0",
+          stderr: "",
+        },
+      },
+      [
+        "rev-parse --verify MERGE_HEAD",
+        "rev-parse --verify REBASE_HEAD",
+        "rev-parse --verify CHERRY_PICK_HEAD",
+        "rev-parse --verify REVERT_HEAD",
+      ],
+    );
+    const svc = createRepositoryService({
+      execGit,
+      discoverGitRoots: async () => ["/repo"],
+    });
+
+    const repos = await svc.discoverRepositories({
+      workspaceFolders: [{ uriPath: "/repo", name: "repo" }],
+      trusted: true,
+    });
+    expect(repos).toHaveLength(1);
+    const repoId = repos[0]?.id ?? "";
+
+    const stale = await svc.discoverRepositories({
+      workspaceFolders: [],
+      explicitRepoId: repoId,
+      trusted: true,
+    });
+    expect(stale).toHaveLength(0);
+    expect(svc.getCached(repoId)).toBeNull();
+  });
+
   it("resolves nested repository as deepest match", () => {
     const svc = createRepositoryService({
       execGit: makeExecGit({}),

@@ -55,7 +55,11 @@ export function createTemporaryWorkContext(deps: TemporaryWorkHandlerDeps) {
     return check.repository;
   }
 
-  function emitStashSnapshot(repoId: string, stashes: Awaited<ReturnType<typeof stash.listStashes>>) {
+  function emitStashSnapshot(
+    repoId: string,
+    stashes: Awaited<ReturnType<typeof stash.listStashes>>,
+    requestId?: string,
+  ) {
     const snapshot = {
       repoId,
       stashes,
@@ -65,11 +69,16 @@ export function createTemporaryWorkContext(deps: TemporaryWorkHandlerDeps) {
       protocolVersion: PROTOCOL_VERSION,
       type: "stash.snapshot",
       payload: snapshot,
+      requestId,
     });
     return snapshot;
   }
 
-  function emitShelfSnapshot(repoId: string, shelves: Awaited<ReturnType<typeof shelf.listShelves>>) {
+  function emitShelfSnapshot(
+    repoId: string,
+    shelves: Awaited<ReturnType<typeof shelf.listShelves>>,
+    requestId?: string,
+  ) {
     const snapshot = {
       repoId,
       shelves,
@@ -79,6 +88,7 @@ export function createTemporaryWorkContext(deps: TemporaryWorkHandlerDeps) {
       protocolVersion: PROTOCOL_VERSION,
       type: "shelf.snapshot",
       payload: snapshot,
+      requestId,
     });
     return snapshot;
   }

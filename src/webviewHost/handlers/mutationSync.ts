@@ -1,6 +1,7 @@
 import { hasUpstream, resolveDefaultRemote } from "../../services/git/upstream";
 import type { RootUpdateResult } from "../../services/git/sync";
 import { classifySyncFailure } from "../../services/syncOperationCoordinator";
+import { toUserFacingGitError } from "../../util/safeLog";
 import {
   createError,
   isGitViewStructuredError,
@@ -102,6 +103,33 @@ export function createSyncMutationHandlers(ctx: MutationHandlerContext) {
     preconditionError,
   } = ctx;
 
+  /**
+   * Refuse to start while a queued mutation is still running for the same
+   * repository — a pull overlapping a checkout or a reset would leave the
+   * index and working tree in a state neither operation produced. Checked
+   * synchronously together with the coordinator registration below, so a
+   * mutation enqueued afterwards is rejected by the router instead.
+   */
+  function rejectWhileMutationsBusy(
+    requestId: string,
+    repoId: string,
+    repoName: string,
+  ): boolean {
+    if (!(deps.repositoryMutationSerializer?.isBusy(repoId) ?? false)) {
+      return false;
+    }
+    deps.postMessage(
+      createHostError(
+        requestId,
+        createError(
+          "OPERATION_IN_PROGRESS",
+          `Another GitView operation is running for ${repoName}. Try again when it finishes.`,
+        ),
+      ),
+    );
+    return true;
+  }
+
   return {
     async fetchRepo(requestId: string, repoId: string) {
       const repo = await validateRepoMutation(requestId, repoId);
@@ -119,6 +147,9 @@ export function createSyncMutationHandlers(ctx: MutationHandlerContext) {
             }),
           ),
         );
+        return;
+      }
+      if (rejectWhileMutationsBusy(requestId, repo.id, repo.name)) {
         return;
       }
       try {
@@ -193,6 +224,9 @@ export function createSyncMutationHandlers(ctx: MutationHandlerContext) {
             }),
           ),
         );
+        return;
+      }
+      if (rejectWhileMutationsBusy(requestId, repo.id, repo.name)) {
         return;
       }
       try {
@@ -274,6 +308,9 @@ export function createSyncMutationHandlers(ctx: MutationHandlerContext) {
         );
         return;
       }
+      if (rejectWhileMutationsBusy(requestId, repo.id, repo.name)) {
+        return;
+      }
       try {
         const terminal = await deps.syncOperationCoordinator.run({
           requestId,
@@ -297,7 +334,9 @@ export function createSyncMutationHandlers(ctx: MutationHandlerContext) {
                 if (result.rejected) {
                   throw createError(
                     "PUSH_REJECTED",
-                    result.stderr || "Push was rejected by the remote.",
+                    toUserFacingGitError(
+                      result.stderr || "Push was rejected by the remote.",
+                    ) || "Push was rejected by the remote.",
                   );
                 }
               },
@@ -351,6 +390,22 @@ export function createSyncMutationHandlers(ctx: MutationHandlerContext) {
             state: "pending",
           })),
         };
+        const busyRoot = repos.find(
+          (candidate) =>
+            deps.repositoryMutationSerializer?.isBusy(candidate.id) ?? false,
+        );
+        if (busyRoot) {
+          deps.postMessage(
+            createHostError(
+              requestId,
+              createError(
+                "OPERATION_IN_PROGRESS",
+                `Another GitView operation is running for ${busyRoot.name}. Try again when it finishes.`,
+              ),
+            ),
+          );
+          return;
+        }
         const terminal = await deps.syncOperationCoordinator.run({
           requestId,
           operation: "update_all_roots",

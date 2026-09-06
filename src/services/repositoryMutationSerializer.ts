@@ -6,6 +6,12 @@ export type RepositoryMutationSerializer = {
    * block each other — only work aimed at the same repository is ordered.
    */
   run<T>(key: string, operation: () => Promise<T>): Promise<T>;
+  /**
+   * True while at least one operation is queued or running under `key`. The
+   * sync operation handlers check this before starting, so a pull cannot
+   * overlap a mutation that is about to run.
+   */
+  isBusy(key: string): boolean;
 };
 
 /**
@@ -40,6 +46,9 @@ export function createRepositoryMutationSerializer(): RepositoryMutationSerializ
         }
       });
       return next;
+    },
+    isBusy(key: string): boolean {
+      return queues.has(key);
     },
   };
 }

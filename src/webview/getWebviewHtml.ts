@@ -34,14 +34,13 @@ export async function getWebviewHtml(
     );
   }
   let html = new TextDecoder("utf-8").decode(bytes);
+  const nonce = makeNonce();
 
   // Vite emits crossorigin + modulepreload; VS Code webviews load assets from
   // vscode-resource:// URIs and treat crossorigin module scripts as CORS requests
   // that never execute — React never mounts and the panel stays blank.
   html = html.replace(/\s+crossorigin(?:="[^"]*")?/g, "");
   html = html.replace(/<link rel="modulepreload"[^>]*>\s*/g, "");
-
-  const nonce = makeNonce();
 
   // Rewrite asset refs ("/assets/..." or "./assets/...") to webview URIs.
   html = html.replace(
@@ -50,7 +49,7 @@ export async function getWebviewHtml(
       const assetUri = webview.asWebviewUri(
         vscode.Uri.joinPath(distUri, p.replace(/^\.?\//, "")),
       );
-      return `${attr}="${assetUri.toString()}"`;
+      return `${attr}="${assetUri.toString()}?v=${nonce}"`;
     },
   );
 
@@ -86,7 +85,7 @@ export async function getWebviewHtml(
   const nonceMeta = `<meta property="csp-nonce" nonce="${nonce}" content="${nonce}">`;
 
   const app = opts?.app ?? "merge";
-  const bootstrap = `<script nonce="${nonce}">window.__GITVIEW_APP__="${app}";</script>`;
+  const bootstrap = `<script nonce="${nonce}">window.__GITVIEW_APP__="${app}";(function(){function fail(message){var root=document.getElementById("root");if(root&&root.textContent&&root.textContent.indexOf("Loading GitView")!==-1){root.textContent="GitView failed to start: "+message;}}window.addEventListener("error",function(event){fail(event.message||"JavaScript bundle could not be loaded.");});window.addEventListener("unhandledrejection",function(event){var reason=event.reason;fail(reason&&reason.message?reason.message:String(reason||"Unknown startup error."));});setTimeout(function(){fail("JavaScript bundle did not start. Reload the VS Code window and reopen GitView.");},8000);}());</script>`;
   html = html.replace("</head>", `  ${nonceMeta}\n  ${bootstrap}\n</head>`);
 
   return html;

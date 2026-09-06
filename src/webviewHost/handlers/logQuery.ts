@@ -105,6 +105,7 @@ export function createLogQueryHandlers(apis: LogHandlerApis) {
         protocolVersion: PROTOCOL_VERSION,
         type: "log.snapshot",
         payload: snapshot,
+        requestId,
       });
       deps.postMessage(createHostResponse(requestId, "log.query", snapshot));
     },
@@ -173,6 +174,7 @@ export function createLogQueryHandlers(apis: LogHandlerApis) {
         protocolVersion: PROTOCOL_VERSION,
         type: "diff.result",
         payload: document,
+        requestId,
       });
       deps.postMessage(createHostResponse(requestId, "log.fileDiff", document));
     },

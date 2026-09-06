@@ -32,7 +32,7 @@ describe("blame.query instance cache", () => {
       if (key === "diff --numstat -- src/app.ts") {
         return Promise.resolve({ stdout: "1\t0\tsrc/app.ts\n", stderr: "" });
       }
-      if (key === "blame --line-porcelain -M -C HEAD -- src/app.ts") {
+      if (key === "blame --line-porcelain -M HEAD -- src/app.ts") {
         blameCalls += 1;
         return Promise.resolve({ stdout: blamePorcelain, stderr: "" });
       }

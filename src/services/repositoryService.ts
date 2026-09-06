@@ -274,7 +274,16 @@ export function createRepositoryService(
     // computed for a dirty tree — a clean one has nothing to go stale against,
     // and this keeps the refresh hot path free of extra file reads.
     const changeDigest = dirty
-      ? await computeChangeDigest(normalizedRoot, files).catch(() => null)
+      ? await computeChangeDigest(normalizedRoot, files).catch((error) => {
+          // A null digest means "unknown", which keeps confirmation evidence
+          // from going stale — a safety feature degrading silently. Log it so
+          // the degradation is visible in the output channel.
+          logger.warn("repository.changeDigest.failed", {
+            repoId: id,
+            ...errorLogFields(error),
+          });
+          return null;
+        })
       : null;
     const repository: Repository = {
       id,
@@ -313,25 +322,41 @@ export function createRepositoryService(
   async function discoverRepositories(
     input: RepositoryDiscoveryInput,
   ): Promise<Repository[]> {
+    const activeFolderKeys = new Set(
+      input.workspaceFolders.map((folder) => normalizePath(folder.uriPath)),
+    );
     const explicit = input.explicitRepoId
       ? cache.get(input.explicitRepoId)
       : undefined;
     if (explicit && !input.forceTopologyRefresh) {
-      const refreshed = await buildRepository(
-        explicit.rootPath,
-        explicit.workspaceFolderPath,
-        input.trusted,
+      // A cached repoId must still be validated against the current workspace
+      // topology: after its folder is removed, a late panel request carrying
+      // the stale id must not rebuild and mutate the detached repository.
+      const folderKey =
+        explicit.workspaceFolderPath ?
+          normalizePath(explicit.workspaceFolderPath)
+        : null;
+      const folderActive = folderKey ? activeFolderKeys.has(folderKey) : false;
+      const rootInsideActiveFolder = [...activeFolderKeys].some((folder) =>
+        isPathWithin(explicit.rootPath, folder),
       );
-      cache.set(refreshed.id, refreshed);
-      return [refreshed];
+      if (!folderActive && !rootInsideActiveFolder) {
+        cache.delete(explicit.id);
+        statusCache.delete(explicit.id);
+      } else {
+        const refreshed = await buildRepository(
+          explicit.rootPath,
+          explicit.workspaceFolderPath,
+          input.trusted,
+        );
+        cache.set(refreshed.id, refreshed);
+        return [refreshed];
+      }
     }
     if (input.forceTopologyRefresh) {
       invalidateTopology();
     }
 
-    const activeFolderKeys = new Set(
-      input.workspaceFolders.map((folder) => normalizePath(folder.uriPath)),
-    );
     for (const folderKey of topologyByFolder.keys()) {
       if (!activeFolderKeys.has(folderKey)) {
         topologyByFolder.delete(folderKey);

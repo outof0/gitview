@@ -64,6 +64,65 @@ export function resolveRepoRelativePath(
   };
 }
 
+export type RepoParentPathSuccess = {
+  ok: true;
+  relativePath: string;
+  /** Lexical location: the final component is deliberately NOT resolved. */
+  absolutePath: string;
+};
+
+export type RepoParentPathResult = RepoParentPathSuccess | RepoPathError;
+
+/**
+ * Containment check for operations that replace — never follow — the final
+ * entry (atomic rename-over, symlink materialization, unlink).
+ *
+ * Unlike `resolveRepoRelativeRealPath`, the final component is not resolved:
+ * an existing hostile symlink at the destination must not veto its own
+ * replacement, and resolving it would answer the wrong question. Every
+ * *parent* component is resolved (intermediate symlinks escaping the repo
+ * are refused) and missing tail directories are tolerated but proven to sit
+ * inside the repository.
+ */
+export async function resolveRepoParentRealPath(
+  repoRoot: string,
+  relativePath: string,
+): Promise<RepoParentPathResult> {
+  const lexical = resolveRepoRelativePath(repoRoot, relativePath);
+  if (!lexical.ok) {
+    return lexical;
+  }
+
+  try {
+    const normalizedRoot = path.resolve(repoRoot);
+    const realRoot = await fs.realpath(normalizedRoot);
+    const realParent = await realpathAllowingMissingTail(
+      path.dirname(lexical.absolutePath),
+      normalizedRoot,
+    );
+
+    if (realParent !== realRoot && !realParent.startsWith(realRoot + path.sep)) {
+      return {
+        ok: false,
+        code: "INVALID_PATH",
+        message: INVALID_PATH_MESSAGE,
+      };
+    }
+
+    return {
+      ok: true,
+      relativePath: lexical.relativePath,
+      absolutePath: lexical.absolutePath,
+    };
+  } catch {
+    return {
+      ok: false,
+      code: "INVALID_PATH",
+      message: INVALID_PATH_MESSAGE,
+    };
+  }
+}
+
 export type RepoRealPathSuccess = RepoPathSuccess & {
   /** Where the path actually points once symlinks are resolved. */
   realPath: string;

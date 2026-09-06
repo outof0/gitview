@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createProtectionService } from "../../services/protectionService";
 import { createSyncOperationCoordinator } from "../../services/syncOperationCoordinator";
+import type { RepositoryMutationSerializer } from "../../services/repositoryMutationSerializer";
 import type { GitExecFn } from "../../services/git/types";
 import { createHostEvent, type HostToWebview } from "../../shared/protocol";
 import type { Repository } from "../../shared/types/repository";
@@ -39,6 +40,7 @@ function createRepositoryService(repositories: Repository[] = [repository]) {
 function setupWithExec(
   execGit: GitExecFn,
   repositories: Repository[] = [repository],
+  repositoryMutationSerializer?: RepositoryMutationSerializer,
 ) {
   const sent: HostToWebview[] = [];
   const syncOperationCoordinator = createSyncOperationCoordinator({
@@ -54,6 +56,7 @@ function setupWithExec(
     protectionService: createProtectionService([]),
     refreshCoordinator: { refreshNow } as never,
     syncOperationCoordinator,
+    repositoryMutationSerializer,
     trusted: true,
     workspaceFolders: repositories.map((repo) => ({
       uriPath: repo.workspaceFolderPath ?? repo.rootPath,
@@ -62,6 +65,13 @@ function setupWithExec(
     postMessage: (message) => sent.push(message),
   });
   return { handlers, sent, refreshNow, syncOperationCoordinator };
+}
+
+function serializerStub(isBusy: boolean): RepositoryMutationSerializer {
+  return {
+    run: async (_key, operation) => operation(),
+    isBusy: () => isBusy,
+  };
 }
 
 function setup(fetch: (signal: AbortSignal) => Promise<void>) {
@@ -311,6 +321,59 @@ describe("sync mutation lifecycle", () => {
           },
         },
       },
+    });
+  });
+
+  it("refuses to start a sync while a mutation is queued for the repository", async () => {
+    // A pull overlapping a checkout or a reset on the same repository would
+    // leave the index and working tree in a state neither produced.
+    const execGit = vi.fn<GitExecFn>(async (_root, args) => {
+      if (args.join(" ") === "remote") {
+        return { stdout: "origin\n", stderr: "" };
+      }
+      throw new Error(`Unexpected Git command: ${args.join(" ")}`);
+    });
+    const { handlers, sent } = setupWithExec(
+      execGit,
+      [repository],
+      serializerStub(true),
+    );
+
+    await handlers.fetchRepo("fetch-busy", repository.id);
+
+    expect(syncEvents(sent)).toEqual([]);
+    expect(sent.at(-1)).toMatchObject({
+      type: "error",
+      requestId: "fetch-busy",
+      error: { code: "OPERATION_IN_PROGRESS" },
+    });
+  });
+
+  it("starts the sync when the mutation queue is idle", async () => {
+    const { handlers, sent } = setupWithExec(
+      vi.fn<GitExecFn>(async (_root, args) => {
+        if (args.join(" ") === "remote") {
+          return { stdout: "origin\n", stderr: "" };
+        }
+        if (args.join(" ").startsWith("rev-parse --abbrev-ref")) {
+          return { stdout: "origin/main\n", stderr: "" };
+        }
+        if (args.join(" ") === "fetch origin") {
+          return { stdout: "", stderr: "" };
+        }
+        throw new Error(`Unexpected Git command: ${args.join(" ")}`);
+      }),
+      [repository],
+      serializerStub(false),
+    );
+
+    await handlers.fetchRepo("fetch-idle", repository.id);
+
+    expect(syncEvents(sent).at(-1)).toMatchObject({ state: "completed" });
+    expect(sent.at(-1)).toMatchObject({
+      type: "sync.fetch",
+      requestId: "fetch-idle",
+      ok: true,
     });
   });
 
