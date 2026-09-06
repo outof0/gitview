@@ -5,11 +5,9 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
-import {
-  GitDialogShell,
-  gitDialogBtnDanger,
-  gitDialogBtnSecondary,
-} from "../ui/GitDialogShell";
+import { GitDialogShell } from "../ui/GitDialogShell";
+import { Button } from "../ui/Button";
+import { TextField } from "../ui/TextField";
 
 type TypedDestructiveConfirmDialogProps = {
   open: boolean;
@@ -72,24 +70,24 @@ export function TypedDestructiveConfirmDialog({
       onCancel={onCancel}
       footer={
         <>
-          <button
+          <Button
             type="button"
-            className={gitDialogBtnSecondary}
+            variant="secondary" size="compact"
             onClick={onCancel}
             data-dialog-initial-focus="true"
             data-testid={cancelTestId}
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
             form={formId}
-            className={`${gitDialogBtnDanger} disabled:opacity-40 disabled:cursor-default`}
+            variant="danger" size="compact" className="disabled:opacity-40 disabled:cursor-default"
             disabled={!canConfirm}
             data-testid={confirmTestId}
           >
             {busy ? "Working…" : confirmLabel}
-          </button>
+          </Button>
         </>
       }
     >
@@ -99,7 +97,7 @@ export function TypedDestructiveConfirmDialog({
         </p>
         {children}
         {warning ? (
-          <div className="mb-3 text-[var(--vscode-inputValidation-warningForeground,#e0ad53)]">
+          <div className="mb-3 text-warning-fg">
             {warning}
           </div>
         ) : null}
@@ -109,11 +107,12 @@ export function TypedDestructiveConfirmDialog({
               Type <code className="font-mono">{expectedTypedValue}</code> to
               confirm
             </span>
-            <input
+            <TextField
               id={inputId}
+              size="default"
+              containerClassName="w-full"
               value={typedValue}
               onChange={(event) => setTypedValue(event.target.value)}
-              className="w-full h-8 px-2 rounded-vscode border border-border bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)]"
               autoComplete="off"
               spellCheck={false}
               data-testid={inputTestId}

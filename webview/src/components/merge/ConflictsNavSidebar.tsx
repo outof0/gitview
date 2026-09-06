@@ -1,4 +1,6 @@
+import { Button } from "../ui/Button";
 import type { BlockRows } from "./rows";
+import { ScrollArea } from "../ui/ScrollArea";
 
 type ConflictsNavSidebarProps = {
   changes: BlockRows[];
@@ -16,11 +18,11 @@ const TYPE_LABEL: Record<BlockRows["changeType"], string> = {
 
 const DOT_BG: Record<BlockRows["changeType"], string> = {
   unchanged: "bg-foreground/40",
-  added: "bg-[var(--vscode-gitDecoration-addedResourceForeground,#4ba85a)]",
+  added: "bg-status-added",
   modified:
-    "bg-[var(--vscode-gitDecoration-modifiedResourceForeground,#3887c7)]",
-  deleted: "bg-[var(--vscode-descriptionForeground,#6b6c6e)]",
-  conflict: "bg-[var(--vscode-editorError-foreground,#cf5c56)]",
+    "bg-status-modified",
+  deleted: "bg-vscode-description",
+  conflict: "bg-editor-error-fg",
 };
 
 export function ConflictsNavSidebar({
@@ -30,16 +32,16 @@ export function ConflictsNavSidebar({
 }: ConflictsNavSidebarProps) {
   return (
     <div
-      className="w-60 flex flex-col border-l border-border bg-[var(--vscode-sideBar-background,var(--background))] overflow-hidden font-sans"
+      className="w-60 flex flex-col border-l border-border bg-vscode-sidebar-bg overflow-hidden font-sans"
       data-testid="conflicts-nav"
     >
-      <div className="h-[26px] flex items-center px-2.5 text-[11px] font-semibold text-[var(--vscode-sideBarTitle-foreground,var(--vscode-descriptionForeground,#70727a))] border-b border-border">
+      <div className="h-control flex items-center px-2.5 text-ui-sm font-semibold text-sidebar-title-fg border-b border-border">
         Conflicts Navigation ({changes.length})
       </div>
-      <div className="flex-1 overflow-auto">
+      <ScrollArea axis="vertical" className="flex-1">
         {changes.length === 0 ? (
           <div
-            className="w-full px-2.5 py-1.5 text-xs text-[var(--vscode-descriptionForeground,#70727a)]"
+            className="w-full px-2.5 py-1.5 text-xs text-vscode-description"
             aria-disabled="true"
           >
             No changes
@@ -48,7 +50,7 @@ export function ConflictsNavSidebar({
           changes.map((c, i) => {
             const isActive = activeBlockId === c.blockId;
             return (
-              <button
+              <Button variant="ghost" size="content"
                 type="button"
                 key={c.blockId}
                 className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-left text-foreground hover:bg-list-hover outline-none cursor-pointer border-none bg-transparent ${
@@ -67,21 +69,21 @@ export function ConflictsNavSidebar({
                   {`${i + 1}. ${TYPE_LABEL[c.changeType]}`}
                 </span>
                 <span
-                  className={`flex-none text-[10px] ${
+                  className={`flex-none text-section ${
                     c.resolved
-                      ? "text-[var(--vscode-gitDecoration-addedResourceForeground,#4ba85a)]"
+                      ? "text-status-added"
                       : isActive
                         ? "text-list-activeForeground/80"
-                        : "text-[var(--vscode-editorWarning-foreground,#e0ad53)]"
+                        : "text-editor-warning-fg"
                   }`}
                 >
                   {c.resolved ? "resolved" : "unresolved"}
                 </span>
-              </button>
+              </Button>
             );
           })
         )}
-      </div>
+      </ScrollArea>
     </div>
   );
 }

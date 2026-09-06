@@ -1,3 +1,4 @@
+import { Button } from "../../ui/Button";
 import { useState } from "react";
 import { Check, Eye, GitBranch, Play, RefreshCw, Search } from "lucide-react";
 import type { LogQueryFilters } from "@gitview/shared/types/log";
@@ -13,9 +14,9 @@ type WorkspaceLogToolbarProps = {
 };
 
 const iconBtnCls =
-  "h-[22px] w-[22px] shrink-0 flex items-center justify-center rounded-sm hover:bg-list-hover disabled:opacity-40 disabled:hover:bg-transparent text-vscode-description";
+  "h-row w-row shrink-0 flex items-center justify-center rounded-vscode hover:bg-list-hover disabled:opacity-40 disabled:hover:bg-transparent text-foreground";
 const optionLabelCls =
-  "flex items-center gap-2 min-h-7 w-full px-2 text-[length:var(--vscode-font-size,13px)] leading-none text-foreground cursor-pointer select-none hover:bg-[var(--vscode-menu-selectionBackground,var(--vscode-list-hoverBackground))] rounded-sm text-left";
+  "flex items-center gap-2 min-h-menu-item w-full px-menu-pad-x py-menu-pad-y text-ui leading-none text-menu-fg cursor-pointer select-none hover:bg-menu-selection hover:text-menu-selectionForeground text-left outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset";
 
 function focusLogSearch(): void {
   const input = document.querySelector('[data-testid="log-filter-grep"]');
@@ -45,7 +46,7 @@ export function WorkspaceLogToolbar({
 
   return (
     <div className="flex items-center gap-0.5 shrink-0">
-      <button
+      <Button variant="ghost" size="content"
         type="button"
         className={iconBtnCls}
         title="Apply filters"
@@ -58,8 +59,8 @@ export function WorkspaceLogToolbar({
         data-testid="log-apply-filters"
       >
         <Play size={16} aria-hidden />
-      </button>
-      <button
+      </Button>
+      <Button variant="ghost" size="content"
         type="button"
         className={iconBtnCls}
         title="Refresh"
@@ -69,10 +70,10 @@ export function WorkspaceLogToolbar({
         data-testid="log-refresh"
       >
         <RefreshCw size={16} aria-hidden />
-      </button>
-      <button
+      </Button>
+      <Button variant="ghost" size="content"
         type="button"
-        className={`${iconBtnCls} ${filters.highlightCurrentBranch ? "text-foreground bg-list-hover" : ""}`}
+        className={`${iconBtnCls} ${filters.highlightCurrentBranch ? "bg-list-active text-list-activeForeground hover:bg-list-active" : ""}`}
         title="Highlight current branch"
         aria-pressed={Boolean(filters.highlightCurrentBranch)}
         onClick={() =>
@@ -84,9 +85,9 @@ export function WorkspaceLogToolbar({
         data-testid="log-highlight-current-branch"
       >
         <GitBranch size={16} aria-hidden />
-      </button>
+      </Button>
       <div className="relative">
-        <button
+        <Button variant="ghost" size="content"
           ref={setViewAnchor}
           type="button"
           className={iconBtnCls}
@@ -99,7 +100,7 @@ export function WorkspaceLogToolbar({
           data-testid="log-view-options"
         >
           <Eye size={16} aria-hidden />
-        </button>
+        </Button>
         <LogMenuPortal
           open={viewOpen}
           anchor={viewAnchor}
@@ -117,7 +118,7 @@ export function WorkspaceLogToolbar({
               ["compactRows", "Compact", false],
             ] as const
           ).map(([key, label, refresh]) => (
-            <button
+            <Button variant="ghost" size="content"
               key={key}
               type="button"
               role="menuitemcheckbox"
@@ -136,20 +137,20 @@ export function WorkspaceLogToolbar({
               }}
             >
               <span
-                className={`w-[14px] h-[14px] rounded-[2px] border flex items-center justify-center shrink-0 ${
+                className={`w-icon-sm h-icon-sm rounded-vscode border flex items-center justify-center shrink-0 ${
                   filters[key]
-                    ? "bg-[var(--vscode-checkbox-background,var(--vscode-input-background))] border-[var(--vscode-checkbox-border,var(--border))] text-[var(--vscode-checkbox-foreground,var(--vscode-button-foreground))]"
-                    : "bg-[var(--vscode-checkbox-background,transparent)] border-[var(--vscode-checkbox-border,var(--border))]"
+                    ? "bg-checkbox-bg border-checkbox-border text-checkbox-fg"
+                    : "bg-checkbox-bg border-checkbox-border"
                 }`}
               >
                 {filters[key] ? <Check size={10} aria-hidden /> : null}
               </span>
               {label}
-            </button>
+            </Button>
           ))}
         </LogMenuPortal>
       </div>
-      <button
+      <Button variant="ghost" size="content"
         type="button"
         className={iconBtnCls}
         title="Focus search"
@@ -158,7 +159,7 @@ export function WorkspaceLogToolbar({
         data-testid="log-focus-search"
       >
         <Search size={16} aria-hidden />
-      </button>
+      </Button>
     </div>
   );
 }

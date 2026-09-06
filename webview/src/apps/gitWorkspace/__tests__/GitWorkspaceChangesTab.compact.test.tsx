@@ -75,16 +75,16 @@ describe("Git Workspace compact sidebar layout", () => {
   it("lets the Changes tree fill a sidebar and hides the side diff under 400px", () => {
     render(<GitWorkspaceChangesTab ctx={ctx()} />);
     const tree = screen.getByTestId("workspace-changes");
-    expect(tree.parentElement?.className).toContain("max-[400px]:w-full");
+    expect(tree.parentElement?.className).toContain("max-form-narrow:w-full");
     expect(screen.getByTestId("workspace-diff-panel").parentElement?.className).toContain(
-      "max-[400px]:hidden",
+      "max-form-narrow:hidden",
     );
   });
 
   it("hides the commit surface under 280px", () => {
     render(<GitWorkspaceCommitPanel ctx={ctx()} />);
     expect(screen.getByTestId("gitview-commit-panel").parentElement?.className).toContain(
-      "max-[280px]:hidden",
+      "max-bottom-panel-xs:hidden",
     );
   });
 });

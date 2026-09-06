@@ -3,14 +3,13 @@ import type { LogCommitEntry } from "@gitview/shared/types/log";
 import {
   assignCommitLanes,
   buildGitLogGraphEdges,
+  buildGitLogGraphLayout,
   buildParentEdgePath,
+  gitLogGraphWidth,
   laneCenterX,
 } from "../gitLogGraph";
 
-function commit(
-  sha: string,
-  parentShas: string[] = [],
-): LogCommitEntry {
+function commit(sha: string, parentShas: string[] = []): LogCommitEntry {
   return {
     sha,
     shortSha: sha.slice(0, 7),
@@ -44,6 +43,48 @@ describe("assignCommitLanes", () => {
     expect(lanes.get("feature")).toBe(1);
     expect(lanes.get("main")).toBe(0);
   });
+
+  it("does not reserve lanes for parents outside a filtered history", () => {
+    const commits = Array.from({ length: 100 }, (_, index) =>
+      commit(`visible-${index}`, [`filtered-parent-${index}`]),
+    );
+
+    const lanes = assignCommitLanes(commits);
+
+    expect(new Set(lanes.values())).toEqual(new Set([0]));
+    expect(gitLogGraphWidth(lanes)).toBe(34);
+  });
+
+  it("still reserves a lane when the parent appears later in the list", () => {
+    const commits = [
+      commit("merge", ["filtered-main", "feature"]),
+      commit("independent", []),
+      commit("feature", []),
+    ];
+
+    const lanes = assignCommitLanes(commits);
+
+    expect(lanes.get("merge")).toBe(0);
+    expect(lanes.get("independent")).toBe(1);
+    expect(lanes.get("feature")).toBe(0);
+  });
+
+  it("opens merge side lanes to the right of an active lane", () => {
+    const commits = [
+      commit("main-tip", ["main"]),
+      commit("merge", ["main", "feature"]),
+      commit("feature", ["base"]),
+      commit("main", ["base"]),
+      commit("base", []),
+    ];
+
+    const lanes = assignCommitLanes(commits);
+
+    expect(lanes.get("main-tip")).toBe(0);
+    expect(lanes.get("merge")).toBe(1);
+    expect(lanes.get("feature")).toBe(2);
+    expect(lanes.get("main")).toBe(0);
+  });
 });
 
 describe("buildParentEdgePath", () => {
@@ -64,6 +105,24 @@ describe("buildParentEdgePath", () => {
     expect(d).not.toMatch(
       new RegExp(`L ${x0} [\\d.]+ L ${x1} [\\d.]+ L ${x1}`),
     );
+  });
+});
+
+describe("buildGitLogGraphLayout row mapping", () => {
+  it("keeps graph geometry aligned when a collapsed placeholder occupies a row", () => {
+    const commits = [commit("tip", ["base"]), commit("base", [])];
+    const rowBySha = new Map([
+      ["tip", 1],
+      ["base", 3],
+    ]);
+    const layout = buildGitLogGraphLayout(commits, {
+      rowBySha,
+      rowCount: 4,
+    });
+
+    expect(layout.height).toBe(4 * 24);
+    expect(layout.rowBySha.get("base")).toBe(3);
+    expect(layout.edges[0]?.d).toMatch(/^M 17 40.5 .*79.5/);
   });
 });
 

@@ -18,8 +18,6 @@ export function GitWorkspaceReviewTab({ ctx }: { ctx: GitWorkspaceController }) 
     reviewError,
     reviewFilters,
     selectedReviewId,
-    setReviewLoading,
-    setReviewError,
     setReviewFilters,
     setSelectedReviewId,
     activeRepo,
@@ -40,19 +38,10 @@ export function GitWorkspaceReviewTab({ ctx }: { ctx: GitWorkspaceController }) 
           onRefresh={() => void loadReviews()}
           onFiltersChange={(filters) => {
             setReviewFilters(filters);
-            if (activeRepo) {
-              setReviewLoading(true);
-              void clientRef.current
-                .listReviews(activeRepo.id, {
-                  providerId: reviewSnapshot?.selectedProviderId ?? undefined,
-                  filters,
-                })
-                .catch((err: unknown) => {
-                  setReviewError(
-                    err instanceof Error ? err.message : "Failed to load reviews",
-                  );
-                });
-            }
+            // Filter and provider reloads go through the same repo-scoped
+            // loader as every other review request — never a direct
+            // unscoped client call.
+            void loadReviews({ filters });
           }}
           onSelectReview={(reviewId) => {
             setSelectedReviewId(reviewId);
@@ -212,17 +201,7 @@ export function GitWorkspaceReviewTab({ ctx }: { ctx: GitWorkspaceController }) 
             )
           }
           onProviderChange={(providerId) => {
-            if (!activeRepo) {
-              return;
-            }
-            setReviewLoading(true);
-            void clientRef.current
-              .listReviews(activeRepo.id, { providerId, filters: reviewFilters })
-              .catch((err: unknown) => {
-                setReviewError(
-                  err instanceof Error ? err.message : "Failed to load reviews",
-                );
-              });
+            void loadReviews({ providerId });
           }}
         />
   );

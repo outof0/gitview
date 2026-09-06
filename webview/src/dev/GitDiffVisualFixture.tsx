@@ -76,7 +76,7 @@ export function GitDiffVisualFixture() {
 
   return (
     <div
-      className="h-screen w-screen flex flex-col overflow-hidden bg-vscode-editor-bg text-vscode-editor-fg font-[family-name:var(--nx-font-ui)] vscode-dark"
+      className="h-screen w-screen flex flex-col overflow-hidden bg-vscode-editor-bg text-vscode-editor-fg font-ui vscode-dark"
       data-testid="git-diff-app"
       data-visual-fixture="gitDiff"
     >

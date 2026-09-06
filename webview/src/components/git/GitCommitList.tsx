@@ -1,3 +1,4 @@
+import { Button } from "../ui/Button";
 import { useEffect, useMemo, useRef } from "react";
 import type { LogCommitEntry } from "@gitview/shared/types/log";
 import type { CollapsedLogCommit } from "../../lib/collapseLinearCommits";
@@ -65,9 +66,24 @@ export function GitCommitList({
         .map((entry) => entry.commit),
     [entries],
   );
+  const graphRowBySha = useMemo(
+    () =>
+      new Map(
+        entries.flatMap((entry, row) =>
+          entry.kind === "commit" ? [[entry.commit.sha, row] as const] : [],
+        ),
+      ),
+    [entries],
+  );
   const graphLayout = useMemo(
-    () => (graphDensity ? buildGitLogGraphLayout(graphCommits) : null),
-    [graphCommits, graphDensity],
+    () =>
+      graphDensity
+        ? buildGitLogGraphLayout(graphCommits, {
+            rowBySha: graphRowBySha,
+            rowCount: entries.length,
+          })
+        : null,
+    [entries.length, graphCommits, graphDensity, graphRowBySha],
   );
 
   useEffect(() => {
@@ -82,7 +98,7 @@ export function GitCommitList({
 
   if (loading) {
     return (
-      <div className="px-[var(--nx-pad-x)] py-1.5 text-[length:var(--nx-font-size-ui-sm)] text-[var(--vscode-descriptionForeground)]">
+      <div className="p-3 text-ui-sm text-vscode-description">
         Loading history…
       </div>
     );
@@ -91,7 +107,7 @@ export function GitCommitList({
   if (entries.length === 0) {
     return (
       <div
-        className="px-[var(--nx-pad-x)] py-1.5 text-[length:var(--nx-font-size-ui-sm)] text-[var(--vscode-descriptionForeground)]"
+        className="p-3 text-ui-sm text-vscode-description"
         data-testid="git-commit-list-empty"
       >
         {emptyLabel}
@@ -106,9 +122,13 @@ export function GitCommitList({
           const selected = entry.commits.some((c) => c.sha === selectedSha);
           return (
             <li key={`collapsed-${entry.fromSha}-${entry.toSha}`}>
-              <button
+              <Button variant="ghost" size="content"
                 type="button"
-                className={`w-full text-left px-3 py-2 border-none cursor-pointer text-[12px] leading-5 ${
+                className={`w-full text-left border-none cursor-pointer text-ui ${
+                  graphDensity
+                    ? "h-log-graph-row min-h-log-graph-row py-0 flex items-center"
+                    : "px-3 py-2 leading-5"
+                } ${
                   selected
                     ? "bg-list-active text-list-activeForeground"
                     : "bg-transparent text-foreground hover:bg-list-hover"
@@ -116,7 +136,7 @@ export function GitCommitList({
                 onClick={() => onExpandCollapsed?.(entry.commits)}
                 data-testid="git-commit-collapsed"
               >
-                <div className="font-mono text-[var(--vscode-textLink-foreground)]">
+                <div className="font-mono text-vscode-link">
                   {entry.commits[0]?.shortSha}…
                   {entry.commits[entry.count - 1]?.shortSha}
                 </div>
@@ -124,15 +144,15 @@ export function GitCommitList({
                   {entry.count} linear commits
                 </div>
                 <div
-                  className={`truncate text-[11px] ${
+                  className={`truncate text-ui-sm ${
                     selected
                       ? "text-list-activeForeground/80"
-                      : "text-[var(--vscode-descriptionForeground)]"
+                      : "text-vscode-description"
                   }`}
                 >
                   Click to expand
                 </div>
-              </button>
+              </Button>
             </li>
           );
         }

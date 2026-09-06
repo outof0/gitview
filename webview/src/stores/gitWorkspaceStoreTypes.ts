@@ -45,6 +45,12 @@ export type GitWorkspaceState = {
    */
   nativeFocusSurface: GitWorkspaceDialogId | "branches" | null;
   repoSnapshot: RepositorySnapshot | null;
+  /**
+   * Monotonic repository-selection epoch, bumped on every active-repository
+   * change. Async completions capture it with their repo id so A→B→A can no
+   * longer pass a stale completion as current (ABA).
+   */
+  repoEpoch: number;
   statusSnapshot: StatusSnapshot | null;
   syncOperations: GitWorkspaceSyncOperation[];
   branchSnapshot: BranchListSnapshot | null;

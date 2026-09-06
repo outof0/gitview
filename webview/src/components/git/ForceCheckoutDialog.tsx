@@ -52,7 +52,7 @@ export function ForceCheckoutDialog({
       onConfirm={(typedValue) => onConfirm({ evidence: confirmation, typedValue })}
     >
       {multiRoot ? (
-        <ul className="mb-3 max-h-32 overflow-y-auto text-[11px]">
+        <ul className="mb-3 max-h-32 overflow-y-auto text-ui-sm">
           {repositoryNames.map((name) => (
             <li key={name}>{name}</li>
           ))}

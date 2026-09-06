@@ -9,6 +9,7 @@ import {
 } from "./MonacoDiffViewer";
 import { HighlightedCodeLine } from "./HighlightedCodeLine";
 import { cn } from "../../lib/cn";
+import { ScrollArea } from "../ui/ScrollArea";
 import type { DiffLineHighlight } from "./buildDiffDisplayRows";
 
 type GitHistoryDiffViewerProps = {
@@ -57,33 +58,38 @@ function SinglePanel({
 
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-vscode-editor-bg">
-      <div className="h-7 px-3 flex items-center text-[11px] font-semibold text-vscode-description border-b border-border shrink-0 bg-vscode-editor-bg">
+      <div className="h-7 px-3 flex items-center text-ui-sm font-semibold text-vscode-description border-b border-border shrink-0 bg-vscode-editor-bg">
         {panel.label}
         <span className="ml-2 font-normal opacity-80">
           ({side === "added" ? "new file" : "deleted"})
         </span>
       </div>
-      <div
-        className="m-0 flex-1 overflow-auto font-mono text-[11px] leading-[18px] text-vscode-editor-fg bg-vscode-editor-bg"
+      <ScrollArea
+        axis="both"
+        className="m-0 flex-1 font-mono text-ui-sm leading-code text-vscode-editor-fg bg-vscode-editor-bg"
         data-testid="git-diff-single-scroll"
       >
-        {lines.map((line, i) => (
-          <div
-            key={i}
-            className={cn(
-              "nx-diff-code-line relative flex whitespace-pre min-h-5",
-              highlightClass(lineHighlight),
-            )}
-          >
-            <span className="nx-diff-ln shrink-0 w-[52px] pr-3 text-right text-vscode-line-number select-none">
-              {i + 1}
-            </span>
-            <span className="nx-diff-txt flex-1 min-w-0 py-0 px-2 whitespace-pre overflow-visible">
-              <HighlightedCodeLine text={line} filePath={filePath} />
-            </span>
-          </div>
-        ))}
-      </div>
+        {/* max-content wrapper: rows stretch to the widest line so tints and
+            the pinned gutter stay correct while scrolling horizontally. */}
+        <div className="min-w-max">
+          {lines.map((line, i) => (
+            <div
+              key={i}
+              className={cn(
+                "nx-diff-code-line relative flex whitespace-pre min-h-5",
+                highlightClass(lineHighlight),
+              )}
+            >
+              <span className="nx-diff-ln shrink-0 w-diff-gutter pr-3 text-right text-vscode-line-number select-none">
+                {i + 1}
+              </span>
+              <span className="nx-diff-txt flex-1 min-w-0 py-0 px-2 whitespace-pre overflow-visible">
+                <HighlightedCodeLine text={line} filePath={filePath} />
+              </span>
+            </div>
+          ))}
+        </div>
+      </ScrollArea>
     </div>
   );
 }
@@ -132,7 +138,7 @@ export function GitHistoryDiffViewer({
   if (loading) {
     return (
       <div
-        className="p-3 text-[12px] text-vscode-description"
+        className="p-3 text-ui text-vscode-description"
         data-testid="git-diff-preview"
       >
         Loading diff preview…
@@ -143,7 +149,7 @@ export function GitHistoryDiffViewer({
   if (error) {
     return (
       <div
-        className="p-3 text-[12px] text-vscode-error"
+        className="p-3 text-ui-sm text-danger-fg"
         data-testid="git-diff-preview"
       >
         {error}
@@ -153,7 +159,7 @@ export function GitHistoryDiffViewer({
 
   if (!diff) {
     return (
-      <div className="p-3 text-[12px] text-vscode-description">
+      <div className="p-3 text-ui text-vscode-description">
         {emptyLabel}
       </div>
     );
@@ -162,7 +168,7 @@ export function GitHistoryDiffViewer({
   if (diff.binary) {
     return (
       <div
-        className="p-3 text-[12px] text-vscode-description"
+        className="p-3 text-ui text-vscode-description"
         data-testid="git-diff-preview"
       >
         Binary file ({changedFileStatusLabel(diff.status)}) — preview not
@@ -175,7 +181,7 @@ export function GitHistoryDiffViewer({
     const panel = diff.right ?? diff.left;
     if (!panel) {
       return (
-        <div className="p-3 text-[12px] text-vscode-description">
+        <div className="p-3 text-ui text-vscode-description">
           No content to display.
         </div>
       );
@@ -239,7 +245,7 @@ export function GitHistoryDiffViewer({
 
   if (!diff.left || !diff.right) {
     return (
-      <div className="p-3 text-[12px] text-vscode-description">
+      <div className="p-3 text-ui text-vscode-description">
         Could not load both revisions for comparison.
       </div>
     );

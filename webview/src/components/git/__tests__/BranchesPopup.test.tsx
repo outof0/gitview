@@ -144,4 +144,94 @@ describe("BranchesPopup", () => {
     fireEvent.click(screen.getByTestId("create-branch-button"));
     expect(onCreate).toHaveBeenCalledWith("hotfix/1");
   });
+
+  it("blocks Create when the branch name is invalid", () => {
+    const onCreate = vi.fn();
+    render(
+      <BranchesPopup
+        open
+        snapshot={snapshot}
+        onClose={vi.fn()}
+        onCheckout={vi.fn()}
+        onCreate={onCreate}
+        onRefresh={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByTestId("new-branch-input"), {
+      target: { value: "bad name" },
+    });
+    expect(screen.getByTestId("create-branch-button")).toHaveProperty(
+      "disabled",
+      true,
+    );
+    fireEvent.click(screen.getByTestId("create-branch-button"));
+    expect(onCreate).not.toHaveBeenCalled();
+  });
+
+  // Regression: section headers used to always render even when their section
+  // was empty, so users could click "BRANCH", "COMPARE", or "INTEGRATE" and
+  // nothing happened. Now the header is hidden unless at least one item below
+  // it would be shown, and the kebab is disabled when no items would be
+  // available at all.
+  it("hides every section header when no handlers are passed and the branch is current", () => {
+    render(
+      <BranchesPopup
+        open
+        snapshot={snapshot}
+        onClose={vi.fn()}
+        onCheckout={vi.fn()}
+        onCreate={vi.fn()}
+        onRefresh={vi.fn()}
+      />,
+    );
+    // The kebab would open a menu with no items, so it is disabled.
+    expect(
+      screen.getByTestId("branch-menu-main").hasAttribute("disabled"),
+    ).toBe(true);
+  });
+
+  it("keeps the kebab enabled on a non-current branch when Checkout is the only available action", () => {
+    render(
+      <BranchesPopup
+        open
+        snapshot={snapshot}
+        onClose={vi.fn()}
+        onCheckout={vi.fn()}
+        onCreate={vi.fn()}
+        onRefresh={vi.fn()}
+      />,
+    );
+    const kebab = screen.getByTestId("branch-menu-feature");
+    expect(kebab.hasAttribute("disabled")).toBe(false);
+    fireEvent.click(kebab);
+    const panel = screen.getByTestId("branch-menu-panel-feature");
+    // Branch section has Checkout; no other handlers were passed, so the
+    // remaining sections must be hidden.
+    expect(panel.querySelector('[data-section="Branch"]')).not.toBeNull();
+    expect(panel.querySelector('[data-section="Compare"]')).toBeNull();
+    expect(panel.querySelector('[data-section="Integrate"]')).toBeNull();
+  });
+
+  it("hides section headers for empty sections but keeps the one that has items", () => {
+    render(
+      <BranchesPopup
+        open
+        snapshot={snapshot}
+        onClose={vi.fn()}
+        onCheckout={vi.fn()}
+        onCreate={vi.fn()}
+        onRefresh={vi.fn()}
+        onCompareWithCurrent={vi.fn()}
+        onCompareWithWorkingTree={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByTestId("branch-menu-feature"));
+    const panel = screen.getByTestId("branch-menu-panel-feature");
+    // Both Branch and Compare have items now.
+    expect(panel.querySelector('[data-section="Branch"]')).not.toBeNull();
+    expect(panel.querySelector('[data-section="Compare"]')).not.toBeNull();
+    // Integrate still has no items, so its header must not render.
+    expect(panel.querySelector('[data-section="Integrate"]')).toBeNull();
+  });
 });

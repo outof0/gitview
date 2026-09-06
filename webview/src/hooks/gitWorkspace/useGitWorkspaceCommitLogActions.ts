@@ -8,6 +8,7 @@ import type { DiffLineSelection } from "@gitview/shared/types/diff";
 import type { ResetMode } from "@gitview/shared/types/log";
 import { useGitWorkspaceStore } from "../../stores/gitWorkspaceStore";
 import { isErrorCode } from "../../lib/errorCode";
+import { captureRepoToken, isRepoTokenCurrent } from "./repoScope";
 import type { GitWorkspaceCommitLogApi } from "../../apps/gitWorkspace/gitWorkspaceControllerTypes";
 import type { GitWorkspaceDeps } from "./gitWorkspaceDeps";
 import type { useGitWorkspaceLoaders } from "./useGitWorkspaceLoaders";
@@ -40,8 +41,12 @@ export function useGitWorkspaceCommitLogActions(
       if (!activeRepo) {
         return;
       }
+      // All completion effects below are scoped to this repository: if the
+      // user switches repos while the commit runs, repo A's late completion
+      // must not erase repo B's draft, dialogs, or notifications.
+      const requestToken = captureRepoToken(activeRepo.id);
       const paths = [...commitScope];
-      setSyncing(true);
+      setSyncing(true, activeRepo.id);
       useGitWorkspaceStore.getState().setError(null);
       try {
         const result = await clientRef.current.createCommit({
@@ -56,6 +61,9 @@ export function useGitWorkspaceCommitLogActions(
           confirmedChecks: confirmedChecks || commitAfterChecksConfirmed,
           pushAfter,
         });
+        if (!isRepoTokenCurrent(requestToken)) {
+          return;
+        }
         if (result.upstreamRequired) {
           openDialog("pushUpstream", {
             branch: activeRepo.currentBranch ?? "HEAD",
@@ -64,13 +72,23 @@ export function useGitWorkspaceCommitLogActions(
         } else if (result.pushRejected) {
           setWorkspaceNotification({
             level: "warning",
-            message: "Commit succeeded but push was rejected.",
+            message: result.pushError
+              ? `Commit succeeded but push was rejected: ${result.pushError}`
+              : "Commit succeeded but push was rejected.",
+          });
+        } else if (result.pushError) {
+          setWorkspaceNotification({
+            level: "warning",
+            message: `Commit succeeded but push failed: ${result.pushError}`,
           });
         }
         closeDialog("commitCheckWarnings");
         setCommitAfterChecksConfirmed(false);
         setCommitMessage("");
       } catch (err) {
+        if (!isRepoTokenCurrent(requestToken)) {
+          return;
+        }
         const message = err instanceof Error ? err.message : "Commit failed";
         const details = (err as { details?: { issues?: CommitCheckIssue[] } }).details;
         if (
@@ -84,7 +102,7 @@ export function useGitWorkspaceCommitLogActions(
           useGitWorkspaceStore.getState().setError(message);
         }
       } finally {
-        setSyncing(false);
+        setSyncing(false, activeRepo.id);
       }
     },
     [
@@ -115,7 +133,8 @@ export function useGitWorkspaceCommitLogActions(
       if (!activeRepo) {
         return;
       }
-      setSyncing(true);
+      const requestToken = captureRepoToken(activeRepo.id);
+      setSyncing(true, activeRepo.id);
       useGitWorkspaceStore.getState().setError(null);
       try {
         if (action === "drop") {
@@ -128,9 +147,14 @@ export function useGitWorkspaceCommitLogActions(
             confirmed,
           );
         }
-        closeDialog("rewrite");
+        if (isRepoTokenCurrent(requestToken)) {
+          closeDialog("rewrite");
+        }
         await loadLog();
       } catch (err) {
+        if (!isRepoTokenCurrent(requestToken)) {
+          return;
+        }
         const message = err instanceof Error ? err.message : "Rewrite failed";
         const details = (err as { details?: { confirmation?: unknown } }).details;
         const nextConfirmation = isConfirmationEvidence(details?.confirmation)
@@ -152,7 +176,7 @@ export function useGitWorkspaceCommitLogActions(
           useGitWorkspaceStore.getState().setError(message);
         }
       } finally {
-        setSyncing(false);
+        setSyncing(false, activeRepo.id);
       }
     },
     [activeRepo, loadLog, openDialog, closeDialog],
@@ -168,19 +192,25 @@ export function useGitWorkspaceCommitLogActions(
       if (!activeRepo) {
         return;
       }
-      setSyncing(true);
+      const requestToken = captureRepoToken(activeRepo.id);
+      setSyncing(true, activeRepo.id);
       useGitWorkspaceStore.getState().setError(null);
       try {
         await clientRef.current.dropSelectedChanges(activeRepo.id, sha, path, {
           ...selection,
           confirmation,
         });
-        closeDialog("dropSelected");
+        if (isRepoTokenCurrent(requestToken)) {
+          closeDialog("dropSelected");
+        }
         await loadLog();
         if (selectedFilePath === path) {
           void loadLogFileDiff(sha, path, "M");
         }
       } catch (err) {
+        if (!isRepoTokenCurrent(requestToken)) {
+          return;
+        }
         const message = err instanceof Error ? err.message : "Drop selected failed";
         const details = (err as { details?: { confirmation?: unknown } }).details;
         const nextConfirmation = isConfirmationEvidence(details?.confirmation)
@@ -204,7 +234,7 @@ export function useGitWorkspaceCommitLogActions(
           useGitWorkspaceStore.getState().setError(message);
         }
       } finally {
-        setSyncing(false);
+        setSyncing(false, activeRepo.id);
       }
     },
     [
@@ -222,13 +252,19 @@ export function useGitWorkspaceCommitLogActions(
       if (!activeRepo) {
         return;
       }
-      setSyncing(true);
+      const requestToken = captureRepoToken(activeRepo.id);
+      setSyncing(true, activeRepo.id);
       useGitWorkspaceStore.getState().setError(null);
       try {
         await clientRef.current.deleteBranch(activeRepo.id, name, force);
-        closeDialog("deleteBranch");
+        if (isRepoTokenCurrent(requestToken)) {
+          closeDialog("deleteBranch");
+        }
         await loadBranches();
       } catch (err) {
+        if (!isRepoTokenCurrent(requestToken)) {
+          return;
+        }
         const message = err instanceof Error ? err.message : "Delete branch failed";
         if (!force && isErrorCode(err, "BRANCH_NOT_FULLY_MERGED")) {
           openDialog("deleteBranch", { name, forceRequired: true });
@@ -236,7 +272,7 @@ export function useGitWorkspaceCommitLogActions(
           useGitWorkspaceStore.getState().setError(message);
         }
       } finally {
-        setSyncing(false);
+        setSyncing(false, activeRepo.id);
       }
     },
     [activeRepo, loadBranches, openDialog, closeDialog],
@@ -252,7 +288,8 @@ export function useGitWorkspaceCommitLogActions(
       if (!activeRepo) {
         return;
       }
-      setSyncing(true);
+      const requestToken = captureRepoToken(activeRepo.id);
+      setSyncing(true, activeRepo.id);
       useGitWorkspaceStore.getState().setError(null);
       try {
         await clientRef.current.resetToCommit(
@@ -262,9 +299,14 @@ export function useGitWorkspaceCommitLogActions(
           confirmed,
           confirmation,
         );
-        closeDialog("reset");
+        if (isRepoTokenCurrent(requestToken)) {
+          closeDialog("reset");
+        }
         await loadLog();
       } catch (err) {
+        if (!isRepoTokenCurrent(requestToken)) {
+          return;
+        }
         const message = err instanceof Error ? err.message : "Reset failed";
         const details = (err as { details?: { confirmation?: unknown } }).details;
         const nextConfirmation = isConfirmationEvidence(details?.confirmation)
@@ -290,7 +332,7 @@ export function useGitWorkspaceCommitLogActions(
           useGitWorkspaceStore.getState().setError(message);
         }
       } finally {
-        setSyncing(false);
+        setSyncing(false, activeRepo.id);
       }
     },
     [activeRepo, loadLog, openDialog, closeDialog],

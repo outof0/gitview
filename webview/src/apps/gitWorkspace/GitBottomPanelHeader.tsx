@@ -1,3 +1,5 @@
+import { Input } from "../../components/ui/Input";
+import { Button } from "../../components/ui/Button";
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, Plus, Settings, X } from "lucide-react";
 import type { LogQueryFilters } from "@gitview/shared/types/log";
@@ -66,14 +68,14 @@ export function GitBottomPanelHeader({ ctx }: { ctx: GitWorkspaceController }) {
   }, [logFilters]);
 
   const tabClass = (selected: boolean) =>
-    `shrink-0 h-7 px-2.5 inline-flex items-center gap-1 text-[length:var(--vscode-font-size,13px)] rounded-sm ${
+    `shrink-0 h-7 px-2.5 inline-flex items-center gap-1 text-ui-base rounded-vscode ${
       selected
-        ? "bg-[var(--vscode-tab-activeBackground,var(--nx-panel2,#27282E))] text-[var(--vscode-tab-activeForeground,var(--nx-text,#E8E8EA))] font-medium"
-        : "text-[var(--vscode-tab-inactiveForeground,var(--nx-muted,#9B9CA3))] hover:bg-[var(--vscode-toolbar-hoverBackground,transparent)]"
+        ? "bg-tab-active-bg text-tab-active-fg font-medium"
+        : "text-tab-inactive-fg hover:bg-toolbar-hover"
     }`;
 
   const iconBtn =
-    "h-7 w-7 shrink-0 inline-flex items-center justify-center rounded-sm text-[var(--vscode-icon-foreground,var(--nx-muted,#9B9CA3))] hover:bg-[var(--vscode-toolbar-hoverBackground,transparent)]";
+    "h-7 w-7 shrink-0 inline-flex items-center justify-center rounded-vscode text-icon-fg hover:bg-toolbar-hover";
 
   const selectLogTab = (id: string) => {
     const tab = logTabs.find((t) => t.id === id);
@@ -117,14 +119,14 @@ export function GitBottomPanelHeader({ ctx }: { ctx: GitWorkspaceController }) {
 
   return (
     <div
-      className="relative shrink-0 flex h-8 min-h-8 w-full items-center gap-1 border-b border-border bg-[var(--vscode-panel-background,var(--nx-panel,#202126))] px-2"
+      className="relative shrink-0 flex h-8 min-h-8 w-full items-center gap-1 border-b border-border bg-panel-bg px-2"
       data-testid="workspace-tab-bar"
       data-git-bottom-header="true"
     >
       {logTabs.map((tab, index) => {
         const selected = activeLogTabId === tab.id;
         return (
-          <button
+          <Button variant="ghost" size="content"
             key={tab.id}
             type="button"
             className={tabClass(selected)}
@@ -134,12 +136,12 @@ export function GitBottomPanelHeader({ ctx }: { ctx: GitWorkspaceController }) {
             }
             aria-current={selected ? "page" : undefined}
           >
-            <span className="max-w-[140px] truncate">{tab.title}</span>
+            <span className="max-w-tab-title truncate">{tab.title}</span>
             {logTabs.length > 1 ? (
               <span
                 role="button"
                 tabIndex={0}
-                className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-sm hover:bg-list-hover"
+                className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-vscode hover:bg-list-hover"
                 aria-label={`Close ${tab.title}`}
                 data-testid={`workspace-tab-log-close-${tab.id}`}
                 onClick={(event) => {
@@ -157,11 +159,11 @@ export function GitBottomPanelHeader({ ctx }: { ctx: GitWorkspaceController }) {
                 <X size={11} aria-hidden />
               </span>
             ) : null}
-          </button>
+          </Button>
         );
       })}
 
-      <button
+      <Button variant="ghost" size="content"
         type="button"
         className={iconBtn}
         aria-label="Add Log tab"
@@ -169,14 +171,14 @@ export function GitBottomPanelHeader({ ctx }: { ctx: GitWorkspaceController }) {
         onClick={addLogTab}
       >
         <Plus size={16} aria-hidden />
-      </button>
+      </Button>
 
       <div className="min-w-0 flex-1" />
 
       {canAbort && activeRepo ? (
-        <button
+        <Button variant="ghost" size="content"
           type="button"
-          className="h-6 shrink-0 px-2 text-[11px] text-[var(--vscode-errorForeground)] hover:bg-list-hover rounded-sm"
+          className="h-6 shrink-0 px-2 text-ui-sm text-danger-fg hover:bg-list-hover rounded-vscode"
           data-testid="git-panel-abort-operation"
           onClick={() =>
             void runMutation(() =>
@@ -185,10 +187,10 @@ export function GitBottomPanelHeader({ ctx }: { ctx: GitWorkspaceController }) {
           }
         >
           Abort
-        </button>
+        </Button>
       ) : null}
 
-      <button
+      <Button variant="ghost" size="content"
         ref={setSettingsAnchor}
         type="button"
         className={iconBtn}
@@ -201,7 +203,7 @@ export function GitBottomPanelHeader({ ctx }: { ctx: GitWorkspaceController }) {
         }}
       >
         <Settings size={16} aria-hidden />
-      </button>
+      </Button>
       <LogMenuPortal
         open={settingsOpen}
         anchor={settingsAnchor}
@@ -222,18 +224,18 @@ export function GitBottomPanelHeader({ ctx }: { ctx: GitWorkspaceController }) {
             return (
               <label
                 key={key}
-                className="flex h-7 items-center gap-2 px-2.5 text-[12px] text-foreground cursor-pointer select-none hover:bg-[var(--vscode-menu-selectionBackground,var(--vscode-list-hoverBackground))] hover:text-[var(--vscode-menu-selectionForeground,var(--vscode-editor-foreground))] rounded-sm"
+                className="flex min-h-menu-item items-center gap-2 px-menu-pad-x py-menu-pad-y text-ui text-menu-fg cursor-pointer select-none hover:bg-menu-selection hover:text-menu-selectionForeground outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset"
               >
                 <span
-                  className={`w-[14px] h-[14px] rounded-[2px] border flex items-center justify-center shrink-0 ${
+                  className={`w-icon-sm h-icon-sm rounded-vscode border flex items-center justify-center shrink-0 ${
                     checked
-                      ? "bg-[var(--vscode-checkbox-background,var(--vscode-input-background))] border-[var(--vscode-checkbox-border,var(--border))] text-[var(--vscode-checkbox-foreground,var(--vscode-button-foreground))]"
-                      : "bg-[var(--vscode-checkbox-background,transparent)] border-[var(--vscode-checkbox-border,var(--border))]"
+                      ? "bg-checkbox-bg border-checkbox-border text-checkbox-fg"
+                      : "bg-checkbox-bg border-checkbox-border"
                   }`}
                 >
                   {checked ? <Check size={10} aria-hidden /> : null}
                 </span>
-                <input
+                <Input
                   type="checkbox"
                   checked={checked}
                   onChange={(event) =>
@@ -248,7 +250,7 @@ export function GitBottomPanelHeader({ ctx }: { ctx: GitWorkspaceController }) {
         </div>
       </LogMenuPortal>
 
-      <button
+      <Button variant="ghost" size="content"
         type="button"
         className={iconBtn}
         aria-label="Collapse panel"
@@ -256,7 +258,7 @@ export function GitBottomPanelHeader({ ctx }: { ctx: GitWorkspaceController }) {
         onClick={() => void clientRef.current.collapsePanel()}
       >
         <ChevronDown size={16} aria-hidden />
-      </button>
+      </Button>
     </div>
   );
 }

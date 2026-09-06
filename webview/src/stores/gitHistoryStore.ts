@@ -284,7 +284,10 @@ export const useGitHistoryStore = create<GitHistoryStore>((set, get) => ({
     const { commits, selectedSha, path, isFolder, annotateMode, commitDetailLoading } =
       get();
     const commit = findCommit(commits, selectedSha);
-    if (!commit || (annotateMode && commitDetailLoading)) {
+    if (
+      !commit ||
+      (annotateMode && commitDetailLoading && commit.changedFiles.length === 0)
+    ) {
       return [];
     }
     if (annotateMode) {

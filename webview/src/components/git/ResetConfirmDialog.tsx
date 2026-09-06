@@ -1,3 +1,4 @@
+import { SelectField } from "../ui/SelectField";
 import type {
   ConfirmationSubmission,
   HardResetConfirmationEvidence,
@@ -82,8 +83,8 @@ export function ResetConfirmDialog({
     >
       <label className="block mb-3">
         <span className="block mb-1">Reset mode</span>
-        <select
-          className="w-full h-8 px-2 text-[12px] rounded-vscode border border-border bg-[var(--vscode-input-background)]"
+        <SelectField
+          className="w-full h-8 px-2 text-ui rounded-vscode border border-border bg-input"
           value={mode}
           onChange={(event) => onModeChange(event.target.value as ResetMode)}
           data-testid="reset-mode-select"
@@ -93,7 +94,7 @@ export function ResetConfirmDialog({
               {MODE_LABELS[key]}
             </option>
           ))}
-        </select>
+        </SelectField>
       </label>
     </TypedDestructiveConfirmDialog>
   );

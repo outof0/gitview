@@ -1,9 +1,11 @@
+import { Button } from "../../ui/Button";
 import { useMemo, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronLeft, ListFilter, Search } from "lucide-react";
 import type { LogQueryFilters, LogQueryRange } from "@gitview/shared/types/log";
 import { LogMenuPortal } from "./logMenuPortal";
 import { LogDatePicker } from "./LogDatePicker";
 import { isoDaysAgo } from "./localIsoDate";
+import { TextField } from "../../ui/TextField";
 
 type WorkspaceLogFiltersProps = {
   filters: LogQueryFilters;
@@ -19,11 +21,9 @@ type WorkspaceLogFiltersProps = {
 type OpenMenu = "branch" | "user" | "date" | "paths" | "sort" | null;
 
 const chipBtn =
-  "h-6 px-2 inline-flex items-center gap-1 rounded-sm text-[length:var(--vscode-font-size,13px)] leading-none hover:bg-list-hover shrink-0 pointer-events-auto";
-const fieldCls =
-  "h-7 w-full min-w-0 box-border px-2 text-[length:var(--vscode-font-size,13px)] leading-none rounded-sm border border-[var(--vscode-input-border,var(--border))] bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground,var(--vscode-editor-foreground))] placeholder:text-[var(--vscode-input-placeholderForeground,var(--vscode-descriptionForeground))]";
+  "h-6 px-2 inline-flex items-center gap-1 rounded-vscode text-ui-base leading-none hover:bg-list-hover shrink-0 pointer-events-auto";
 const itemCls =
-  "h-7 px-2 w-full min-w-0 truncate text-left text-[length:var(--vscode-font-size,13px)] leading-none rounded-sm text-[var(--vscode-menu-foreground,var(--vscode-editor-foreground))] hover:bg-[var(--vscode-menu-selectionBackground,var(--vscode-list-hoverBackground))] hover:text-[var(--vscode-menu-selectionForeground,var(--vscode-editor-foreground))] disabled:opacity-40";
+  "min-h-menu-item px-menu-pad-x py-menu-pad-y w-full min-w-0 truncate text-left text-ui leading-none text-menu-fg hover:bg-menu-selection hover:text-menu-selectionForeground disabled:opacity-40 outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset";
 
 function FilterChip({
   id,
@@ -49,7 +49,7 @@ function FilterChip({
   const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
   return (
     <div className="relative shrink-0" data-testid={`${id}-chip`}>
-      <button
+      <Button variant="ghost" size="content"
         ref={setAnchor}
         type="button"
         className={`${chipBtn} ${value ? "text-foreground" : "text-vscode-description"}`}
@@ -61,9 +61,13 @@ function FilterChip({
         }}
         data-testid={`${id}-trigger`}
       >
-        <span className="max-w-[120px] truncate">{value || label}</span>
-        <ChevronDown size={12} aria-hidden className="text-vscode-description" />
-      </button>
+        <span className="max-w-filter-value truncate">{value || label}</span>
+        <ChevronDown
+          size={12}
+          aria-hidden
+          className="text-vscode-description"
+        />
+      </Button>
       <LogMenuPortal
         open={open}
         anchor={anchor}
@@ -141,38 +145,44 @@ export function WorkspaceLogFilters({
         : filters.branch;
 
   return (
-    <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap" data-testid="log-filters">
-      <label className="h-7 w-[260px] max-w-[260px] shrink-0 inline-flex items-center gap-1.5 px-2 rounded-[2px] border border-[var(--vscode-input-border,var(--border))] bg-[var(--vscode-input-background)]">
-        <Search size={14} aria-hidden className="text-vscode-description shrink-0" />
-        <input
-          type="text"
-          className="flex-1 min-w-0 h-full bg-transparent text-[length:var(--vscode-font-size,13px)] leading-none text-[var(--vscode-input-foreground,var(--vscode-editor-foreground))] placeholder:text-[var(--vscode-input-placeholderForeground,var(--vscode-descriptionForeground))] outline-none"
-          placeholder="Text or hash"
-          value={filters.grep ?? ""}
-          onChange={(e) => onFiltersChange({ ...filters, grep: e.target.value })}
-          data-testid="log-filter-grep"
-        />
-        <button
-          type="button"
-          className={`h-4 w-[22px] shrink-0 text-[10px] leading-none rounded-sm ${regex ? "text-foreground bg-list-hover" : "text-vscode-description"}`}
-          aria-pressed={regex}
-          title="Regular expression"
-          onClick={() => setRegex((v) => !v)}
-          data-testid="log-filter-regex"
-        >
-          .*
-        </button>
-        <button
-          type="button"
-          className={`h-4 w-[22px] shrink-0 text-[9px] leading-none rounded-sm ${matchCase ? "text-foreground bg-list-hover" : "text-vscode-description"}`}
-          aria-pressed={matchCase}
-          title="Match case"
-          onClick={() => setMatchCase((v) => !v)}
-          data-testid="log-filter-case"
-        >
-          Cc
-        </button>
-      </label>
+    <div
+      className="flex items-center gap-2 min-w-0 flex-1 flex-wrap"
+      data-testid="log-filters"
+    >
+      <TextField
+        type="search"
+        aria-label="Search commits"
+        containerClassName="w-log-search max-w-log-search shrink-0"
+        leading={<Search size={14} />}
+        trailing={
+          <>
+            <Button variant="ghost" size="content"
+              type="button"
+              className={`h-5 w-row shrink-0 text-center text-section leading-none rounded-vscode ${regex ? "bg-list-active text-list-activeForeground" : "text-foreground hover:bg-toolbar-hover"}`}
+              aria-pressed={regex}
+              title="Regular expression"
+              onClick={() => setRegex((v) => !v)}
+              data-testid="log-filter-regex"
+            >
+              .*
+            </Button>
+            <Button variant="ghost" size="content"
+              type="button"
+              className={`h-5 w-row shrink-0 text-center text-micro leading-none rounded-vscode ${matchCase ? "bg-list-active text-list-activeForeground" : "text-foreground hover:bg-toolbar-hover"}`}
+              aria-pressed={matchCase}
+              title="Match case"
+              onClick={() => setMatchCase((v) => !v)}
+              data-testid="log-filter-case"
+            >
+              Cc
+            </Button>
+          </>
+        }
+        placeholder="Text or hash"
+        value={filters.grep ?? ""}
+        onChange={(e) => onFiltersChange({ ...filters, grep: e.target.value })}
+        data-testid="log-filter-grep"
+      />
 
       <FilterChip
         id="log-filter-branch"
@@ -182,20 +192,25 @@ export function WorkspaceLogFilters({
         onToggle={() => toggle("branch")}
         onClose={close}
       >
-        <input
-          type="text"
-          className={fieldCls}
+        <TextField
+          type="search"
+          containerClassName="w-full"
+          aria-label="Filter branches"
           placeholder="Filter branches"
           value={branchQuery || filters.branch || ""}
           onChange={(e) => {
             setBranchQuery(e.target.value);
-            onFiltersChange({ ...filters, branch: e.target.value, range: "all" });
+            onFiltersChange({
+              ...filters,
+              branch: e.target.value,
+              range: "all",
+            });
           }}
           data-testid="log-filter-branch"
           autoFocus
         />
         {(["all", "incoming", "outgoing"] as const).map((range) => (
-          <button
+          <Button variant="ghost" size="content"
             key={range}
             type="button"
             className={itemCls}
@@ -212,12 +227,16 @@ export function WorkspaceLogFilters({
               }
             }}
           >
-            {range === "all" ? "All commits" : range === "incoming" ? "Incoming" : "Outgoing"}
-          </button>
+            {range === "all"
+              ? "All commits"
+              : range === "incoming"
+                ? "Incoming"
+                : "Outgoing"}
+          </Button>
         ))}
-        <div className="h-px my-1 bg-[var(--vscode-menu-separatorBackground,var(--border))]" />
+        <div className="h-px my-1 bg-menu-separator" />
         {visibleBranches.map((name) => (
-          <button
+          <Button variant="ghost" size="content"
             key={name}
             type="button"
             className={itemCls}
@@ -228,7 +247,7 @@ export function WorkspaceLogFilters({
             }}
           >
             {name}
-          </button>
+          </Button>
         ))}
       </FilterChip>
 
@@ -240,9 +259,10 @@ export function WorkspaceLogFilters({
         onToggle={() => toggle("user")}
         onClose={close}
       >
-        <input
-          type="text"
-          className={fieldCls}
+        <TextField
+          type="search"
+          containerClassName="w-full"
+          aria-label="Filter authors"
           placeholder="User"
           value={authorQuery || filters.author || ""}
           onChange={(e) => {
@@ -253,7 +273,7 @@ export function WorkspaceLogFilters({
           autoFocus
         />
         {visibleAuthors.map((name) => (
-          <button
+          <Button variant="ghost" size="content"
             key={name}
             type="button"
             className={itemCls}
@@ -264,7 +284,7 @@ export function WorkspaceLogFilters({
             }}
           >
             {name}
-          </button>
+          </Button>
         ))}
       </FilterChip>
 
@@ -284,72 +304,92 @@ export function WorkspaceLogFilters({
       >
         {!showDateCustom ? (
           <>
-            <button
+            <Button variant="ghost" size="content"
               type="button"
               className={itemCls}
               onClick={() => {
-                onFiltersChange({ ...filters, since: undefined, until: undefined });
+                onFiltersChange({
+                  ...filters,
+                  since: undefined,
+                  until: undefined,
+                });
                 close();
               }}
             >
               Any date
-            </button>
-            <button
+            </Button>
+            <Button variant="ghost" size="content"
               type="button"
               className={itemCls}
               onClick={() => {
-                onFiltersChange({ ...filters, since: isoDaysAgo(1), until: undefined });
+                onFiltersChange({
+                  ...filters,
+                  since: isoDaysAgo(1),
+                  until: undefined,
+                });
                 close();
               }}
             >
               Last 24 hours
-            </button>
-            <button
+            </Button>
+            <Button variant="ghost" size="content"
               type="button"
               className={itemCls}
               onClick={() => {
-                onFiltersChange({ ...filters, since: isoDaysAgo(7), until: undefined });
+                onFiltersChange({
+                  ...filters,
+                  since: isoDaysAgo(7),
+                  until: undefined,
+                });
                 close();
               }}
             >
               Last 7 days
-            </button>
-            <button
+            </Button>
+            <Button variant="ghost" size="content"
               type="button"
               className={itemCls}
               onClick={() => {
-                onFiltersChange({ ...filters, since: isoDaysAgo(30), until: undefined });
+                onFiltersChange({
+                  ...filters,
+                  since: isoDaysAgo(30),
+                  until: undefined,
+                });
                 close();
               }}
             >
               Last 30 days
-            </button>
-            <div className="h-px my-1 bg-[var(--vscode-menu-separatorBackground,var(--border))]" />
-            <button
+            </Button>
+            <div className="h-px my-1 bg-menu-separator" />
+            <Button variant="ghost" size="content"
               type="button"
               className={itemCls}
               onClick={() => setShowDateCustom(true)}
               data-testid="log-filter-date-custom"
             >
               Select...
-            </button>
+            </Button>
           </>
         ) : (
           <>
-            <button
+            <Button variant="ghost" size="content"
               type="button"
               className={`${itemCls} flex items-center gap-1`}
               onClick={() => setShowDateCustom(false)}
             >
               <ChevronLeft size={12} aria-hidden />
               Back
-            </button>
-            <div className="h-px my-1 bg-[var(--vscode-menu-separatorBackground,var(--border))]" />
+            </Button>
+            <div className="h-px my-1 bg-menu-separator" />
             <LogDatePicker
               since={filters.since}
               until={filters.until}
               onChange={(next) =>
-                onFiltersChange({ ...filters, since: next.since, until: next.until })
+                onFiltersChange({
+                  ...filters,
+                  since: next.since,
+                  until: next.until,
+                })
               }
             />
           </>
@@ -364,9 +404,10 @@ export function WorkspaceLogFilters({
         onToggle={() => toggle("paths")}
         onClose={close}
       >
-        <input
-          type="text"
-          className={fieldCls}
+        <TextField
+          type="search"
+          containerClassName="w-full"
+          aria-label="Filter paths"
           placeholder="Paths"
           value={pathQuery || filters.path || ""}
           onChange={(e) => {
@@ -377,7 +418,7 @@ export function WorkspaceLogFilters({
           autoFocus
         />
         {visiblePaths.slice(0, 8).map((path) => (
-          <button
+          <Button variant="ghost" size="content"
             key={path}
             type="button"
             className={itemCls}
@@ -388,15 +429,15 @@ export function WorkspaceLogFilters({
             }}
           >
             {path}
-          </button>
+          </Button>
         ))}
       </FilterChip>
 
       <div className="relative shrink-0">
-        <button
+        <Button variant="ghost" size="content"
           ref={setSortAnchor}
           type="button"
-          className="h-[18px] w-[18px] inline-flex items-center justify-center rounded-sm text-vscode-description hover:bg-list-hover hover:text-foreground"
+          className="h-icon-lg w-icon-lg inline-flex items-center justify-center rounded-vscode text-vscode-description hover:bg-list-hover hover:text-foreground"
           title="Sort commits"
           aria-expanded={open === "sort"}
           onClick={(event) => {
@@ -406,7 +447,7 @@ export function WorkspaceLogFilters({
           data-testid="log-graph-sort"
         >
           <ListFilter size={14} aria-hidden />
-        </button>
+        </Button>
         <LogMenuPortal
           open={open === "sort"}
           anchor={sortAnchor}
@@ -414,7 +455,7 @@ export function WorkspaceLogFilters({
           label="Sort commits"
         >
           {(["date", "topological"] as const).map((sort) => (
-            <button
+            <Button variant="ghost" size="content"
               key={sort}
               type="button"
               className={itemCls}
@@ -425,7 +466,7 @@ export function WorkspaceLogFilters({
               }}
             >
               {sort === "date" ? "Sort by date" : "Topological"}
-            </button>
+            </Button>
           ))}
         </LogMenuPortal>
       </div>

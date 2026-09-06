@@ -39,7 +39,7 @@ describe("stash dialog loading", () => {
     expect(loadStashes).toHaveBeenCalled();
   });
 
-  it("does not refetch when a snapshot is already present", () => {
+  it("refreshes when a snapshot is already present", () => {
     const loadStashes = renderDialogs(
       { unstash: { index: null } },
       {
@@ -51,7 +51,7 @@ describe("stash dialog loading", () => {
       },
     );
 
-    expect(loadStashes).not.toHaveBeenCalled();
+    expect(loadStashes).toHaveBeenCalled();
   });
 
   it("stays idle while no dialog is open", () => {

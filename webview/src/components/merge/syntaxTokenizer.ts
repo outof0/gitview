@@ -44,10 +44,108 @@ function tokenizeKeyValueLine(
   return tokens;
 }
 
+function tokenizeMarkupTag(text: string): SyntaxToken[] {
+  const tokens: SyntaxToken[] = [];
+  let index = 0;
+  const push = (value: string, type: SyntaxTokenType) => {
+    if (value.length === 0) {
+      return;
+    }
+    tokens.push({ value, type, start: index, end: index + value.length });
+    index += value.length;
+  };
+
+  const open = text.startsWith("</") ? "</" : "<";
+  push(open, "operator");
+  const tag = text.slice(index).match(/^[A-Za-z][\w:.-]*/)?.[0];
+  if (tag) {
+    push(tag, "type");
+  }
+
+  while (index < text.length) {
+    const rest = text.slice(index);
+    const whitespace = rest.match(/^\s+/)?.[0];
+    if (whitespace) {
+      push(whitespace, "plain");
+      continue;
+    }
+    const quoted = rest.match(/^("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')/)?.[0];
+    if (quoted) {
+      push(quoted, "string");
+      continue;
+    }
+    const attribute = rest.match(/^[:@#A-Za-z_][\w:.-]*/)?.[0];
+    if (attribute) {
+      push(attribute, "property");
+      continue;
+    }
+    const punctuation = rest.match(/^(?:\/?>|=|\/)/)?.[0];
+    if (punctuation) {
+      push(punctuation, "operator");
+      continue;
+    }
+    push(rest[0]!, "plain");
+  }
+  return tokens;
+}
+
+function tokenizeMarkupLine(text: string): SyntaxToken[] | null {
+  if (!/[<>]/.test(text)) {
+    return null;
+  }
+  const tokens: SyntaxToken[] = [];
+  const markup = /<!--[\s\S]*?-->|<\/?[A-Za-z][^>]*>/g;
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+  while ((match = markup.exec(text)) !== null) {
+    const start = match.index;
+    if (start > cursor) {
+      for (const token of tokenizeLine(text.slice(cursor, start))) {
+        tokens.push({
+          ...token,
+          start: token.start + cursor,
+          end: token.end + cursor,
+        });
+      }
+    }
+    const value = match[0];
+    if (value.startsWith("<!--")) {
+      tokens.push({
+        value,
+        type: "comment",
+        start,
+        end: start + value.length,
+      });
+    } else {
+      for (const token of tokenizeMarkupTag(value)) {
+        tokens.push({
+          ...token,
+          start: token.start + start,
+          end: token.end + start,
+        });
+      }
+    }
+    cursor = start + value.length;
+  }
+  if (cursor < text.length) {
+    for (const token of tokenizeLine(text.slice(cursor))) {
+      tokens.push({
+        ...token,
+        start: token.start + cursor,
+        end: token.end + cursor,
+      });
+    }
+  }
+  return tokens;
+}
+
 function tokenizeLanguageLine(
   text: string,
   language?: string,
 ): SyntaxToken[] | null {
+  if (language === "html" || language === "xml" || language === "mdx") {
+    return tokenizeMarkupLine(text);
+  }
   if (language === "yaml") {
     if (/^\s*#/.test(text)) {
       return [{ value: text, type: "comment", start: 0, end: text.length }];

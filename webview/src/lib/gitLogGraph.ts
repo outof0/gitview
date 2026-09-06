@@ -6,13 +6,13 @@ export const GIT_LOG_GRAPH_LANE_PAD = 10;
 export const GIT_LOG_GRAPH_DOT_RADIUS = 4.5;
 
 export const GIT_LOG_LANE_COLORS = [
-  "#6b4fd8",
-  "#2aa198",
-  "#d14b72",
-  "#5b6bdc",
-  "#b446a4",
-  "#e67e22",
-  "#1abc9c",
+  "var(--gitview-graph-purple)",
+  "var(--gitview-graph-green)",
+  "var(--gitview-graph-pink)",
+  "var(--gitview-graph-blue)",
+  "var(--gitview-graph-cyan)",
+  "var(--gitview-graph-orange)",
+  "var(--gitview-graph-yellow)",
 ] as const;
 
 export function gitLogLaneColor(lane: number): string {
@@ -41,10 +41,49 @@ export function assignCommitLanes(
   commits: readonly LogCommitEntry[],
 ): Map<string, number> {
   const laneBySha = new Map<string, number>();
+  const rowBySha = new Map(commits.map((commit, row) => [commit.sha, row]));
   /** active[i] = SHA we next expect on this lane (or null if free). */
   const active: Array<string | null> = [];
 
-  for (const commit of commits) {
+  const trimTrailingEmptyLanes = () => {
+    while (active.at(-1) === null) {
+      active.pop();
+    }
+  };
+
+  const reserveParent = (lane: number, parentSha: string) => {
+    const existingLane = active.findIndex((sha) => sha === parentSha);
+    if (existingLane >= 0) {
+      return;
+    }
+    active[lane] = parentSha;
+  };
+
+  /**
+   * Merge lanes are opened immediately to the right of the merge lane. A
+   * generic "first free lane" choice lets an active branch on the left steal
+   * the slot, which makes later edges cross and differs from git/JB graph
+   * layout. Reuse an empty slot directly to the right when possible; insert
+   * only when another active lane already occupies that position.
+   */
+  const reserveMergeParent = (lane: number, parentSha: string) => {
+    if (active.includes(parentSha)) {
+      return;
+    }
+    const targetLane = lane + 1;
+    if (targetLane >= active.length) {
+      active.push(parentSha);
+      return;
+    }
+    if (active[targetLane] === null) {
+      active[targetLane] = parentSha;
+      return;
+    }
+    active.splice(targetLane, 0, parentSha);
+  };
+
+  for (let row = 0; row < commits.length; row += 1) {
+    const commit = commits[row]!;
     let lane = active.findIndex((sha) => sha === commit.sha);
     if (lane < 0) {
       lane = active.findIndex((sha) => sha === null);
@@ -68,30 +107,25 @@ export function assignCommitLanes(
     }
     laneBySha.set(commit.sha, lane);
 
-    const parents = commit.parentShas ?? [];
+    const parents = (commit.parentShas ?? []).filter((parentSha) => {
+      const parentRow = rowBySha.get(parentSha);
+      return parentRow !== undefined && parentRow > row;
+    });
     if (parents.length === 0) {
       active[lane] = null;
+      trimTrailingEmptyLanes();
       continue;
     }
 
     // First parent continues on the same lane (git / JB convention).
-    active[lane] = parents[0]!;
+    reserveParent(lane, parents[0]!);
 
-    // Additional parents (merge sides) open or reuse lanes.
+    // Additional parents (merge sides) open or reuse lanes immediately to the
+    // right of the merge lane, preserving the visual order of active branches.
     for (let i = 1; i < parents.length; i += 1) {
-      const parentSha = parents[i]!;
-      const already = active.findIndex((sha) => sha === parentSha);
-      if (already >= 0) {
-        continue;
-      }
-      let mergeLane = active.findIndex((sha) => sha === null);
-      if (mergeLane < 0) {
-        mergeLane = active.length;
-        active.push(parentSha);
-      } else {
-        active[mergeLane] = parentSha;
-      }
+      reserveMergeParent(lane, parents[i]!);
     }
+    trimTrailingEmptyLanes();
   }
 
   return laneBySha;
@@ -109,6 +143,13 @@ export type GitLogGraphEdge = {
 export type GitLogGraphPassThrough = {
   row: number;
   lane: number;
+};
+
+export type GitLogGraphLayoutOptions = {
+  /** Visible list row for each commit. Collapsed placeholders occupy rows too. */
+  rowBySha?: ReadonlyMap<string, number>;
+  /** Total visible rows, including collapsed placeholders. */
+  rowCount?: number;
 };
 
 /**
@@ -168,8 +209,10 @@ export function buildGitLogGraphPassThrough(
 export function buildGitLogGraphEdges(
   commits: readonly LogCommitEntry[],
   laneBySha: ReadonlyMap<string, number>,
+  rowBySha: ReadonlyMap<string, number> = new Map(
+    commits.map((commit, row) => [commit.sha, row]),
+  ),
 ): GitLogGraphEdge[] {
-  const rowBySha = new Map(commits.map((commit, row) => [commit.sha, row]));
   const edges: GitLogGraphEdge[] = [];
 
   for (let row = 0; row < commits.length; row += 1) {
@@ -180,8 +223,12 @@ export function buildGitLogGraphEdges(
     }
 
     const xChild = laneCenterX(childLane);
+    const childRow = rowBySha.get(commit.sha);
+    if (childRow === undefined) {
+      continue;
+    }
     const yChild =
-      row * GIT_LOG_GRAPH_ROW_HEIGHT + GIT_LOG_GRAPH_ROW_HEIGHT / 2;
+      childRow * GIT_LOG_GRAPH_ROW_HEIGHT + GIT_LOG_GRAPH_ROW_HEIGHT / 2;
 
     const parents = commit.parentShas ?? [];
     for (let i = 0; i < parents.length; i += 1) {
@@ -216,7 +263,9 @@ export function buildGitLogGraphEdges(
   return edges;
 }
 
-export function gitLogGraphWidth(laneBySha: ReadonlyMap<string, number>): number {
+export function gitLogGraphWidth(
+  laneBySha: ReadonlyMap<string, number>,
+): number {
   let maxLane = 0;
   for (const lane of laneBySha.values()) {
     maxLane = Math.max(maxLane, lane);
@@ -224,13 +273,20 @@ export function gitLogGraphWidth(laneBySha: ReadonlyMap<string, number>): number
   return GIT_LOG_GRAPH_LANE_PAD * 2 + (maxLane + 1) * GIT_LOG_GRAPH_LANE_WIDTH;
 }
 
-export function buildGitLogGraphLayout(commits: readonly LogCommitEntry[]) {
+export function buildGitLogGraphLayout(
+  commits: readonly LogCommitEntry[],
+  options: GitLogGraphLayoutOptions = {},
+) {
   const laneBySha = assignCommitLanes(commits);
+  const rowBySha =
+    options.rowBySha ?? new Map(commits.map((commit, row) => [commit.sha, row]));
+  const rowCount = options.rowCount ?? commits.length;
   return {
     laneBySha,
     width: gitLogGraphWidth(laneBySha),
-    height: commits.length * GIT_LOG_GRAPH_ROW_HEIGHT,
-    edges: buildGitLogGraphEdges(commits, laneBySha),
+    height: rowCount * GIT_LOG_GRAPH_ROW_HEIGHT,
+    rowBySha,
+    edges: buildGitLogGraphEdges(commits, laneBySha, rowBySha),
     passThrough: buildGitLogGraphPassThrough(commits),
   };
 }

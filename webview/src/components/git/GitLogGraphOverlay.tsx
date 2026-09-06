@@ -46,13 +46,15 @@ export function GitLogGraphOverlay({
           opacity={0.9}
         />
       ))}
-      {commits.map((commit, row) => {
+      {commits.map((commit) => {
         const lane = layout.laneBySha.get(commit.sha);
-        if (lane === undefined) {
+        const graphRow = layout.rowBySha.get(commit.sha);
+        if (lane === undefined || graphRow === undefined) {
           return null;
         }
         const x = laneCenterX(lane);
-        const y = row * GIT_LOG_GRAPH_ROW_HEIGHT + GIT_LOG_GRAPH_ROW_HEIGHT / 2;
+        const y =
+          graphRow * GIT_LOG_GRAPH_ROW_HEIGHT + GIT_LOG_GRAPH_ROW_HEIGHT / 2;
         const color = gitLogLaneColor(lane);
         const isMerge = commit.isMerge || (commit.parentShas?.length ?? 0) > 1;
         return (
@@ -62,7 +64,7 @@ export function GitLogGraphOverlay({
               cy={y}
               r={GIT_LOG_GRAPH_DOT_RADIUS}
               fill={color}
-              stroke="var(--vscode-editor-background, #1e1e1e)"
+              stroke="var(--nx-bg)"
               strokeWidth={2}
             />
             {isMerge ? (

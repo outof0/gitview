@@ -1,3 +1,5 @@
+import { Input } from "../ui/Input";
+import { Button } from "../ui/Button";
 import { memo, useCallback, useMemo, useState } from "react";
 import { RotateCcw, Minus, Plus, ExternalLink } from "lucide-react";
 import type { GitMenuAction } from "@gitview/types";
@@ -14,6 +16,7 @@ import {
 import { GitContextMenuItems } from "./GitContextMenuItems";
 import { GitFileIcon } from "./gitFileIcon";
 import { ContextMenu } from "../ui/ContextMenu";
+import { MenuDivider, MenuItem, MenuSectionHeader } from "../ui/MenuItem";
 
 type WorkspaceChangesPanelProps = {
   files: GitFileStatus[];
@@ -63,9 +66,9 @@ const FileRow = memo(function FileRow({
 
   return (
     <div
-      className={`group w-full flex items-center gap-1.5 px-2 h-[30px] min-h-[30px] text-[length:var(--nx-font-size-ui)] hover:bg-list-hover ${
+      className={`group w-full flex items-center gap-1.5 px-2 h-row-lg min-h-row-lg text-ui hover:bg-list-hover ${
         selected
-          ? "bg-[var(--vscode-list-inactiveSelectionBackground,var(--list-active))] text-foreground border-l-2 border-[var(--vscode-focusBorder)]"
+          ? "bg-list-inactive-sel text-foreground border-l-2 border-ring"
           : "text-foreground border-l-2 border-transparent"
       }`}
       data-testid={`change-row-${file.path}`}
@@ -79,7 +82,7 @@ const FileRow = memo(function FileRow({
       }
     >
       {committable && (
-        <input
+        <Input
           type="checkbox"
           checked={inCommitScope}
           onChange={() => onToggleCommitScope(file.path)}
@@ -87,7 +90,7 @@ const FileRow = memo(function FileRow({
           data-testid={`commit-checkbox-${file.path}`}
         />
       )}
-      <button
+      <Button variant="ghost" size="content"
         type="button"
         className="flex-1 text-left flex items-center gap-1.5 border-none bg-transparent cursor-pointer p-0 min-w-0"
         onClick={() => {
@@ -98,24 +101,24 @@ const FileRow = memo(function FileRow({
       >
         <GitFileIcon fileName={name} className="w-3.5 h-3.5 shrink-0" />
         <span className="min-w-0 flex-1 flex flex-col leading-tight">
-          <span className={`truncate text-[11px] ${selected ? "font-semibold" : ""}`}>
+          <span className={`truncate text-ui-sm ${selected ? "font-semibold" : ""}`}>
             {name}
           </span>
           {dir ? (
-            <span className="truncate text-[8px] text-vscode-description">{dir}</span>
+            <span className="truncate text-path text-vscode-description">{dir}</span>
           ) : null}
         </span>
         <span
-          className={`w-4 shrink-0 text-right text-[10px] font-bold ${statusClass}`}
+          className={`w-4 shrink-0 text-right text-section font-bold ${statusClass}`}
           data-testid={`change-status-${file.path}`}
         >
           {fileStatusPrefix(visual)}
         </span>
-      </button>
+      </Button>
       {onOpenInEditor && (
-        <button
+        <Button variant="ghost" size="content"
           type="button"
-          className="shrink-0 w-6 h-6 hidden group-hover:flex items-center justify-center rounded-vscode hover:bg-[var(--vscode-toolbar-hoverBackground)] text-vscode-description hover:text-foreground"
+          className="shrink-0 w-6 h-6 hidden group-hover:flex items-center justify-center rounded-vscode hover:bg-toolbar-hover text-vscode-description hover:text-foreground"
           onClick={(e) => {
             e.stopPropagation();
             onOpenInEditor(file.path);
@@ -125,7 +128,7 @@ const FileRow = memo(function FileRow({
           aria-label={`Open ${file.path} in editor`}
         >
           <ExternalLink size={12} strokeWidth={1.75} aria-hidden />
-        </button>
+        </Button>
       )}
     </div>
   );
@@ -159,7 +162,7 @@ const Section = memo(function Section({
   return (
     <section data-testid={testId}>
       <div
-        className={`px-[var(--nx-pad-x)] h-7 min-h-7 flex items-center justify-between text-[length:var(--nx-font-size-section)] font-semibold uppercase tracking-wide ${
+        className={`px-pad-x h-7 min-h-7 flex items-center justify-between text-section font-semibold uppercase tracking-wide ${
           title === "Merge Conflicts"
             ? "nx-file-status-conflict"
             : "text-vscode-description"
@@ -230,55 +233,55 @@ export const WorkspaceChangesPanel = memo(function WorkspaceChangesPanel({
 
   return (
     <div
-      className="flex-1 min-h-0 flex flex-col font-[family-name:var(--nx-font-ui)]"
+      className="flex-1 min-h-0 flex flex-col font-ui"
       data-testid="workspace-changes"
     >
-      <div className="shrink-0 flex items-center justify-between gap-1 px-[var(--nx-pad-x)] h-[38px] min-h-[38px] border-b border-border overflow-hidden">
-        <span className="shrink-0 whitespace-nowrap text-[length:var(--nx-font-size-section)] font-bold uppercase tracking-wide text-foreground">
+      <div className="shrink-0 flex items-center justify-between gap-1 px-pad-x h-header min-h-header border-b border-border overflow-hidden">
+        <span className="shrink-0 whitespace-nowrap text-section font-bold uppercase tracking-wide text-foreground">
           Local Changes
         </span>
         <div className="flex items-center gap-0.5 shrink-0">
-        <button
+        <Button variant="ghost" size="content"
           type="button"
-          className="h-[var(--nx-row-h)] px-1.5 flex items-center gap-1 text-[length:var(--nx-font-size-ui-sm)] rounded-vscode hover:bg-list-hover disabled:opacity-40 shrink-0"
+          className="h-row px-1.5 flex items-center gap-1 text-ui-sm rounded-vscode hover:bg-list-hover disabled:opacity-40 shrink-0"
           disabled={!selectedPath || busy}
           onClick={() => selectedPath && onStage([selectedPath])}
           data-testid="stage-button"
         >
           <Plus size={14} aria-hidden />
-          <span className="max-[1100px]:hidden">Stage</span>
-        </button>
-        <button
+          <span className="max-changes-toolbar:hidden">Stage</span>
+        </Button>
+        <Button variant="ghost" size="content"
           type="button"
-          className="h-[var(--nx-row-h)] px-1.5 flex items-center gap-1 text-[length:var(--nx-font-size-ui-sm)] rounded-vscode hover:bg-list-hover disabled:opacity-40 shrink-0"
+          className="h-row px-1.5 flex items-center gap-1 text-ui-sm rounded-vscode hover:bg-list-hover disabled:opacity-40 shrink-0"
           disabled={!selectedPath || busy}
           onClick={() => selectedPath && onUnstage([selectedPath])}
           data-testid="unstage-button"
         >
           <Minus size={14} aria-hidden />
-          <span className="max-[1100px]:hidden">Unstage</span>
-        </button>
-        <button
+          <span className="max-changes-toolbar:hidden">Unstage</span>
+        </Button>
+        <Button variant="ghost" size="content"
           type="button"
-          className="h-[var(--nx-row-h)] px-1.5 flex items-center gap-1 text-[length:var(--nx-font-size-ui-sm)] rounded-vscode hover:bg-list-hover disabled:opacity-40 shrink-0"
+          className="h-row px-1.5 flex items-center gap-1 text-ui-sm rounded-vscode hover:bg-list-hover disabled:opacity-40 shrink-0"
           disabled={targetPaths.length === 0 || busy}
           onClick={() => selectedPath && onRollback([selectedPath])}
           data-testid="rollback-button"
         >
           <RotateCcw size={14} aria-hidden />
-          <span className="max-[1100px]:hidden">Rollback</span>
-        </button>
+          <span className="max-changes-toolbar:hidden">Rollback</span>
+        </Button>
         </div>
       </div>
 
       {compareLabel ? (
         <div
-          className="shrink-0 flex items-center justify-between gap-2 px-[var(--nx-pad-x)] h-11 min-h-11 border-b border-border bg-[var(--vscode-sideBarSectionHeader-background,transparent)]"
+          className="shrink-0 flex items-center justify-between gap-2 px-pad-x h-11 min-h-11 border-b border-border bg-sidebar-section-bg"
           data-testid="changes-compare-target"
         >
           <div className="min-w-0">
-            <div className="text-[9px] text-vscode-description">Comparing with</div>
-            <div className="truncate text-[11px] text-[var(--vscode-textLink-foreground,var(--nx-status-modified))]">
+            <div className="text-micro text-vscode-description">Comparing with</div>
+            <div className="truncate text-ui-sm text-vscode-link">
               {compareLabel}
             </div>
           </div>
@@ -287,13 +290,13 @@ export const WorkspaceChangesPanel = memo(function WorkspaceChangesPanel({
 
       {isEmpty ? (
         <div
-          className="nx-tool-empty flex flex-col items-start justify-start gap-1 px-[var(--nx-pad-x)] py-2 text-left"
+          className="nx-tool-empty flex flex-col items-start justify-start gap-1 px-pad-x py-2 text-left"
           data-testid="changes-empty"
         >
-          <div className="text-[length:var(--nx-font-size-ui)] font-medium text-foreground">
+          <div className="text-ui font-medium text-foreground">
             No local changes
           </div>
-          <div className="text-[length:var(--nx-font-size-ui-sm)] text-vscode-description">
+          <div className="text-ui-sm text-vscode-description">
             Edit files in the workspace to see them here.
           </div>
         </div>
@@ -343,35 +346,30 @@ export const WorkspaceChangesPanel = memo(function WorkspaceChangesPanel({
         ariaLabel="Change file actions"
       >
         {inactiveLists.length > 0 && onMoveToChangelist && fileMenu && (
-          <div className="py-1">
-            <div className="px-3 py-1 text-[10px] uppercase tracking-wide text-[var(--vscode-descriptionForeground)]">
-              Move to changelist
-            </div>
+          <>
+            <MenuSectionHeader label="Move to changelist" />
             {inactiveLists.map((list) => (
-              <button
+              <MenuItem
                 key={list.id}
-                type="button"
-                className="w-full text-left px-3 py-1.5 text-[12px] hover:bg-list-hover"
+                label={list.name}
                 onClick={() => {
                   onMoveToChangelist(list.id, [fileMenu.path]);
                   setFileMenu(null);
                 }}
-                data-testid={`move-to-${list.id}`}
-              >
-                {list.name}
-              </button>
+                testId={`move-to-${list.id}`}
+              />
             ))}
-          </div>
+          </>
         )}
         {inactiveLists.length === 0 && !onGitMenuAction && (
-          <div className="px-3 py-2 text-[12px] text-[var(--vscode-descriptionForeground)]">
+          <div className="px-3 py-2 text-ui text-vscode-description">
             No other changelists
           </div>
         )}
         {fileMenu && onGitMenuAction && (
           <>
             {(inactiveLists.length > 0 || onMoveToChangelist) && (
-              <div className="h-[1px] bg-menu-border my-1" />
+              <MenuDivider />
             )}
             <GitContextMenuItems
               isFolder={false}

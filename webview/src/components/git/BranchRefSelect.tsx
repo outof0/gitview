@@ -1,4 +1,6 @@
+import { SelectField } from "../ui/SelectField";
 import type { BranchEntry } from "@gitview/shared/types/branch";
+import { gitDialogInput } from "../ui/GitDialogShell";
 
 type BranchRefSelectProps = {
   branches: BranchEntry[];
@@ -12,8 +14,7 @@ type BranchRefSelectProps = {
   testId?: string;
 };
 
-export const branchSelectClasses =
-  "w-full h-[var(--nx-row-h)] px-1.5 text-[length:var(--nx-font-size-ui)] rounded-vscode border border-border bg-[var(--vscode-input-background)] text-foreground";
+export const branchSelectClasses = gitDialogInput;
 
 /** The ref git needs for a branch: remotes must keep their `origin/` prefix. */
 export function branchRefOf(branch: BranchEntry): string {
@@ -33,7 +34,7 @@ export function BranchRefSelect({
   const remote = branches.filter((b) => b.remote && branchRefOf(b) !== exclude);
 
   return (
-    <select
+    <SelectField
       className={branchSelectClasses}
       value={value}
       disabled={disabled}
@@ -60,6 +61,6 @@ export function BranchRefSelect({
           ))}
         </optgroup>
       ) : null}
-    </select>
+    </SelectField>
   );
 }

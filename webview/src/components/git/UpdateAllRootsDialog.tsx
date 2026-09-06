@@ -1,3 +1,9 @@
+import {
+  GitDialogShell,
+} from "../ui/GitDialogShell";
+import { Button } from "../ui/Button";
+import { ScrollArea } from "../ui/ScrollArea";
+
 type RootUpdateResult = {
   repoId: string;
   name: string;
@@ -24,24 +30,32 @@ export function UpdateAllRootsDialog({
   onShowChanges,
   onClose,
 }: UpdateAllRootsDialogProps) {
-  if (!open) {
-    return null;
-  }
-
   const succeeded = results.filter((result) => result.ok).length;
   const failed = results.length - succeeded;
 
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40"
-      data-testid="update-all-roots-dialog"
+    <GitDialogShell
+      open={open}
+      title="Update all roots"
+      size="wide"
+      onCancel={onClose}
+      testId="update-all-roots-dialog"
+      footer={
+        <Button
+          type="button"
+          variant="secondary" size="compact"
+          onClick={onClose}
+          data-testid="update-all-roots-close"
+        >
+          Close
+        </Button>
+      }
     >
-      <div className="w-[min(480px,90vw)] rounded-vscode border border-border bg-[var(--vscode-editor-background)] p-4 shadow-lg">
-        <h3 className="text-[13px] font-semibold mb-2">Update all roots</h3>
-        <p className="text-[12px] text-[var(--vscode-descriptionForeground)] mb-3">
-          {succeeded} succeeded, {failed} failed
-        </p>
-        <ul className="max-h-[240px] overflow-auto text-[12px] space-y-2 mb-4">
+      <p className="mt-0 mb-3">
+        {succeeded} succeeded, {failed} failed
+      </p>
+      <ScrollArea axis="vertical" className="max-h-update-targets-max">
+        <ul className="text-ui text-foreground space-y-2 mb-0">
           {results.map((result) => (
             <li
               key={result.repoId}
@@ -50,29 +64,27 @@ export function UpdateAllRootsDialog({
             >
               <div className="font-medium">{result.name}</div>
               {result.ok ? (
-                <div className="text-[var(--vscode-testing-iconPassed,var(--foreground))]">
-                  Updated successfully
-                </div>
+                <div className="text-testing-passed">Updated successfully</div>
               ) : (
                 <>
-                  <div className="text-[var(--vscode-errorForeground)]">
+                  <div className="text-danger-fg">
                     {result.error ?? "Update failed"}
                   </div>
                   <div className="mt-1.5 flex flex-wrap justify-end gap-1.5">
                     {result.repoId === activeRepoId && onShowChanges ? (
-                      <button
+                      <Button
                         type="button"
-                        className="btn-vscode-secondary h-[var(--nx-row-h)] px-2 text-[11px]"
+                        variant="secondary" size="compact"
                         onClick={onShowChanges}
                         data-testid={`update-root-show-changes-${result.repoId}`}
                       >
                         Show Changes
-                      </button>
+                      </Button>
                     ) : null}
                     {onRetryRoot ? (
-                      <button
+                      <Button
                         type="button"
-                        className="btn-vscode h-[var(--nx-row-h)] px-2 text-[11px]"
+                        variant="primary" size="compact"
                         onClick={() => onRetryRoot(result.repoId)}
                         disabled={retryingRepoIds.includes(result.repoId)}
                         data-testid={`update-root-retry-${result.repoId}`}
@@ -80,7 +92,7 @@ export function UpdateAllRootsDialog({
                         {retryingRepoIds.includes(result.repoId)
                           ? "Retrying…"
                           : "Retry Root"}
-                      </button>
+                      </Button>
                     ) : null}
                   </div>
                 </>
@@ -88,17 +100,7 @@ export function UpdateAllRootsDialog({
             </li>
           ))}
         </ul>
-        <div className="flex justify-end">
-          <button
-            type="button"
-            className="h-7 px-3 text-[12px] rounded-vscode hover:bg-list-hover"
-            onClick={onClose}
-            data-testid="update-all-roots-close"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
+      </ScrollArea>
+    </GitDialogShell>
   );
 }

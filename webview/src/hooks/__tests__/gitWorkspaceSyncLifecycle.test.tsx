@@ -130,7 +130,7 @@ describe("Git Workspace sync lifecycle", () => {
     });
 
     expect(fetch).toHaveBeenCalledWith(repository.id);
-    expect(setSyncing.mock.calls).toEqual([[true], [false]]);
+    expect(setSyncing.mock.calls).toEqual([[true, "repo-1"], [false, "repo-1"]]);
     expect(useGitWorkspaceStore.getState().error).toBeNull();
     expect(
       useGitWorkspaceStore
@@ -223,7 +223,7 @@ describe("Git Workspace sync lifecycle", () => {
     });
 
     expect(pull).toHaveBeenCalledWith(repository.id, "rebase");
-    expect(setSyncing.mock.calls).toEqual([[true], [false]]);
+    expect(setSyncing.mock.calls).toEqual([[true, "repo-1"], [false, "repo-1"]]);
     expect(useGitWorkspaceStore.getState().error).toBeNull();
     expect(
       useGitWorkspaceStore

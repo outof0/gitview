@@ -78,7 +78,7 @@ export function Toolbar({
 
   return (
     <div
-      className="nx-tool-titlebar flex items-center gap-0.5 px-[var(--nx-pad-x)] h-[var(--nx-toolbar-h)] min-h-[var(--nx-toolbar-h)] border-b border-[var(--vscode-panel-border)] bg-[var(--vscode-editorGroupHeader-tabsBackground,var(--vscode-editor-background))] font-[family-name:var(--nx-font-ui)]"
+      className="nx-tool-titlebar ui-responsive-toolbar flex min-w-0 items-center gap-0.5 px-pad-x h-toolbar min-h-toolbar border-b border-vscode-panel-border bg-tabs-bg font-ui"
       data-testid="merge-toolbar"
     >
       {/* Navigation — only when multiple changes */}
@@ -105,7 +105,7 @@ export function Toolbar({
       {hasNonConflicting && (
         <>
           {hasNavigation && <ToolbarSeparator />}
-          <span className="text-xs text-[var(--vscode-descriptionForeground)] px-1">
+          <span className="text-xs text-vscode-description px-1">
             Apply non-conflicting:
           </span>
           <ToolbarIconButton
@@ -141,7 +141,7 @@ export function Toolbar({
             title="Magic Merge — Resolve simple conflicts"
             aria-label="Magic Merge: Resolve simple conflicts"
             data-testid="magic-merge-button"
-            className="text-sm text-[var(--vscode-charts-yellow,#d9a441)]"
+            className="text-sm text-charts-yellow"
           >
             ✦
           </ToolbarIconButton>
@@ -151,53 +151,70 @@ export function Toolbar({
       {/* Separator before the options dropdowns if any left section was shown */}
       {hasLeft && <ToolbarSeparator />}
 
-      {/* Whitespace dropdown */}
-      <ToolbarDropdown
-        label={
-          <>
-            Whitespace:{" "}
-            <span className="font-medium">
-              {WHITESPACE_LABELS[whitespacePolicy]}
-            </span>
-          </>
-        }
-        title="Whitespace policy"
-        items={(Object.keys(WHITESPACE_LABELS) as WhitespacePolicy[]).map(
-          (value) => ({
-            value,
-            label: WHITESPACE_LABELS[value],
-            active: value === whitespacePolicy,
-            onSelect: () => setWhitespacePolicy(value),
-          }),
-        )}
-      />
+      <div className="ui-toolbar-secondary contents">
+        <ToolbarDropdown
+          label={
+            <>
+              Whitespace:{" "}
+              <span className="font-medium">
+                {WHITESPACE_LABELS[whitespacePolicy]}
+              </span>
+            </>
+          }
+          title="Whitespace policy"
+          items={(Object.keys(WHITESPACE_LABELS) as WhitespacePolicy[]).map(
+            (value) => ({
+              value,
+              label: WHITESPACE_LABELS[value],
+              active: value === whitespacePolicy,
+              onSelect: () => setWhitespacePolicy(value),
+            }),
+          )}
+        />
 
-      {/* Highlighting dropdown */}
-      <ToolbarDropdown
-        label={
-          <>
-            Highlighting:{" "}
-            <span className="font-medium">
-              {HIGHLIGHT_LABELS[highlightingMode]}
-            </span>
-          </>
-        }
-        title="Highlighting policy"
-        items={(Object.keys(HIGHLIGHT_LABELS) as HighlightingMode[]).map(
-          (value) => ({
-            value,
-            label: HIGHLIGHT_LABELS[value],
-            active: value === highlightingMode,
-            onSelect: () => setHighlightingMode(value),
-          }),
-        )}
-      />
+        <ToolbarDropdown
+          label={
+            <>
+              Highlighting:{" "}
+              <span className="font-medium">
+                {HIGHLIGHT_LABELS[highlightingMode]}
+              </span>
+            </>
+          }
+          title="Highlighting policy"
+          items={(Object.keys(HIGHLIGHT_LABELS) as HighlightingMode[]).map(
+            (value) => ({
+              value,
+              label: HIGHLIGHT_LABELS[value],
+              active: value === highlightingMode,
+              onSelect: () => setHighlightingMode(value),
+            }),
+          )}
+        />
+      </div>
 
       {/* View dropdown */}
       <ToolbarDropdown
+        testId="merge-view-options"
         label="View"
         title="View options"
         items={[
+          ...(Object.keys(WHITESPACE_LABELS) as WhitespacePolicy[]).map(
+            (value) => ({
+              value: `whitespace-${value}`,
+              label: `Whitespace: ${WHITESPACE_LABELS[value]}`,
+              active: value === whitespacePolicy,
+              onSelect: () => setWhitespacePolicy(value),
+            }),
+          ),
+          ...(Object.keys(HIGHLIGHT_LABELS) as HighlightingMode[]).map(
+            (value) => ({
+              value: `highlight-${value}`,
+              label: HIGHLIGHT_LABELS[value],
+              active: value === highlightingMode,
+              onSelect: () => setHighlightingMode(value),
+            }),
+          ),
           {
             value: "show-base",
             label: "Show Base Revision",
@@ -217,14 +234,14 @@ export function Toolbar({
 
       {/* Counter — conflict count in red (mockup .counter .cf) */}
       <span
-        className="text-[11.5px] text-[var(--vscode-descriptionForeground)] px-2"
+        className="ui-toolbar-tertiary text-ui-sm text-vscode-description px-2"
         data-testid="conflict-counter"
         role="status"
         aria-live="polite"
         aria-label={`${totalChanges} change${totalChanges !== 1 ? "s" : ""}, ${remainingConflicts} conflict${remainingConflicts !== 1 ? "s" : ""}`}
       >
         {totalChanges} change{totalChanges !== 1 ? "s" : ""}.{" "}
-        <span className="font-medium text-[var(--vscode-errorForeground,#cf5c56)]">
+        <span className="font-medium text-danger-fg">
           {remainingConflicts} conflict{remainingConflicts !== 1 ? "s" : ""}.
         </span>
       </span>

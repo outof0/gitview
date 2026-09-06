@@ -97,7 +97,7 @@ function renderBootError(err: unknown): void {
   const message = err instanceof Error ? err.message : String(err);
   const errorEl = document.createElement("div");
   errorEl.style.cssText =
-    "padding:16px;font:13px/1.5 var(--vscode-font-family,system-ui,sans-serif);color:var(--vscode-errorForeground,#f48771)";
+    "padding:16px;font:13px/1.5 var(--nx-font-app);color:var(--nx-danger-fg)";
   errorEl.textContent = `GitView failed to start: ${message}`;
   rootEl.replaceChildren(errorEl);
 }

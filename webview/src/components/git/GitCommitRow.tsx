@@ -1,3 +1,4 @@
+import { Button } from "../ui/Button";
 import { memo, type RefObject } from "react";
 import type { LogCommitEntry } from "@gitview/shared/types/log";
 import { parseIssueLinks } from "../../lib/issueLinks";
@@ -41,7 +42,7 @@ function IssueLinks({
         <a
           key={link.id}
           href={link.url}
-          className="ml-1 text-[var(--vscode-textLink-foreground)] underline"
+          className="ml-1 text-vscode-link underline"
           onClick={(e) => e.stopPropagation()}
           data-testid={`issue-link-${link.id}`}
         >
@@ -84,17 +85,16 @@ export const GitCommitRow = memo(function GitCommitRow({
 
     return (
       <li>
-        <button
+        <Button variant="ghost" size="content"
           type="button"
           className={cn(
             "relative w-full grid items-center gap-0 p-0 border-0 bg-transparent text-vscode-editor-fg cursor-pointer text-left hover:bg-list-hover",
-            compact
-              ? "min-h-6 text-xs leading-6"
-              : "min-h-7 text-[length:var(--vscode-font-size,13px)] leading-7",
+            "h-log-graph-row min-h-log-graph-row text-ui-base leading-log-graph-row",
+            compact && "text-xs",
             selected && "bg-list-active text-list-activeForeground",
             !selected &&
               highlighted &&
-              "bg-[color-mix(in_srgb,var(--vscode-list-hoverBackground,rgba(255,255,255,0.08))_65%,transparent)]",
+              "bg-[color-mix(in_srgb,var(--list-hover)_65%,transparent)]",
           )}
           style={{
             gridTemplateColumns: `${graphWidth}px minmax(0,1fr) minmax(0,0.42fr) minmax(0,0.34fr)`,
@@ -117,7 +117,9 @@ export const GitCommitRow = memo(function GitCommitRow({
               current && "font-bold",
             )}
           >
-            <span className="truncate min-w-0">{commit.subject}</span>
+            <span className="truncate min-w-0" data-testid="git-commit-subject">
+              {commit.subject}
+            </span>
             <IssueLinks
               commit={commit}
               issueTrackerBaseUrl={issueTrackerBaseUrl}
@@ -129,10 +131,10 @@ export const GitCommitRow = memo(function GitCommitRow({
                   <span
                     key={ref}
                     className={cn(
-                      "inline-flex items-center max-w-[7rem] truncate px-1 rounded-[2px] text-[10px] leading-[16px] font-medium",
-                      "border border-[var(--vscode-gitDecoration-modifiedResourceForeground,#3887c7)]",
-                      "text-[var(--vscode-gitDecoration-modifiedResourceForeground,#3887c7)]",
-                      "bg-[color-mix(in_srgb,var(--vscode-gitDecoration-modifiedResourceForeground,#3887c7)_12%,transparent)]",
+                      "inline-flex items-center max-w-[7rem] truncate px-1 rounded-vscode text-section leading-ref font-medium",
+                      "border border-status-modified",
+                      "text-status-modified",
+                      "bg-[color-mix(in_srgb,var(--nx-status-modified)_12%,transparent)]",
                     )}
                     title={ref}
                     data-testid={`commit-ref-${ref}`}
@@ -156,12 +158,12 @@ export const GitCommitRow = memo(function GitCommitRow({
             className={cn(
               "min-w-0 px-2 tabular-nums truncate text-vscode-description",
               selected &&
-                "text-[color-mix(in_srgb,var(--vscode-list-activeSelectionForeground,#ffffff)_78%,transparent)]",
+                "text-[color-mix(in_srgb,var(--list-active-foreground)_78%,transparent)]",
             )}
           >
             {dateLabel}
           </span>
-        </button>
+        </Button>
       </li>
     );
   }
@@ -169,10 +171,10 @@ export const GitCommitRow = memo(function GitCommitRow({
   if (blameDensity) {
     return (
       <li>
-        <button
+        <Button variant="ghost" size="content"
           type="button"
           className={cn(
-            "w-full text-left border-none cursor-pointer grid grid-cols-[62px_minmax(0,1fr)_minmax(0,0.9fr)] gap-2 items-center min-h-5 py-px px-2 text-[11px] leading-[18px] text-foreground bg-transparent",
+            "w-full text-left border-none cursor-pointer grid grid-cols-[62px_minmax(0,1fr)_minmax(0,0.9fr)] gap-2 items-center min-h-5 py-px px-2 text-ui-sm leading-code text-foreground bg-transparent",
             selected
               ? "bg-list-active text-list-activeForeground"
               : "hover:bg-list-hover",
@@ -192,14 +194,14 @@ export const GitCommitRow = memo(function GitCommitRow({
           <span className="font-medium truncate">{commit.subject}</span>
           <span
             className={cn(
-              "text-[10px] text-vscode-description truncate",
+              "text-section text-vscode-description truncate",
               selected &&
                 "text-[color-mix(in_srgb,currentColor_78%,transparent)]",
             )}
           >
             {commit.author} · {formatRelativeTime(commit.authorTime)}
           </span>
-        </button>
+        </Button>
       </li>
     );
   }
@@ -207,12 +209,12 @@ export const GitCommitRow = memo(function GitCommitRow({
   // Compact single-line log row: SHA | subject | author · time
   return (
     <li>
-      <button
+      <Button variant="ghost" size="content"
         type="button"
         className={cn(
           "w-full text-left border-none cursor-pointer grid items-center gap-2",
-          "h-[var(--nx-row-h)] min-h-[var(--nx-row-h)] px-2",
-          "text-[length:var(--nx-font-size-ui)] leading-[var(--nx-row-h)]",
+          "h-row min-h-row px-2",
+          "text-ui leading-row",
           "grid-cols-[52px_minmax(0,1fr)_minmax(0,0.55fr)]",
           selected
             ? "bg-list-active text-list-activeForeground"
@@ -225,10 +227,12 @@ export const GitCommitRow = memo(function GitCommitRow({
         onContextMenu={handleContextMenu}
         data-testid={`git-commit-${commit.shortSha}`}
       >
-        <span className="font-mono text-[var(--vscode-textLink-foreground)] truncate tabular-nums">
+        <span className="font-mono text-vscode-link truncate tabular-nums">
           {commit.shortSha}
           {commit.isMerge ? (
-            <span className="ml-0.5 text-[10px] opacity-70">m</span>
+            <span className="ml-0.5 text-section opacity-70">
+              m
+            </span>
           ) : null}
         </span>
         <span className="min-w-0 truncate font-medium">
@@ -241,15 +245,15 @@ export const GitCommitRow = memo(function GitCommitRow({
         </span>
         <span
           className={cn(
-            "min-w-0 truncate text-[length:var(--nx-font-size-ui-sm)] text-right",
+            "min-w-0 truncate text-ui-sm text-right",
             selected
               ? "text-list-activeForeground/80"
-              : "text-[var(--vscode-descriptionForeground)]",
+              : "text-vscode-description",
           )}
         >
           {commit.author} · {formatRelativeTime(commit.authorTime)}
         </span>
-      </button>
+      </Button>
     </li>
   );
 });

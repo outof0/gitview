@@ -5,11 +5,15 @@ import {
 } from "@gitview/shared/types/confirmation";
 import type { GitWorkspaceAuxApi } from "../../apps/gitWorkspace/gitWorkspaceControllerTypes";
 import { isErrorCode } from "../../lib/errorCode";
+import { captureRepoToken, isRepoTokenCurrent } from "./repoScope";
 import { useGitWorkspaceStore } from "../../stores/gitWorkspaceStore";
 import type { GitWorkspaceDeps } from "./gitWorkspaceDeps";
+import { useRepoRequestScope } from "./useRepoRequestScope";
 
 export function useGitWorkspaceAuxActions(deps: GitWorkspaceDeps): GitWorkspaceAuxApi {
   const { clientRef, activeRepo, setSyncing } = deps.core;
+  const activeRepoId = activeRepo?.id;
+  const { begin, isCurrent } = useRepoRequestScope();
   const {
     setTagsLoading,
     setWorktreesLoading,
@@ -19,72 +23,102 @@ export function useGitWorkspaceAuxActions(deps: GitWorkspaceDeps): GitWorkspaceA
   } = deps.store;
 
   const loadStashes = useCallback(async () => {
-    if (!activeRepo) {
+    if (!activeRepoId) {
       return;
     }
+    const token = begin(activeRepoId, "stashes");
     try {
-      await clientRef.current.listStashes(activeRepo.id);
+      await clientRef.current.listStashes(activeRepoId);
     } catch (err) {
+      if (!isCurrent(token)) {
+        return;
+      }
       useGitWorkspaceStore.getState().setError(
         err instanceof Error ? err.message : "Failed to load stashes",
       );
     }
-  }, [activeRepo]);
+  }, [activeRepoId, begin, isCurrent]);
 
   const loadShelves = useCallback(async () => {
     if (!activeRepo) {
       return;
     }
+    const token = begin(activeRepo.id, "shelves");
     try {
       await clientRef.current.listShelves(activeRepo.id);
     } catch (err) {
+      if (!isCurrent(token)) {
+        return;
+      }
       useGitWorkspaceStore.getState().setError(
         err instanceof Error ? err.message : "Failed to load shelves",
       );
     }
-  }, [activeRepo]);
+  }, [activeRepo, begin, isCurrent]);
 
   const loadTags = useCallback(async () => {
     if (!activeRepo) {
       return;
     }
+    const token = begin(activeRepo.id, "tags");
     setTagsLoading(true);
     try {
       await clientRef.current.listTags(activeRepo.id);
     } catch (err) {
-      setTagsLoading(false);
+      if (!isCurrent(token)) {
+        return;
+      }
       useGitWorkspaceStore.getState().setError(
         err instanceof Error ? err.message : "Failed to load tags",
       );
+    } finally {
+      // `applyTagSnapshot` also clears this. Keep both: see the note in
+      // `useGitWorkspaceLoaders.loadBranches`.
+      if (isCurrent(token)) {
+        setTagsLoading(false);
+      }
     }
-  }, [activeRepo, setTagsLoading]);
+  }, [activeRepo, begin, isCurrent, setTagsLoading]);
 
   const loadWorktrees = useCallback(async () => {
     if (!activeRepo) {
       return;
     }
+    const token = begin(activeRepo.id, "worktrees");
     setWorktreesLoading(true);
     try {
       await clientRef.current.listWorktrees(activeRepo.id);
     } catch (err) {
-      setWorktreesLoading(false);
+      if (!isCurrent(token)) {
+        return;
+      }
       useGitWorkspaceStore.getState().setError(
         err instanceof Error ? err.message : "Failed to load worktrees",
       );
+    } finally {
+      if (isCurrent(token)) {
+        setWorktreesLoading(false);
+      }
     }
-  }, [activeRepo, setWorktreesLoading]);
+  }, [activeRepo, begin, isCurrent, setWorktreesLoading]);
 
   const handleRemoveWorktree = useCallback(
     async (path: string, confirmation?: ConfirmationSubmission) => {
       if (!activeRepo) {
         return;
       }
-      setSyncing(true);
+      const requestToken = captureRepoToken(activeRepo.id);
+      setSyncing(true, activeRepo.id);
       useGitWorkspaceStore.getState().setError(null);
       try {
         await clientRef.current.removeWorktree(activeRepo.id, path, confirmation);
-        closeDialog("worktreeRemove");
+        if (isRepoTokenCurrent(requestToken)) {
+          closeDialog("worktreeRemove");
+        }
       } catch (err) {
+        if (!isRepoTokenCurrent(requestToken)) {
+          return;
+        }
         const message = err instanceof Error ? err.message : "Remove worktree failed";
         const details = (err as { details?: { confirmation?: unknown } }).details;
         const nextConfirmation = isConfirmationEvidence(details?.confirmation)
@@ -103,7 +137,7 @@ export function useGitWorkspaceAuxActions(deps: GitWorkspaceDeps): GitWorkspaceA
           useGitWorkspaceStore.getState().setError(message);
         }
       } finally {
-        setSyncing(false);
+        setSyncing(false, activeRepo.id);
       }
     },
     [activeRepo, openDialog, closeDialog],
@@ -129,12 +163,18 @@ export function useGitWorkspaceAuxActions(deps: GitWorkspaceDeps): GitWorkspaceA
       if (!activeRepo) {
         return;
       }
-      setSyncing(true);
+      const requestToken = captureRepoToken(activeRepo.id);
+      setSyncing(true, activeRepo.id);
       useGitWorkspaceStore.getState().setError(null);
       try {
         await clientRef.current.rollbackFiles(activeRepo.id, paths, confirmation);
-        closeDialog("rollbackConfirm");
+        if (isRepoTokenCurrent(requestToken)) {
+          closeDialog("rollbackConfirm");
+        }
       } catch (err) {
+        if (!isRepoTokenCurrent(requestToken)) {
+          return;
+        }
         const message = err instanceof Error ? err.message : "Rollback failed";
         const details = (err as { details?: { confirmation?: unknown } }).details;
         const nextConfirmation = isConfirmationEvidence(details?.confirmation)
@@ -153,7 +193,7 @@ export function useGitWorkspaceAuxActions(deps: GitWorkspaceDeps): GitWorkspaceA
           useGitWorkspaceStore.getState().setError(message);
         }
       } finally {
-        setSyncing(false);
+        setSyncing(false, activeRepo.id);
       }
     },
     [activeRepo, openDialog, closeDialog],

@@ -1,3 +1,4 @@
+import { Button } from "../ui/Button";
 import { memo, useCallback, useMemo, useState } from "react";
 import { AlertCircle, Copy, Eye, GitCompare, Search } from "lucide-react";
 import { ContextMenu } from "../ui/ContextMenu";
@@ -10,9 +11,13 @@ import { GitCommitList } from "./GitCommitList";
 import { GitChangedFilesTree } from "./GitChangedFilesTree";
 import { WorkspaceDiffPanel } from "./WorkspaceDiffPanel";
 import { ResizableSplit } from "../ui/ResizableSplit";
+import { TextField } from "../ui/TextField";
 import { WorkspaceLogFilters } from "./workspaceLogPanel/WorkspaceLogFilters";
 import { WorkspaceLogToolbar } from "./workspaceLogPanel/WorkspaceLogToolbar";
-import { findCommit, type WorkspaceLogPanelProps } from "./workspaceLogPanel/workspaceLogPanelTypes";
+import {
+  findCommit,
+  type WorkspaceLogPanelProps,
+} from "./workspaceLogPanel/workspaceLogPanelTypes";
 
 /**
  * Memoized: the log can hold thousands of commits, and the store notifies this
@@ -89,7 +94,10 @@ export const WorkspaceLogPanel = memo(function WorkspaceLogPanel({
   const selected = findCommit(commits, selectedSha);
   const displayEntries = useMemo(() => {
     if (expandedLinear) {
-      return expandedLinear.map((commit) => ({ kind: "commit" as const, commit }));
+      return expandedLinear.map((commit) => ({
+        kind: "commit" as const,
+        commit,
+      }));
     }
     return collapseLinearCommits(commits, Boolean(filters.collapseLinear));
   }, [commits, expandedLinear, filters.collapseLinear]);
@@ -167,7 +175,7 @@ export const WorkspaceLogPanel = memo(function WorkspaceLogPanel({
   );
 
   const paneIconBtn =
-    "h-[22px] w-[22px] shrink-0 flex items-center justify-center rounded-sm text-vscode-description hover:bg-list-hover hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent";
+    "h-row w-row shrink-0 flex items-center justify-center rounded-vscode text-vscode-description hover:bg-list-hover hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent";
 
   const commitColumn = (
     <div className="h-full min-h-0 min-w-0 overflow-hidden flex flex-col">
@@ -194,7 +202,10 @@ export const WorkspaceLogPanel = memo(function WorkspaceLogPanel({
           onRefresh={onRefresh}
         />
       </div>
-      <div className="flex-1 min-h-0 overflow-hidden">
+      <div
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
+        data-testid="workspace-log-commits-scroll"
+      >
         <GitCommitList
           entries={displayEntries}
           selectedSha={selectedSha}
@@ -215,15 +226,18 @@ export const WorkspaceLogPanel = memo(function WorkspaceLogPanel({
   );
 
   const filesColumn = (
-    <div className="h-full min-h-0 min-w-0 flex flex-col" data-testid="workspace-log-files-pane">
-      <div className="shrink-0 h-8 min-h-8 flex items-center justify-between px-2 border-b border-border text-[length:var(--vscode-font-size,13px)] text-vscode-description">
+    <div
+      className="h-full min-h-0 min-w-0 flex flex-col"
+      data-testid="workspace-log-files-pane"
+    >
+      <div className="shrink-0 h-8 min-h-8 flex items-center justify-between px-2 border-b border-border text-ui-base text-vscode-description">
         <span>
           {selected
             ? `${changedFiles.length} ${changedFiles.length === 1 ? "file" : "files"}`
             : "No commit selected"}
         </span>
         <div className="flex items-center gap-0.5">
-          <button
+          <Button variant="ghost" size="content"
             type="button"
             className={paneIconBtn}
             title="Compare / show diff"
@@ -231,9 +245,9 @@ export const WorkspaceLogPanel = memo(function WorkspaceLogPanel({
             onClick={() => selectedFilePath && openFile(selectedFilePath, true)}
             data-testid="workspace-log-open-diff"
           >
-            <GitCompare size={13} aria-hidden />
-          </button>
-          <button
+            <GitCompare size={14} aria-hidden />
+          </Button>
+          <Button variant="ghost" size="content"
             type="button"
             className={paneIconBtn}
             title="Toggle inline diff"
@@ -242,9 +256,9 @@ export const WorkspaceLogPanel = memo(function WorkspaceLogPanel({
             onClick={() => setDiffPaneOpen((open) => !open)}
             data-testid="workspace-log-toggle-diff"
           >
-            <Eye size={13} aria-hidden />
-          </button>
-          <button
+            <Eye size={14} aria-hidden />
+          </Button>
+          <Button variant="ghost" size="content"
             type="button"
             className={`${paneIconBtn} ${filesQueryOpen ? "text-foreground bg-list-hover" : ""}`}
             title="Filter files"
@@ -252,15 +266,18 @@ export const WorkspaceLogPanel = memo(function WorkspaceLogPanel({
             onClick={() => setFilesQueryOpen((open) => !open)}
             data-testid="workspace-log-search-files"
           >
-            <Search size={13} aria-hidden />
-          </button>
+            <Search size={14} aria-hidden />
+          </Button>
         </div>
       </div>
       {filesQueryOpen ? (
-        <div className="shrink-0 h-[28px] px-2 flex items-center border-b border-border bg-[var(--vscode-sideBar-background,var(--background))]">
-          <input
-            type="text"
-            className="h-6 w-full px-1.5 text-[11px] leading-none rounded-sm border border-[var(--vscode-input-border,var(--border))] bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground,var(--vscode-editor-foreground))] placeholder:text-[var(--vscode-input-placeholderForeground,var(--vscode-descriptionForeground))] outline-none"
+        <div className="shrink-0 h-toolbar px-2 flex items-center border-b border-border bg-vscode-sidebar-bg">
+          <TextField
+            type="search"
+            size="compact"
+            containerClassName="w-full"
+            inputClassName="text-ui-sm"
+            aria-label="Filter changed files"
             placeholder="Filter files"
             value={filesQuery}
             onChange={(e) => setFilesQuery(e.target.value)}
@@ -269,23 +286,25 @@ export const WorkspaceLogPanel = memo(function WorkspaceLogPanel({
           />
         </div>
       ) : null}
-      <div className="flex-1 min-h-0 overflow-y-auto py-1">{changedFilesTree}</div>
+      <div className="flex-1 min-h-0 overflow-y-auto py-1">
+        {changedFilesTree}
+      </div>
       <div
-        className="shrink-0 max-h-[96px] overflow-y-auto border-t border-border px-2.5 py-1.5 flex flex-col gap-1 bg-[var(--vscode-sideBar-background,var(--background))]"
+        className="shrink-0 max-h-log-details-max overflow-y-auto border-t border-border px-2.5 py-1.5 flex flex-col gap-1 bg-vscode-sidebar-bg"
         data-testid="workspace-log-details-pane"
       >
         {selected ? (
           <>
-            <span className="text-[length:var(--vscode-font-size,13px)] font-semibold leading-5 truncate">
+            <span className="text-ui-base font-semibold leading-5 truncate">
               {selected.subject}
             </span>
-            <span className="flex items-center gap-1.5 text-[12px] leading-4 whitespace-nowrap overflow-hidden">
+            <span className="flex items-center gap-1.5 text-ui leading-4 whitespace-nowrap overflow-hidden">
               <span>{selected.shortSha}</span>
               <span>{selected.author}</span>
               {selected.authorEmail ? (
                 <a
                   href={`mailto:${selected.authorEmail}`}
-                  className="truncate text-[var(--vscode-textLink-foreground)] hover:underline"
+                  className="truncate text-vscode-link hover:underline"
                   title={selected.authorEmail}
                   data-testid="workspace-log-author-email"
                 >
@@ -299,7 +318,7 @@ export const WorkspaceLogPanel = memo(function WorkspaceLogPanel({
                 {(selected.refs ?? []).map((ref) => (
                   <span
                     key={ref}
-                    className="inline-flex items-center h-[16px] px-1.5 rounded-full border border-border text-[10px] leading-none text-vscode-description"
+                    className="inline-flex items-center h-icon-md px-1.5 rounded-full border border-border text-section leading-none text-vscode-description"
                   >
                     {ref}
                   </span>
@@ -308,7 +327,7 @@ export const WorkspaceLogPanel = memo(function WorkspaceLogPanel({
             )}
           </>
         ) : (
-          <span className="text-[length:var(--nx-font-size-ui-sm)] text-vscode-description">
+          <span className="text-ui-sm text-vscode-description">
             Select a commit to view details.
           </span>
         )}
@@ -354,26 +373,26 @@ export const WorkspaceLogPanel = memo(function WorkspaceLogPanel({
 
   return (
     <div
-      className="relative flex-1 min-h-0 flex flex-col font-[family-name:var(--nx-font-ui)]"
+      className="relative flex-1 min-h-0 flex flex-col font-ui"
       data-testid="workspace-log-panel"
       data-layout="log"
     >
       {error && (
-        <div className="absolute top-8 left-0 right-0 z-10 mx-2 rounded-sm border border-[var(--vscode-inputValidation-errorBorder,var(--vscode-errorForeground))] bg-[var(--vscode-inputValidation-errorBackground,var(--vscode-editor-background))] px-3 py-2 text-[12px] leading-4 text-[var(--vscode-errorForeground)] shadow-md flex items-start gap-2">
+        <div className="absolute top-8 left-0 right-0 z-10 mx-2 rounded-vscode border border-danger-border bg-danger-bg px-3 py-2 text-ui leading-4 text-danger-fg shadow-md flex items-start gap-2">
           <AlertCircle size={14} className="shrink-0 mt-0.5" aria-hidden />
           <span className="flex-1 min-w-0 break-words whitespace-pre-wrap">
             {error.includes("timed out")
               ? "Request timed out. The repository may be large or Git is busy. Please try again."
               : error}
           </span>
-          <button
+          <Button variant="primary" size="content"
             type="button"
-            className="shrink-0 rounded-sm px-2 py-0.5 text-[11px] font-medium bg-[var(--vscode-button-background)] text-[var(--vscode-button-foreground)] hover:bg-[var(--vscode-button-hoverBackground)]"
+            className="shrink-0 rounded-vscode px-2 py-0.5 text-ui-sm font-medium bg-primary text-primary-foreground hover:bg-primary-hover"
             onClick={onRefresh}
             data-testid="workspace-log-retry"
           >
             Retry
-          </button>
+          </Button>
         </div>
       )}
       {diffPane ? (
@@ -391,7 +410,11 @@ export const WorkspaceLogPanel = memo(function WorkspaceLogPanel({
         columns
       )}
       <ContextMenu
-        menu={commitMenu ? { visible: true, x: commitMenu.x, y: commitMenu.y } : null}
+        menu={
+          commitMenu
+            ? { visible: true, x: commitMenu.x, y: commitMenu.y }
+            : null
+        }
         onClose={() => setCommitMenu(null)}
         testId="workspace-log-commit-menu"
         ariaLabel="Commit actions"

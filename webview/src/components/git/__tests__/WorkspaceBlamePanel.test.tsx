@@ -81,16 +81,16 @@ describe("WorkspaceBlamePanel", () => {
       />,
     );
     await flushMonaco();
-    expect(screen.getByTestId("blame-monaco").getAttribute("data-language")).toBe(
-      "typescript",
-    );
+    expect(
+      screen.getByTestId("blame-monaco").getAttribute("data-language"),
+    ).toBe("typescript");
     expect(screen.getByTestId("blame-editor").getAttribute("data-monaco")).toBe(
       "ready",
     );
     const date = formatBlameAnnotationDate(snapshot.lines[0]!.authorTime);
     expect(screen.getByTestId("blame-sha-1").textContent).toContain("Jane");
     expect(screen.getByTestId("blame-sha-1").textContent).toContain(date);
-    expect(screen.getByTestId("blame-sha-1").textContent).toContain(
+    expect(screen.getByTestId("blame-sha-1").textContent).not.toContain(
       "Initial commit",
     );
   });
@@ -151,12 +151,12 @@ describe("WorkspaceBlamePanel", () => {
       });
     });
 
-    expect(screen.getByTestId("blame-line-1").getAttribute("data-annotated")).toBe(
-      "false",
-    );
-    expect(screen.getByTestId("blame-line-2").getAttribute("data-annotated")).toBe(
-      "true",
-    );
+    expect(
+      screen.getByTestId("blame-line-1").getAttribute("data-annotated"),
+    ).toBe("false");
+    expect(
+      screen.getByTestId("blame-line-2").getAttribute("data-annotated"),
+    ).toBe("true");
   });
 
   it("keeps annotate anchors when lines are inserted in the middle", async () => {
@@ -174,21 +174,21 @@ describe("WorkspaceBlamePanel", () => {
       );
     });
     // Original line1 still at top — keeps Jane
-    expect(screen.getByTestId("blame-line-1").getAttribute("data-annotated")).toBe(
-      "true",
-    );
+    expect(
+      screen.getByTestId("blame-line-1").getAttribute("data-annotated"),
+    ).toBe("true");
     expect(screen.getByTestId("blame-sha-1").textContent).toContain("Jane");
     // Inserted lines blank
-    expect(screen.getByTestId("blame-line-2").getAttribute("data-annotated")).toBe(
-      "false",
-    );
-    expect(screen.getByTestId("blame-line-3").getAttribute("data-annotated")).toBe(
-      "false",
-    );
+    expect(
+      screen.getByTestId("blame-line-2").getAttribute("data-annotated"),
+    ).toBe("false");
+    expect(
+      screen.getByTestId("blame-line-3").getAttribute("data-annotated"),
+    ).toBe("false");
     // Original line2 shifted down — still annotated
-    expect(screen.getByTestId("blame-line-4").getAttribute("data-annotated")).toBe(
-      "true",
-    );
+    expect(
+      screen.getByTestId("blame-line-4").getAttribute("data-annotated"),
+    ).toBe("true");
     expect(screen.getByTestId("blame-sha-4").textContent).toContain("Jane");
   });
 
@@ -215,9 +215,9 @@ describe("WorkspaceBlamePanel", () => {
       });
     });
 
-    expect(screen.getByTestId("workspace-blame-panel").getAttribute("data-dirty")).toBe(
-      "true",
-    );
+    expect(
+      screen.getByTestId("workspace-blame-panel").getAttribute("data-dirty"),
+    ).toBe("true");
     expect(screen.getByTestId("blame-dirty-dot")).toBeTruthy();
     expect(screen.getByTestId("blame-save-status").textContent).toContain(
       "Modified",

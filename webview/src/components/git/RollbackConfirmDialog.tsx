@@ -52,7 +52,7 @@ export function RollbackConfirmDialog({
       onCancel={onCancel}
       onConfirm={(typedValue) => onConfirm({ evidence: confirmation, typedValue })}
     >
-      <ul className="mb-3 max-h-32 overflow-y-auto text-[11px] font-mono">
+      <ul className="mb-3 max-h-32 overflow-y-auto text-ui-sm font-mono">
         {confirmation.paths.map((path) => (
           <li key={path} className="truncate">
             {path}

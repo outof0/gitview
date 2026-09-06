@@ -141,7 +141,7 @@ describe("gitHistoryStore stale-result guards", () => {
     expect(state.patchLoading).toBe(true);
   });
 
-  it("annotateMode hides file-scoped log files until commit detail loads", () => {
+  it("annotateMode shows file-scoped results while commit detail loads", () => {
     useGitHistoryStore.setState({
       path: "src/app.ts",
       isFolder: false,
@@ -164,7 +164,9 @@ describe("gitHistoryStore stale-result guards", () => {
       .selectCommit("abc1234567890abcdef1234567890abcdef12345");
 
     expect(useGitHistoryStore.getState().commitDetailLoading).toBe(true);
-    expect(useGitHistoryStore.getState().changedFilesForSelection()).toEqual([]);
+    expect(useGitHistoryStore.getState().changedFilesForSelection()).toEqual([
+      { path: "src/app.ts", status: "M" },
+    ]);
   });
 
   it("annotateMode shows all changed files from commit detail", () => {

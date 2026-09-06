@@ -1,3 +1,4 @@
+import { Button } from "../../ui/Button";
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import {
@@ -5,11 +6,9 @@ import {
   startOfMonth,
   toLocalIso,
 } from "./localIsoDate";
+import { TextField } from "../../ui/TextField";
 
 const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
-
-const fieldCls =
-  "h-7 w-full min-w-0 box-border px-2 text-[length:var(--vscode-font-size,13px)] leading-none rounded-sm border border-[var(--vscode-input-border,var(--border))] bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground,var(--vscode-editor-foreground))] placeholder:text-[var(--vscode-input-placeholderForeground,var(--vscode-descriptionForeground))]";
 
 type LogDatePickerProps = {
   since?: string;
@@ -51,11 +50,12 @@ export function LogDatePicker({ since, until, onChange }: LogDatePickerProps) {
 
   return (
     <div className="flex flex-col gap-1" data-testid="log-date-picker">
-      <label className="px-0.5 text-[12px] text-vscode-description">Since</label>
+      <label className="px-0.5 text-ui text-vscode-description">Since</label>
       <div className="relative">
-        <input
-          type="text"
-          className={`${fieldCls} pr-7 ${picking === "since" ? "outline outline-1 outline-[var(--vscode-focusBorder)]" : ""}`}
+        <TextField
+          size="default"
+          containerClassName={`w-full ${picking === "since" ? "outline outline-1 outline-ring" : ""}`}
+          inputClassName="pr-7 text-ui-base leading-none"
           placeholder="YYYY-MM-DD"
           value={since ?? ""}
           onFocus={() => {
@@ -66,22 +66,23 @@ export function LogDatePicker({ since, until, onChange }: LogDatePickerProps) {
           data-testid="log-filter-since"
         />
         {since ? (
-          <button
+          <Button variant="ghost" size="content"
             type="button"
-            className="absolute right-1 top-1/2 -translate-y-1/2 h-5 w-5 inline-flex items-center justify-center rounded-sm text-vscode-description hover:bg-list-hover hover:text-foreground"
+            className="absolute right-1 top-1/2 -translate-y-1/2 h-5 w-5 inline-flex items-center justify-center rounded-vscode text-vscode-description hover:bg-list-hover hover:text-foreground"
             onClick={() => onChange({ since: undefined, until })}
             aria-label="Clear Since"
             tabIndex={-1}
           >
             <X size={12} aria-hidden />
-          </button>
+          </Button>
         ) : null}
       </div>
-      <label className="px-0.5 text-[12px] text-vscode-description">Until</label>
+      <label className="px-0.5 text-ui text-vscode-description">Until</label>
       <div className="relative">
-        <input
-          type="text"
-          className={`${fieldCls} pr-7 ${picking === "until" ? "outline outline-1 outline-[var(--vscode-focusBorder)]" : ""}`}
+        <TextField
+          size="default"
+          containerClassName={`w-full ${picking === "until" ? "outline outline-1 outline-ring" : ""}`}
+          inputClassName="pr-7 text-ui-base leading-none"
           placeholder="YYYY-MM-DD"
           value={until ?? ""}
           onFocus={() => {
@@ -92,48 +93,48 @@ export function LogDatePicker({ since, until, onChange }: LogDatePickerProps) {
           data-testid="log-filter-until"
         />
         {until ? (
-          <button
+          <Button variant="ghost" size="content"
             type="button"
-            className="absolute right-1 top-1/2 -translate-y-1/2 h-5 w-5 inline-flex items-center justify-center rounded-sm text-vscode-description hover:bg-list-hover hover:text-foreground"
+            className="absolute right-1 top-1/2 -translate-y-1/2 h-5 w-5 inline-flex items-center justify-center rounded-vscode text-vscode-description hover:bg-list-hover hover:text-foreground"
             onClick={() => onChange({ since, until: undefined })}
             aria-label="Clear Until"
             tabIndex={-1}
           >
             <X size={12} aria-hidden />
-          </button>
+          </Button>
         ) : null}
       </div>
 
       <div className="flex items-center justify-between px-0.5 pt-1">
-        <button
+        <Button variant="ghost" size="content"
           type="button"
-          className="h-5 w-5 inline-flex items-center justify-center rounded-sm text-vscode-description hover:bg-list-hover hover:text-foreground"
+          className="h-5 w-5 inline-flex items-center justify-center rounded-vscode text-vscode-description hover:bg-list-hover hover:text-foreground"
           aria-label="Previous month"
           onClick={() =>
             setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))
           }
         >
           <ChevronLeft size={14} aria-hidden />
-        </button>
-        <span className="text-[length:var(--vscode-font-size,13px)] font-semibold">
+        </Button>
+        <span className="text-ui-base font-semibold">
           {monthLabel}
         </span>
-        <button
+        <Button variant="ghost" size="content"
           type="button"
-          className="h-5 w-5 inline-flex items-center justify-center rounded-sm text-vscode-description hover:bg-list-hover hover:text-foreground"
+          className="h-5 w-5 inline-flex items-center justify-center rounded-vscode text-vscode-description hover:bg-list-hover hover:text-foreground"
           aria-label="Next month"
           onClick={() =>
             setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))
           }
         >
           <ChevronRight size={14} aria-hidden />
-        </button>
+        </Button>
       </div>
       <div className="grid grid-cols-7 gap-px">
         {WEEKDAYS.map((day) => (
           <span
             key={day}
-            className="h-6 text-center text-[11px] leading-6 text-vscode-description"
+            className="h-6 text-center text-ui-sm leading-6 text-vscode-description"
           >
             {day}
           </span>
@@ -145,14 +146,14 @@ export function LogDatePicker({ since, until, onChange }: LogDatePickerProps) {
           const isSelected = cell.iso === selected;
           const isToday = cell.iso === todayIso;
           return (
-            <button
+            <Button variant="ghost" size="content"
               key={cell.iso}
               type="button"
-              className={`h-7 w-full flex items-center justify-center p-0 text-[length:var(--vscode-font-size,13px)] leading-none rounded-sm ${
+              className={`h-7 w-full flex items-center justify-center p-0 text-ui-base leading-none rounded-vscode ${
                 isSelected
-                  ? "bg-[var(--vscode-list-activeSelectionBackground)] text-[var(--vscode-list-activeSelectionForeground)]"
+                  ? "bg-list-active text-list-activeForeground"
                   : isToday
-                    ? "text-[var(--vscode-textLink-foreground)] hover:bg-list-hover"
+                    ? "text-vscode-link hover:bg-list-hover"
                     : "hover:bg-list-hover"
               }`}
               onClick={() => {
@@ -164,7 +165,7 @@ export function LogDatePicker({ since, until, onChange }: LogDatePickerProps) {
               }}
             >
               {cell.day}
-            </button>
+            </Button>
           );
         })}
       </div>

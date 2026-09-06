@@ -1,3 +1,4 @@
+import { Button } from "../ui/Button";
 // Single Monaco editor for the entire Result (center) merge pane.
 // One model, continuous line numbers; decorations/edits mapped via block spans.
 
@@ -365,7 +366,7 @@ export function MonacoCenterPane({
       fontSize: 12.5,
       lineHeight: CENTER_LINE_HEIGHT,
       fontFamily:
-        "var(--vscode-editor-font-family, ui-monospace, 'Cascadia Code', Consolas, monospace)",
+        "var(--nx-font-code)",
       contextmenu: false,
       links: false,
       occurrencesHighlight: "off",
@@ -446,8 +447,9 @@ export function MonacoCenterPane({
       modelRef.current?.dispose();
       modelRef.current = null;
     };
-    // Content/theme/collapse synced in the effect below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // The dependency list is deliberately narrow: this effect only creates and
+    // destroys the editor. Content, theme and collapse state are synced by the
+    // effect below rather than forcing a recreate on every render.
   }, [monacoApi, language]);
 
   // Sync model text, decorations, collapse, layout from React state.
@@ -624,7 +626,7 @@ export function MonacoCenterPane({
             className="nx-monaco-revert pointer-events-auto"
             style={{ top: revertTop }}
           >
-            <button
+            <Button variant="ghost" size="content"
               type="button"
               className={actBtnClass}
               title="Revert"
@@ -635,7 +637,7 @@ export function MonacoCenterPane({
               }}
             >
               Revert
-            </button>
+            </Button>
           </div>
         ) : null}
       </div>

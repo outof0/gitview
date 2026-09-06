@@ -1,4 +1,8 @@
-import { Check, CircleCheck, GitCommitHorizontal, ArrowUp, Settings2 } from "lucide-react";
+import { Input } from "../ui/Input";
+import { TextArea } from "../ui/TextArea";
+import { Button } from "../ui/Button";
+import { GitCommitHorizontal, ArrowUp, Settings2 } from "lucide-react";
+import { Checkbox } from "../ui/Checkbox";
 import type { GitFileStatus } from "@gitview/shared/types/status";
 
 type CommitPanelProps = {
@@ -50,6 +54,7 @@ export function CommitPanel({
   onRunChecksChange,
   onCommit,
   onCommitAndPush,
+  onRunChecks,
 }: CommitPanelProps) {
   const selected = files.filter((file) => commitScope.has(file.path));
   const canCommit = message.trim().length > 0 && selected.length > 0 && !busy;
@@ -69,19 +74,19 @@ export function CommitPanel({
 
   return (
     <section
-      className="flex flex-col h-full min-h-0 w-full bg-[var(--nx-panel,#202126)] font-[family-name:var(--nx-font-ui)]"
+      className="flex flex-col h-full min-h-0 w-full bg-panel-bg font-ui"
       data-testid="gitview-commit-panel"
     >
-      <div className="shrink-0 h-[38px] min-h-[38px] flex items-center justify-between px-[10px] border-b border-[var(--nx-border,#35363D)]">
-        <span className="text-[10px] font-bold tracking-wide text-[var(--nx-text,#E8E8EA)]">COMMIT</span>
-        <Settings2 size={13} className="text-[var(--nx-muted,#9B9CA3)]" aria-hidden />
+      <div className="shrink-0 h-header min-h-header flex items-center justify-between px-pad-panel border-b border-nx-border">
+        <span className="text-section font-bold tracking-wide text-fg">COMMIT</span>
+        <Settings2 size={14} className="text-vscode-description" aria-hidden />
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-3 p-[10px]">
-        <div className={`h-[34px] min-h-[34px] flex items-center px-[9px] rounded-[2px] border bg-[var(--vscode-input-background,var(--nx-bg))] ${summary ? "border-[var(--vscode-focusBorder,var(--nx-blue))]" : "border-[var(--nx-border)]"}`}>
-          <input
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-3 p-pad-panel">
+        <div className={`h-control-lg min-h-control-lg flex items-center px-commit-field rounded-vscode border bg-input ${summary ? "border-ring" : "border-nx-border"}`}>
+          <Input
             type="text"
-            className="w-full bg-transparent outline-none text-[11px] text-[var(--nx-text,#E8E8EA)] placeholder:text-[var(--nx-muted,#9B9CA3)]"
+            className="w-full bg-transparent outline-none text-ui-sm text-fg placeholder:text-vscode-description"
             placeholder="Commit summary"
             value={summary}
             onChange={(e) => handleSummaryChange(e.target.value)}
@@ -89,9 +94,9 @@ export function CommitPanel({
           />
         </div>
 
-        <div className="min-h-[64px] flex flex-col rounded-[2px] border border-[var(--nx-border)] bg-[var(--vscode-input-background,var(--nx-bg))] p-[9px]">
-          <textarea
-            className="w-full flex-1 min-h-[44px] bg-transparent outline-none resize-none text-[10px] leading-[1.35] text-[var(--nx-muted,#9B9CA3)] placeholder:text-[var(--nx-faint,#707178)]"
+        <div className="min-h-commit-message flex flex-col rounded-vscode border border-nx-border bg-input p-commit-field">
+          <TextArea
+            className="w-full flex-1 min-h-commit-body-min bg-transparent outline-none resize-none text-section leading-[1.35] text-vscode-description placeholder:text-faint"
             placeholder="Make changes, repository state, and the active diff readable at a glance."
             value={description}
             onChange={(e) => handleDescriptionChange(e.target.value)}
@@ -100,9 +105,9 @@ export function CommitPanel({
         </div>
 
         {author !== undefined && (
-          <input
+          <Input
             type="text"
-            className="h-[22px] min-h-[22px] w-full px-2 text-[10px] rounded-[2px] border border-[var(--nx-border)] bg-[var(--vscode-input-background,var(--nx-bg))] text-[var(--vscode-input-foreground,var(--nx-text))] placeholder:text-[var(--vscode-input-placeholderForeground,var(--nx-faint))] outline-none"
+            className="h-row min-h-row w-full px-2 text-section rounded-vscode border border-nx-border bg-input text-input-foreground placeholder:text-control-placeholder outline-none"
             placeholder="Author override (Name <email>)"
             value={author}
             onChange={(e) => onAuthorChange(e.target.value)}
@@ -111,103 +116,111 @@ export function CommitPanel({
         )}
 
         <div className="flex items-center justify-between">
-          <span className="text-[10px] font-semibold text-[var(--nx-text,#E8E8EA)]">{fileCountLabel}</span>
-          <span className="text-[10px] text-[var(--nx-muted,#9B9CA3)]">{selected.length > 0 ? `${selected.length} selected` : ""}</span>
+          <span className="text-section font-semibold text-fg">{fileCountLabel}</span>
+          <span className="text-section text-vscode-description">{selected.length > 0 ? `${selected.length} selected` : ""}</span>
         </div>
 
-        <div className="max-h-[64px] overflow-y-auto flex flex-col gap-0.5 py-0.5">
+        <div className="max-h-commit-scope overflow-y-auto flex flex-col gap-0.5 py-0.5">
           {selected.length === 0 ? (
-            <span className="text-[10px] text-[var(--nx-faint,#707178)]">Select changes to include in the commit.</span>
+            <span className="text-section text-faint">Select changes to include in the commit.</span>
           ) : (
             selected.map((f) => (
-              <div key={f.path} className="truncate text-[10px] font-mono text-[var(--nx-muted,#9B9CA3)]" data-testid={`commit-scope-${f.path}`}>
+              <div key={f.path} className="truncate text-section font-mono text-vscode-description" data-testid={`commit-scope-${f.path}`}>
                 {f.path}
               </div>
             ))
           )}
         </div>
 
-        <div className="flex flex-col gap-2 py-[10px] border-y border-[var(--nx-border,#35363D)]">
+        <div className="flex flex-col gap-2 py-pad-panel border-y border-nx-border">
           <div className="flex items-center justify-between">
-            <span className="text-[9px] font-bold tracking-wide text-[var(--nx-muted,#9B9CA3)]">PRE-COMMIT CHECKS</span>
-            <span className="text-[9px] text-[var(--nx-green,#48B57A)]">{runChecks ? "3 / 3" : "off"}</span>
+            <span className="text-micro font-bold tracking-wide text-vscode-description">PRE-COMMIT CHECKS</span>
+            <span className="text-micro text-vscode-description">{runChecks ? "runs on commit" : "off"}</span>
           </div>
           {runChecks ? (
             <>
-              <div className="h-[22px] flex items-center justify-between">
-                <span className="flex items-center gap-[7px] text-[10px] text-[var(--nx-text,#E8E8EA)]"><CircleCheck size={13} className="text-[var(--nx-green,#48B57A)]" />Typecheck</span>
-                <span className="text-[9px] text-[var(--nx-faint,#707178)]">1.4s</span>
-              </div>
-              <div className="h-[22px] flex items-center justify-between">
-                <span className="flex items-center gap-[7px] text-[10px] text-[var(--nx-text,#E8E8EA)]"><CircleCheck size={13} className="text-[var(--nx-green,#48B57A)]" />Architecture</span>
-                <span className="text-[9px] text-[var(--nx-faint,#707178)]">0.8s</span>
-              </div>
-              <div className="h-[22px] flex items-center justify-between">
-                <span className="flex items-center gap-[7px] text-[10px] text-[var(--nx-text,#E8E8EA)]"><CircleCheck size={13} className="text-[var(--nx-green,#48B57A)]" />Unit tests</span>
-                <span className="text-[9px] text-[var(--nx-faint,#707178)]">248 passed</span>
-              </div>
+              <span className="text-section text-vscode-description" data-testid="commit-checks-not-run">
+                No checks have run yet. They run automatically before commit, or run them now.
+              </span>
+              <Button variant="ghost" size="content"
+                type="button"
+                className="h-control min-h-control w-full flex items-center justify-center gap-control-gap rounded-vscode border border-nx-border text-section text-vscode-description hover:bg-vscode-widget-bg disabled:opacity-40"
+                disabled={busy || !onRunChecks}
+                onClick={() => onRunChecks?.()}
+                data-testid="commit-run-checks-now"
+              >
+                Run checks now
+              </Button>
             </>
           ) : (
-            <span className="text-[10px] text-[var(--nx-faint,#707178)]">Enable run checks to validate before commit.</span>
+            <span className="text-section text-faint">Enable run checks to validate before commit.</span>
           )}
-          <label className="flex items-center gap-1.5 cursor-pointer pt-1">
-            <input type="checkbox" checked={runChecks} onChange={(e) => onRunChecksChange(e.target.checked)} data-testid="commit-run-checks" />
-            <span className="text-[10px] text-[var(--nx-muted,#9B9CA3)]">Run checks</span>
-          </label>
+          <Checkbox
+            className="pt-1 text-section text-vscode-description"
+            checked={runChecks}
+            onChange={onRunChecksChange}
+            testId="commit-run-checks"
+          >
+            Run checks
+          </Checkbox>
         </div>
 
-        <div className="flex flex-col gap-[9px]">
-          <span className="text-[9px] font-bold tracking-wide text-[var(--nx-muted,#9B9CA3)]">OPTIONS</span>
-          <label className={`h-[22px] flex items-center gap-2 ${protectedBranch ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}>
-            <span className={`w-[14px] h-[14px] rounded-[2px] border flex items-center justify-center shrink-0 ${amend ? "bg-[var(--vscode-checkbox-background,var(--nx-orange))] border-[var(--vscode-checkbox-border,var(--nx-orange))]" : "bg-[var(--vscode-checkbox-background,var(--vscode-input-background,var(--nx-bg)))] border-[var(--vscode-checkbox-border,var(--nx-border))]"}`}>
-              {amend && <Check size={10} className="text-[var(--vscode-checkbox-foreground,var(--vscode-button-foreground,var(--primary-foreground)))]" />}
-            </span>
-            <input type="checkbox" checked={amend} disabled={protectedBranch} onChange={(e) => onAmendChange(e.target.checked)} data-testid="commit-amend" className="sr-only" />
-            <span className="text-[10px] text-[var(--nx-muted,#9B9CA3)]">Amend previous commit</span>
-          </label>
-          <label className="h-[22px] flex items-center gap-2 cursor-pointer">
-            <span className={`w-[14px] h-[14px] rounded-[2px] border flex items-center justify-center shrink-0 ${signoff ? "bg-[var(--vscode-checkbox-background,var(--nx-orange))] border-[var(--vscode-checkbox-border,var(--nx-orange))]" : "bg-[var(--vscode-checkbox-background,var(--vscode-input-background,var(--nx-bg)))] border-[var(--vscode-checkbox-border,var(--nx-border))]"}`}>
-              {signoff && <Check size={10} className="text-[var(--vscode-checkbox-foreground,var(--vscode-button-foreground,var(--primary-foreground)))]" />}
-            </span>
-            <input type="checkbox" checked={signoff} onChange={(e) => onSignoffChange(e.target.checked)} data-testid="commit-signoff" className="sr-only" />
-            <span className="text-[10px] text-[var(--nx-muted,#9B9CA3)]">Sign-off commit</span>
-          </label>
-          <label className="h-[22px] flex items-center gap-2 cursor-pointer">
-            <span className={`w-[14px] h-[14px] rounded-[2px] border flex items-center justify-center shrink-0 ${gpgSign ? "bg-[var(--vscode-checkbox-background,var(--nx-orange))] border-[var(--vscode-checkbox-border,var(--nx-orange))]" : "bg-[var(--vscode-checkbox-background,var(--vscode-input-background,var(--nx-bg)))] border-[var(--vscode-checkbox-border,var(--nx-border))]"}`}>
-              {gpgSign && <Check size={10} className="text-[var(--vscode-checkbox-foreground,var(--vscode-button-foreground,var(--primary-foreground)))]" />}
-            </span>
-            <input type="checkbox" checked={gpgSign} onChange={(e) => onGpgSignChange(e.target.checked)} data-testid="commit-gpg-sign" className="sr-only" />
-            <span className="text-[10px] text-[var(--nx-muted,#9B9CA3)]">GPG sign</span>
-          </label>
+        <div className="flex flex-col gap-form-gap">
+          <span className="text-micro font-bold tracking-wide text-vscode-description">OPTIONS</span>
+          <Checkbox
+            className="h-row text-section text-vscode-description"
+            checked={amend}
+            disabled={protectedBranch}
+            onChange={onAmendChange}
+            testId="commit-amend"
+          >
+            Amend previous commit
+          </Checkbox>
+          <Checkbox
+            className="h-row text-section text-vscode-description"
+            checked={signoff}
+            onChange={onSignoffChange}
+            testId="commit-signoff"
+          >
+            Sign-off commit
+          </Checkbox>
+          <Checkbox
+            className="h-row text-section text-vscode-description"
+            checked={gpgSign}
+            onChange={onGpgSignChange}
+            testId="commit-gpg-sign"
+          >
+            GPG sign
+          </Checkbox>
         </div>
 
         {protectedBranch && (
-          <div className="text-[10px] text-[var(--nx-red,#E06C75)]" data-testid="commit-protected-warning">
+          <div className="text-section text-nx-red" data-testid="commit-protected-warning">
             Amend is disabled on protected branches.
           </div>
         )}
       </div>
 
-      <div className="shrink-0 flex flex-col gap-[7px] p-[10px] pt-2">
-        <button
+      <div className="shrink-0 flex flex-col gap-action-gap p-pad-panel pt-2">
+        <Button variant="primary" size="content"
           type="button"
-          className="h-[34px] min-h-[34px] w-full flex items-center justify-between px-[10px] rounded-[3px] bg-[var(--vscode-button-background,var(--nx-orange))] text-[var(--vscode-button-foreground,var(--primary-foreground))] hover:bg-[var(--vscode-button-hoverBackground,var(--primary-hover))] disabled:opacity-50"
+          className="h-control-lg min-h-control-lg w-full flex items-center justify-between px-pad-panel rounded-vscode bg-primary text-primary-foreground hover:bg-primary-hover disabled:opacity-40"
           disabled={!canCommit}
           onClick={onCommit}
           data-testid="commit-button"
         >
-          <span className="flex items-center gap-[7px] text-[11px] font-bold"><GitCommitHorizontal size={14} />Commit {selected.length > 0 ? `${selected.length} files` : ""}</span>
-          <span className="text-[10px] text-[var(--vscode-button-foreground,var(--primary-foreground))] opacity-75">⌘↵</span>
-        </button>
-        <button
+          <span className="flex items-center gap-action-gap text-ui-sm font-bold"><GitCommitHorizontal size={14} />Commit {selected.length > 0 ? `${selected.length} files` : ""}</span>
+          <span className="text-section text-primary-foreground opacity-75">⌘↵</span>
+        </Button>
+        <Button variant="ghost" size="content"
           type="button"
-          className="h-[30px] min-h-[30px] w-full flex items-center justify-center gap-[6px] rounded-[3px] border border-[var(--nx-border,#35363D)] text-[10px] text-[var(--nx-muted,#9B9CA3)] hover:bg-[var(--nx-panel2,#27282E)] disabled:opacity-50"
+          className="h-row-lg min-h-row-lg w-full flex items-center justify-center gap-control-gap rounded-vscode border border-nx-border text-section text-vscode-description hover:bg-vscode-widget-bg disabled:opacity-40"
           disabled={!canCommit}
           onClick={onCommitAndPush}
           data-testid="commit-and-push-button"
         >
           <ArrowUp size={12} />Commit and push
-        </button>
+        </Button>
       </div>
     </section>
   );

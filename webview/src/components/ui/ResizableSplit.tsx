@@ -132,10 +132,10 @@ export function ResizableSplit({
         aria-orientation={isHorizontal ? "vertical" : "horizontal"}
         aria-valuenow={Math.round(percent)}
         tabIndex={0}
-        className={`shrink-0 z-10 bg-[var(--vscode-panel-border,var(--vscode-editorGroup-border,#444))] hover:bg-[var(--vscode-focusBorder,#007fd4)] transition-colors ${
+        className={`shrink-0 z-10 bg-vscode-panel-border hover:bg-ring transition-colors ${
           isHorizontal
-            ? "w-px cursor-col-resize hover:w-[3px]"
-            : "h-px cursor-row-resize hover:h-[3px] w-full"
+            ? "w-px cursor-col-resize hover:w-splitter-active"
+            : "h-px cursor-row-resize hover:h-splitter-active w-full"
         }`}
         onMouseDown={startDrag}
         data-testid={`resizable-split-handle-${direction}`}

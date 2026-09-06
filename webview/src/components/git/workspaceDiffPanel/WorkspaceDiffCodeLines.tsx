@@ -24,9 +24,9 @@ export function CodeLine({
   const changed = highlight !== "none";
   return (
     <div
-      className={`nx-diff-hover-line relative flex min-h-[18px] ${highlightClass(highlight)} ${
+      className={`nx-diff-hover-line relative flex min-h-code ${highlightClass(highlight)} ${
         selectable && changed ? "cursor-pointer" : ""
-      } ${selected ? "ring-1 ring-inset ring-[var(--vscode-focusBorder)]" : ""}`}
+      } ${selected ? "ring-1 ring-inset ring-ring" : ""}`}
       data-testid={testId}
       onClick={
         selectable && changed && onSelect
@@ -35,10 +35,10 @@ export function CodeLine({
       }
       data-selected={selected ? "true" : undefined}
     >
-      <span className="w-9 shrink-0 text-right pr-2 text-[var(--vscode-editorLineNumber-foreground,#6e7681)] select-none">
+      <span className="w-9 shrink-0 text-right pr-2 text-vscode-line-number select-none">
         {lineNum ?? ""}
       </span>
-      <span className="flex-1 px-1 whitespace-pre overflow-x-auto">
+      <span className="flex-1 px-1 whitespace-pre">
         <HighlightedCodeLine text={text} filePath={filePath} />
       </span>
     </div>
@@ -69,9 +69,9 @@ export function UnifiedCodeLine({
   const changed = highlight !== "none";
   return (
     <div
-      className={`nx-diff-hover-line relative flex min-h-[18px] ${highlightClass(highlight)} ${
+      className={`nx-diff-hover-line relative flex min-h-code ${highlightClass(highlight)} ${
         selectable && changed ? "cursor-pointer" : ""
-      } ${selected ? "ring-1 ring-inset ring-[var(--vscode-focusBorder)]" : ""}`}
+      } ${selected ? "ring-1 ring-inset ring-ring" : ""}`}
       data-testid={testId}
       onClick={
         selectable && changed && onSelect
@@ -80,13 +80,13 @@ export function UnifiedCodeLine({
       }
       data-selected={selected ? "true" : undefined}
     >
-      <span className="w-4 shrink-0 text-center text-[var(--vscode-descriptionForeground)] select-none">
+      <span className="w-4 shrink-0 text-center text-vscode-description select-none">
         {prefix}
       </span>
-      <span className="w-9 shrink-0 text-right pr-2 text-[var(--vscode-editorLineNumber-foreground,#6e7681)] select-none">
+      <span className="w-9 shrink-0 text-right pr-2 text-vscode-line-number select-none">
         {lineNum ?? ""}
       </span>
-      <span className="flex-1 px-1 whitespace-pre overflow-x-auto">
+      <span className="flex-1 px-1 whitespace-pre">
         <HighlightedCodeLine text={text} filePath={filePath} />
       </span>
     </div>

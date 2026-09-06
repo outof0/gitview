@@ -44,7 +44,7 @@ export function HistoryVisualFixture() {
 
   return (
     <div
-      className="h-screen w-screen overflow-hidden font-[family-name:var(--nx-font-ui)] text-[length:var(--nx-font-size-ui)] bg-vscode-editor-bg text-vscode-editor-fg vscode-dark"
+      className="h-screen w-screen overflow-hidden font-ui text-ui bg-vscode-editor-bg text-vscode-editor-fg vscode-dark"
       data-testid="git-history-app"
     >
       <div

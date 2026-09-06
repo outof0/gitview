@@ -3,6 +3,7 @@ import type { GitViewSettings } from "@gitview/types";
 import type { MockHost } from "./mockHost";
 import type { PlaygroundScenario } from "./fixtures";
 import { useGitViewStore } from "../stores/gitViewStore";
+import { ScrollArea } from "../components/ui/ScrollArea";
 
 type DevToolbarProps = {
   host: MockHost;
@@ -53,11 +54,11 @@ export function DevToolbar({ host }: DevToolbarProps) {
 
   return (
     <div
-      className="shrink-0 border-b border-[var(--vscode-panel-border)] bg-[var(--vscode-sideBar-background,#252526)] text-[11px] text-[var(--vscode-foreground)]"
+      className="shrink-0 border-b border-vscode-panel-border bg-vscode-sidebar-bg text-ui-sm text-fg"
       data-testid="playground-toolbar"
     >
       <div className="flex items-center gap-2 px-3 py-1.5">
-        <span className="font-semibold text-[var(--vscode-textLink-foreground)]">
+        <span className="font-semibold text-vscode-link">
           Playground
         </span>
         <span className="opacity-60">|</span>
@@ -67,7 +68,7 @@ export function DevToolbar({ host }: DevToolbarProps) {
         <span className="flex-1" />
         <button
           type="button"
-          className="px-2 py-0.5 rounded hover:bg-[var(--toolbar-hover)]"
+          className="px-2 py-0.5 rounded-vscode hover:bg-toolbar-hover"
           onClick={() => setExpanded((v) => !v)}
         >
           {expanded ? "Hide" : "Show"} panel
@@ -79,7 +80,7 @@ export function DevToolbar({ host }: DevToolbarProps) {
             <button
               key={s.id}
               type="button"
-              className="px-2 py-1 rounded border border-[var(--border)] hover:bg-[var(--toolbar-hover)]"
+              className="px-2 py-1 rounded-vscode border border-[var(--border)] hover:bg-toolbar-hover"
               onClick={() => loadScenario(s.id)}
             >
               {s.label}
@@ -107,7 +108,7 @@ export function DevToolbar({ host }: DevToolbarProps) {
           <span className="opacity-40">|</span>
           <button
             type="button"
-            className="px-2 py-1 rounded border border-[var(--border)] hover:bg-[var(--toolbar-hover)]"
+            className="px-2 py-1 rounded-vscode border border-[var(--border)] hover:bg-toolbar-hover"
             onClick={() => {
               host.clearPosted();
               refresh();
@@ -118,12 +119,17 @@ export function DevToolbar({ host }: DevToolbarProps) {
         </div>
       )}
       {expanded && posted.length > 0 && (
-        <pre className="mx-3 mb-2 max-h-24 overflow-auto rounded bg-[var(--vscode-editor-background)] p-2 text-[10px] opacity-90">
-          {posted
-            .slice(-8)
-            .map((m) => JSON.stringify(m))
-            .join("\n")}
-        </pre>
+        <ScrollArea
+          axis="vertical"
+          className="mx-3 mb-2 max-h-24 rounded-vscode bg-vscode-editor-bg p-2 text-section opacity-90"
+        >
+          <pre className="m-0 whitespace-pre-wrap">
+            {posted
+              .slice(-8)
+              .map((m) => JSON.stringify(m))
+              .join("\n")}
+          </pre>
+        </ScrollArea>
       )}
     </div>
   );

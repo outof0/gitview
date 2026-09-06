@@ -71,6 +71,13 @@ export function GitWorkspaceChangesTab({ ctx }: { ctx: GitWorkspaceController })
     () => statusSnapshot?.changelists ?? [],
     [statusSnapshot],
   );
+  // Same treatment as `files`, and it also removes a duplicate call: the two
+  // branches below used to invoke the getter separately. It reads only
+  // `selectedFilePath` and `statusSnapshot`, so those are the complete dep set.
+  const selectedFileIsConflicted = useMemo(
+    () => selectedFileConflicted(),
+    [selectedFileConflicted, selectedFilePath, statusSnapshot],
+  );
 
   // Every handler below is memoized for the same reason as in GitWorkspaceLogTab:
   // `ctx` is a fresh object each render, so anything derived inline from it gets
@@ -394,7 +401,7 @@ export function GitWorkspaceChangesTab({ ctx }: { ctx: GitWorkspaceController })
         />
       ) : (
         <div className="flex flex-1 min-h-0 min-w-0 w-full overflow-hidden">
-          <div className="w-[286px] max-w-[30%] min-w-[200px] shrink-0 flex flex-col border-r border-[var(--nx-border)] bg-[var(--vscode-sideBar-background,var(--nx-bg))] min-h-0 max-[400px]:w-full max-[400px]:max-w-none">
+          <div className="w-changes-files max-w-[30%] min-w-changes-files-min shrink-0 flex flex-col border-r border-nx-border bg-vscode-sidebar-bg min-h-0 max-form-narrow:w-full max-form-narrow:max-w-none">
             <WorkspaceChangesPanel
               files={files}
               changelists={changelists}
@@ -418,8 +425,8 @@ export function GitWorkspaceChangesTab({ ctx }: { ctx: GitWorkspaceController })
             />
           </div>
 
-          <div className="flex-1 min-w-0 flex flex-col min-h-0 bg-[var(--vscode-editor-background,transparent)] max-[400px]:hidden">
-            {selectedFilePath && selectedFileConflicted() && (
+          <div className="flex-1 min-w-0 flex flex-col min-h-0 bg-vscode-editor-bg max-form-narrow:hidden">
+            {selectedFilePath && selectedFileIsConflicted && (
               <ConflictActionsBar
                 filePath={selectedFilePath}
                 busy={syncing}
@@ -429,7 +436,7 @@ export function GitWorkspaceChangesTab({ ctx }: { ctx: GitWorkspaceController })
                 onApplyNonConflicting={handleApplyNonConflictingClick}
               />
             )}
-            {selectedFilePath && selectedFileConflicted() && activeRepo ? (
+            {selectedFilePath && selectedFileIsConflicted && activeRepo ? (
               <ConflictMergeView
                 client={clientRef.current}
                 repoId={activeRepo.id}
@@ -454,7 +461,7 @@ export function GitWorkspaceChangesTab({ ctx }: { ctx: GitWorkspaceController })
             )}
           </div>
 
-          <div className="w-[292px] max-w-[30%] min-w-[200px] shrink-0 flex flex-col border-l border-[var(--nx-border)] bg-[var(--nx-panel)] min-h-0">
+          <div className="w-changes-commit max-w-[30%] min-w-changes-commit-min shrink-0 flex flex-col border-l border-nx-border bg-panel-bg min-h-0">
             <CommitPanel
               files={committable}
               commitScope={commitScope}

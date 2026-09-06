@@ -67,7 +67,7 @@ export function GitWorkspaceApp({ surface = "workspace" }: GitWorkspaceAppProps 
   return (
     <MergeClientValueProvider value={mergeClient}>
     <div
-      className={`flex min-h-0 min-w-0 flex-1 flex-col w-full overflow-hidden bg-[var(--nx-chrome-bg,var(--vscode-sideBar-background,var(--background)))] text-[var(--nx-chrome-fg,var(--foreground))] font-sans ${webviewThemeClass(theme)}`}
+      className={`flex min-h-0 min-w-0 flex-1 flex-col w-full overflow-hidden bg-[var(--nx-chrome-bg,var(--nx-chrome-bg))] text-[var(--nx-chrome-fg,var(--foreground))] font-sans ${webviewThemeClass(theme)}`}
       data-testid="git-workspace-app"
     >
       <GitWorkspaceShell ctx={ctx} />
@@ -83,7 +83,7 @@ export function GitWorkspaceApp({ surface = "workspace" }: GitWorkspaceAppProps 
         // Opaque, not a scrim: a dialog raised from the native Git submenu should
         // read as a modal over the editor, not as a Git tool window that replaced it.
         <div
-          className="fixed inset-0 z-50 bg-[var(--vscode-editor-background,var(--background))]"
+          className="fixed inset-0 z-50 bg-vscode-editor-bg"
           data-testid="git-native-dialog-backdrop"
           aria-hidden
         />

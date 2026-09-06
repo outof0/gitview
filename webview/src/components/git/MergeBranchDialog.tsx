@@ -1,10 +1,15 @@
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
 import type { BranchEntry } from "@gitview/shared/types/branch";
 import {
+  GitDialogField,
   GitDialogShell,
-  gitDialogBtnPrimary,
-  gitDialogBtnSecondary,
 } from "../ui/GitDialogShell";
+import { Button } from "../ui/Button";
+import { Checkbox } from "../ui/Checkbox";
+import { TextField } from "../ui/TextField";
 import { BranchRefSelect } from "./BranchRefSelect";
 
 export type MergeBranchChoice = {
@@ -67,17 +72,17 @@ export function MergeBranchDialog({
       testId="merge-branch-dialog"
       footer={
         <>
-          <button
+          <Button
             type="button"
-            className={gitDialogBtnSecondary}
+            variant="secondary" size="compact"
             onClick={onCancel}
             data-testid="merge-branch-cancel"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className={gitDialogBtnPrimary}
+            variant="primary" size="compact"
             disabled={busy || !ref}
             onClick={() =>
               onConfirm(ref, {
@@ -92,19 +97,22 @@ export function MergeBranchDialog({
             data-testid="merge-branch-confirm"
           >
             Merge
-          </button>
+          </Button>
         </>
       }
     >
       <div className="flex flex-col gap-2">
-        <label className="flex flex-col gap-1">
-          <span>
-            Merge into{" "}
-            <span className="font-mono text-foreground">
-              {currentBranch ?? "current branch"}
-            </span>{" "}
-            from
-          </span>
+        <GitDialogField
+          label={
+            <>
+              Merge into{" "}
+              <span className="font-mono">
+                {currentBranch ?? "current branch"}
+              </span>{" "}
+              from
+            </>
+          }
+        >
           <BranchRefSelect
             branches={branches}
             value={ref}
@@ -112,71 +120,50 @@ export function MergeBranchDialog({
             exclude={currentBranch ?? undefined}
             testId="merge-branch-ref"
           />
-        </label>
+        </GitDialogField>
 
-        <label className="flex items-start gap-2">
-          <input
-            type="checkbox"
-            className="mt-0.5"
-            checked={noFf}
-            disabled={squash}
-            onChange={(e) => setNoFf(e.target.checked)}
-            data-testid="merge-no-ff"
-          />
-          <span>
-            Create merge commit even if fast-forward is possible
-            <span className="block opacity-70">--no-ff</span>
-          </span>
-        </label>
+        <Checkbox
+          checked={noFf}
+          disabled={squash}
+          onChange={setNoFf}
+          testId="merge-no-ff"
+          hint="--no-ff"
+        >
+          Create merge commit even if fast-forward is possible
+        </Checkbox>
 
-        <label className="flex items-start gap-2">
-          <input
-            type="checkbox"
-            className="mt-0.5"
-            checked={squash}
-            disabled={noFf}
-            onChange={(e) => setSquash(e.target.checked)}
-            data-testid="merge-squash"
-          />
-          <span>
-            Squash commits into a single set of changes
-            <span className="block opacity-70">--squash</span>
-          </span>
-        </label>
+        <Checkbox
+          checked={squash}
+          disabled={noFf}
+          onChange={setSquash}
+          testId="merge-squash"
+          hint="--squash"
+        >
+          Squash commits into a single set of changes
+        </Checkbox>
 
-        <label className="flex items-start gap-2">
-          <input
-            type="checkbox"
-            className="mt-0.5"
-            checked={noCommit}
-            onChange={(e) => setNoCommit(e.target.checked)}
-            data-testid="merge-no-commit"
-          />
-          <span>
-            Do not commit the merge
-            <span className="block opacity-70">--no-commit</span>
-          </span>
-        </label>
+        <Checkbox
+          checked={noCommit}
+          onChange={setNoCommit}
+          testId="merge-no-commit"
+          hint="--no-commit"
+        >
+          Do not commit the merge
+        </Checkbox>
 
-        <label className="flex items-start gap-2">
-          <input
-            type="checkbox"
-            className="mt-0.5"
-            checked={log}
-            onChange={(e) => setLog(e.target.checked)}
-            data-testid="merge-log"
-          />
-          <span>
-            Add descriptions of merged commits to the message
-            <span className="block opacity-70">--log</span>
-          </span>
-        </label>
+        <Checkbox
+          checked={log}
+          onChange={setLog}
+          testId="merge-log"
+          hint="--log"
+        >
+          Add descriptions of merged commits to the message
+        </Checkbox>
 
-        <label className="flex flex-col gap-1">
-          <span>Commit message</span>
-          <input
-            type="text"
-            className="w-full h-[var(--nx-row-h)] px-1.5 text-[length:var(--nx-font-size-ui)] rounded-vscode border border-border bg-[var(--vscode-input-background)] text-foreground disabled:opacity-40"
+        <GitDialogField label="Commit message">
+          <TextField
+            size="compact"
+            containerClassName="w-full"
             placeholder={
               messageDisabled
                 ? "Commit it yourself after the merge"
@@ -187,7 +174,7 @@ export function MergeBranchDialog({
             onChange={(e) => setMessage(e.target.value)}
             data-testid="merge-message"
           />
-        </label>
+        </GitDialogField>
       </div>
     </GitDialogShell>
   );

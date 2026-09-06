@@ -1,9 +1,21 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import type { BranchEntry } from "@gitview/shared/types/branch";
 import { useVsCodeApi } from "../hooks/useVsCodeApi";
 import { createProtocolClient } from "../protocol/client";
 import { CreateBranchDialog } from "../components/git/CreateBranchDialog";
+import {
+  GitDialogShell,
+} from "../components/ui/GitDialogShell";
+import { Button } from "../components/ui/Button";
 import type { GitCreateBranchBootstrap } from "../types/gitviewBootstrap";
+
+const HANDSHAKE_TIMEOUT_MS = 8_000;
+const HANDSHAKE_FAILED_MESSAGE =
+  "Could not start the Create Branch dialog: the editor did not respond. Close and reopen it.";
 
 function isCreateBranchBootstrap(
   value: Window["__GITVIEW_BOOTSTRAP__"],
@@ -22,7 +34,7 @@ function isCreateBranchBootstrap(
  */
 export function GitCreateBranchApp() {
   const api = useVsCodeApi();
-  const client = useMemo(() => createProtocolClient(api.postMessage), [api]);
+  const client = useMemo(() => createProtocolClient(api.postMessage), [api.postMessage]);
   const bootstrap = isCreateBranchBootstrap(window.__GITVIEW_BOOTSTRAP__)
     ? window.__GITVIEW_BOOTSTRAP__
     : null;
@@ -34,12 +46,49 @@ export function GitCreateBranchApp() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     const handler = (event: MessageEvent) => {
       void client.handleHostMessage(event.data);
     };
     window.addEventListener("message", handler);
-    void client.ready("gitCreateBranch").catch(() => {});
-    return () => window.removeEventListener("message", handler);
+
+    // The handshake gates every later request. If it fails — or simply never
+    // settles — the panel would sit empty with no error and no way out, so both
+    // outcomes are surfaced and the dialog is released to render its error
+    // state instead of staying on `ready === false` forever.
+    const timeout = window.setTimeout(() => {
+      if (cancelled) {
+        return;
+      }
+      setLoadError(HANDSHAKE_FAILED_MESSAGE);
+      setReady(true);
+    }, HANDSHAKE_TIMEOUT_MS);
+
+    void client
+      .ready("gitCreateBranch")
+      .catch((error: unknown) => {
+        if (cancelled) {
+          return;
+        }
+        const detail = error instanceof Error ? error.message : String(error);
+        setLoadError(
+          detail
+            ? `${HANDSHAKE_FAILED_MESSAGE} (${detail})`
+            : HANDSHAKE_FAILED_MESSAGE,
+        );
+      })
+      .finally(() => {
+        window.clearTimeout(timeout);
+        if (!cancelled) {
+          setReady(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+      window.removeEventListener("message", handler);
+    };
   }, [client]);
 
   useEffect(() => {
@@ -56,7 +105,9 @@ export function GitCreateBranchApp() {
         }
       } catch (err) {
         if (!cancelled) {
-          setLoadError(err instanceof Error ? err.message : String(err));
+          setLoadError(
+            `Could not load branches: ${err instanceof Error ? err.message : String(err)}`,
+          );
         }
       } finally {
         if (!cancelled) {
@@ -87,7 +138,9 @@ export function GitCreateBranchApp() {
       close();
     } catch (err) {
       setBusy(false);
-      setLoadError(err instanceof Error ? err.message : String(err));
+      setLoadError(
+        `Could not create the branch: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   };
 
@@ -97,30 +150,37 @@ export function GitCreateBranchApp() {
 
   if (loadError) {
     return (
-      <div className="flex h-full w-full items-center justify-center p-4 text-center">
-        <div className="flex flex-col gap-2">
-          <p
-            className="m-0 text-[var(--vscode-errorForeground)]"
-            data-testid="create-branch-error-banner"
-          >
-            Could not load branches: {loadError}
-          </p>
-          <button
+      <GitDialogShell
+        open
+        variant="embedded"
+        title="Create New Branch"
+        testId="create-branch-error-dialog"
+        onCancel={close}
+        footer={
+          <Button
             type="button"
-            className="btn-vscode h-[var(--nx-row-h)] px-2.5"
+            variant="primary" size="compact"
             onClick={close}
             data-testid="create-branch-error-close"
           >
             Close
-          </button>
-        </div>
-      </div>
+          </Button>
+        }
+      >
+        <p
+          className="m-0 text-danger-fg"
+          data-testid="create-branch-error-banner"
+        >
+          {loadError}
+        </p>
+      </GitDialogShell>
     );
   }
 
   return (
     <CreateBranchDialog
       open
+      embedded
       branches={branches}
       startPoint={bootstrap?.startPoint ?? ""}
       busy={busy}

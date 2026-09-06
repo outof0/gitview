@@ -175,7 +175,7 @@ describe("GitWidget", () => {
     fireEvent.click(screen.getByTestId("push-button"));
     expect(screen.getByTestId("fetch-button").textContent).toContain("Fetch");
     expect(screen.getByTestId("fetch-button").querySelector("span")?.className).toContain(
-      "max-[400px]:hidden",
+      "max-form-narrow:hidden",
     );
     expect(onFetch).toHaveBeenCalledTimes(1);
     expect(onPull).toHaveBeenCalledWith("merge");

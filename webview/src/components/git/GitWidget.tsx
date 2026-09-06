@@ -1,3 +1,5 @@
+import { SelectField } from "../ui/SelectField";
+import { Button } from "../ui/Button";
 import type { ReactNode } from "react";
 import {
   AlertTriangle,
@@ -144,9 +146,9 @@ function IconButton({
   children: ReactNode;
 }) {
   return (
-    <button
+    <Button variant="ghost" size="content"
       type="button"
-      className="h-7 w-7 shrink-0 flex items-center justify-center rounded-vscode border border-border hover:bg-list-hover disabled:opacity-50"
+      className="h-7 w-7 shrink-0 flex items-center justify-center rounded-vscode border border-border hover:bg-list-hover disabled:opacity-40"
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
@@ -154,7 +156,7 @@ function IconButton({
       data-testid={testId}
     >
       {children}
-    </button>
+    </Button>
   );
 }
 
@@ -203,12 +205,12 @@ export function GitWidget({
 
   return (
     <header
-      className="shrink-0 w-full bg-[var(--nx-panel,#202126)]"
+      className="shrink-0 w-full bg-panel-bg"
       data-testid="gitview-git-widget"
     >
       {snapshot?.multiRootDiverged && (
         <div
-          className="flex items-center gap-2 px-3 py-1.5 text-[11px] bg-[var(--vscode-inputValidation-warningBackground)] text-[var(--vscode-inputValidation-warningForeground)]"
+          className="flex items-center gap-2 px-3 py-1.5 text-ui-sm bg-warning-bg text-warning-fg"
           data-testid="multi-root-warning"
         >
           <AlertTriangle size={14} aria-hidden />
@@ -218,10 +220,10 @@ export function GitWidget({
 
       {syncOperation && (activeSyncOperation || failedSyncOperation) ? (
         <div
-          className={`flex min-h-8 items-center gap-2 border-b border-border px-3 py-1.5 text-[11px] max-[420px]:items-stretch max-[420px]:flex-col ${
+          className={`flex min-h-8 items-center gap-2 border-b border-border px-3 py-1.5 text-ui-sm max-toolbar-narrow:items-stretch max-toolbar-narrow:flex-col ${
             failedSyncOperation
-              ? "bg-[var(--vscode-inputValidation-errorBackground)] text-[var(--vscode-inputValidation-errorForeground)]"
-              : "bg-[var(--vscode-inputValidation-infoBackground)] text-[var(--vscode-inputValidation-infoForeground)]"
+              ? "bg-danger-bg text-danger-fg"
+              : "bg-info-bg text-info-fg"
           }`}
           data-testid="sync-operation-status"
           aria-live="polite"
@@ -229,13 +231,13 @@ export function GitWidget({
           {activeSyncOperation ? (
             <LoaderCircle
               size={14}
-              className="shrink-0 animate-spin max-[420px]:hidden"
+              className="shrink-0 animate-spin max-toolbar-narrow:hidden"
               aria-hidden
             />
           ) : (
             <AlertTriangle
               size={14}
-              className="shrink-0 max-[420px]:hidden"
+              className="shrink-0 max-toolbar-narrow:hidden"
               aria-hidden
             />
           )}
@@ -278,60 +280,60 @@ export function GitWidget({
               </>
             ) : null}
           </div>
-          <div className="flex shrink-0 items-center gap-1.5 max-[420px]:justify-end">
+          <div className="flex shrink-0 items-center gap-1.5 max-toolbar-narrow:justify-end">
             {activeSyncOperation ? (
               syncOperation.state === "cancel_requested" ? (
-                <button
+                <Button variant="secondary" size="content"
                   type="button"
-                  className="btn-vscode-secondary h-[var(--nx-row-h)] px-2 text-[11px]"
+                  className="btn-vscode-secondary h-row px-2 text-ui-sm"
                   disabled
                   data-testid="sync-operation-cancel"
                 >
                   Cancelling…
-                </button>
+                </Button>
               ) : canCancelSync && onCancelSync ? (
-                <button
+                <Button variant="secondary" size="content"
                   type="button"
-                  className="btn-vscode-secondary h-[var(--nx-row-h)] px-2 text-[11px]"
+                  className="btn-vscode-secondary h-row px-2 text-ui-sm"
                   onClick={onCancelSync}
                   data-testid="sync-operation-cancel"
                 >
                   Cancel
-                </button>
+                </Button>
               ) : (
                 <span className="text-vscode-description">Finishing…</span>
               )
             ) : (
               <>
                 {onDismissSync ? (
-                  <button
+                  <Button variant="secondary" size="content"
                     type="button"
-                    className="btn-vscode-secondary h-[var(--nx-row-h)] px-2 text-[11px]"
+                    className="btn-vscode-secondary h-row px-2 text-ui-sm"
                     onClick={onDismissSync}
                     data-testid="sync-operation-dismiss"
                   >
                     Dismiss
-                  </button>
+                  </Button>
                 ) : null}
                 {onShowSyncChanges ? (
-                  <button
+                  <Button variant="primary" size="content"
                     type="button"
-                    className="btn-vscode h-[var(--nx-row-h)] px-2 text-[11px]"
+                    className="btn-vscode h-row px-2 text-ui-sm"
                     onClick={onShowSyncChanges}
                     data-testid="sync-operation-show-changes"
                   >
                     Show Changes
-                  </button>
+                  </Button>
                 ) : null}
                 {onRetrySync ? (
-                  <button
+                  <Button variant="primary" size="content"
                     type="button"
-                    className="btn-vscode h-[var(--nx-row-h)] px-2 text-[11px]"
+                    className="btn-vscode h-row px-2 text-ui-sm"
                     onClick={onRetrySync}
                     data-testid="sync-operation-retry"
                   >
                     Retry
-                  </button>
+                  </Button>
                 ) : null}
               </>
             )}
@@ -339,36 +341,36 @@ export function GitWidget({
         </div>
       ) : null}
 
-      <div className="flex items-center justify-between gap-2 px-[10px] h-[42px] min-h-[42px] w-full bg-[var(--nx-panel,#202126)] border-b border-[var(--nx-border,#35363D)] overflow-hidden">
+      <div className="flex items-center justify-between gap-2 px-pad-panel h-git-widget-header min-h-git-widget-header w-full bg-panel-bg border-b border-nx-border overflow-hidden">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <FolderGit2
             size={16}
-            className="shrink-0 text-[var(--nx-orange,#F15A29)]"
+            className="shrink-0 text-nx-orange"
             aria-hidden
           />
           {activeRepo ? (
             <span
-              className="shrink-0 max-w-[28%] truncate text-[13px] font-semibold text-[var(--nx-text,#E8E8EA)] font-[family-name:var(--nx-font-ui)]"
+              className="shrink-0 max-w-[28%] truncate text-title font-semibold text-fg font-ui"
               data-testid="repo-name"
               title={activeRepo.name}
             >
               {activeRepo.name}
             </span>
           ) : null}
-          <button
+          <Button variant="ghost" size="content"
             type="button"
-            className="h-6 shrink-0 max-w-[36%] px-[7px] flex items-center gap-[5px] rounded-[3px] border border-[var(--nx-border,#35363D)] bg-[var(--nx-panel2,#27282E)] text-[11px] text-[var(--nx-text,#E8E8EA)] hover:bg-[var(--nx-panel2,#27282E)] disabled:opacity-50 font-[family-name:var(--nx-font-ui)]"
+            className="h-6 shrink-0 max-w-[36%] px-widget-control-x flex items-center gap-widget-gap rounded-vscode border border-nx-border bg-vscode-widget-bg text-ui-sm text-fg hover:bg-vscode-widget-bg disabled:opacity-40 font-ui"
             onClick={onOpenBranches}
             disabled={!activeRepo || !onOpenBranches}
             data-testid="branch-name"
             title={branchDisplayName(activeRepo)}
           >
-            <GitBranch size={12} className="shrink-0 text-[var(--nx-muted,#9B9CA3)]" aria-hidden />
+            <GitBranch size={12} className="shrink-0 text-vscode-description" aria-hidden />
             <span className="truncate">{branchDisplayName(activeRepo)}</span>
-          </button>
+          </Button>
           {sync && (
             <span
-              className="shrink-0 text-[11px] text-[var(--nx-blue,#61AFEF)] font-[family-name:var(--nx-font-ui)]"
+              className="shrink-0 text-ui-sm text-nx-blue font-ui"
               data-testid="sync-counts"
             >
               {sync}
@@ -377,13 +379,13 @@ export function GitWidget({
 
           {activeRepo?.protectedBranch && (
             <span
-              className="shrink-0 h-5 px-[6px] inline-flex items-center gap-1 rounded-[2px] border border-[var(--nx-border,#35363D)] bg-[var(--nx-panel2,#27282E)] text-[9px] text-[var(--nx-muted,#9B9CA3)] max-[520px]:hidden font-[family-name:var(--nx-font-ui)]"
+              className="shrink-0 h-5 px-badge-x inline-flex items-center gap-1 rounded-vscode border border-nx-border bg-vscode-widget-bg text-micro text-vscode-description max-panel-narrow:hidden font-ui"
               data-testid="protected-branch-badge"
               title="Protected branch"
             >
               <ShieldCheck
                 size={11}
-                className="text-[var(--nx-green,#48B57A)]"
+                className="text-nx-green"
                 aria-hidden
               />
               protected
@@ -392,7 +394,7 @@ export function GitWidget({
 
           {operation && (
             <span
-              className="shrink-0 text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-[2px] bg-[var(--vscode-inputValidation-infoBackground)] text-[var(--vscode-inputValidation-infoForeground)] max-[520px]:hidden"
+              className="shrink-0 text-section uppercase tracking-wide px-2 py-0.5 rounded-vscode bg-info-bg text-info-fg max-panel-narrow:hidden"
               data-testid="operation-badge"
             >
               {operation}
@@ -421,20 +423,20 @@ export function GitWidget({
               <FolderTree size={14} aria-hidden />
             </IconButton>
           )}
-          <button
+          <Button variant="ghost" size="content"
             type="button"
-            className="h-[26px] shrink-0 px-2 flex items-center gap-[5px] text-[11px] rounded-[3px] border border-[var(--nx-border,#35363D)] text-[var(--nx-muted,#9B9CA3)] hover:bg-[var(--nx-panel2,#27282E)] disabled:opacity-50 font-[family-name:var(--nx-font-ui)]"
+            className="h-control shrink-0 px-2 flex items-center gap-widget-gap text-ui-sm rounded-vscode border border-nx-border text-vscode-description hover:bg-vscode-widget-bg disabled:opacity-40 font-ui"
             onClick={onFetch}
             disabled={disabled || !canFetch}
             aria-label="Fetch"
             data-testid="fetch-button"
           >
             <RefreshCw size={12} aria-hidden />
-            <span className="max-[400px]:hidden">Fetch</span>
-          </button>
+            <span className="max-form-narrow:hidden">Fetch</span>
+          </Button>
           {onPullStrategyChange && (
-            <select
-              className="h-[26px] shrink-0 px-1 text-[10px] rounded-[2px] border border-[var(--nx-border,#35363D)] bg-[var(--vscode-input-background)] text-[var(--nx-muted,#9B9CA3)] max-[400px]:hidden font-[family-name:var(--nx-font-ui)]"
+            <SelectField
+              className="h-control shrink-0 px-1 text-section rounded-vscode border border-nx-border bg-input text-vscode-description max-form-narrow:hidden font-ui"
               value={pullStrategy}
               onChange={(e) =>
                 onPullStrategyChange(e.target.value as PullStrategy)
@@ -446,41 +448,41 @@ export function GitWidget({
               <option value="merge">Merge</option>
               <option value="rebase">Rebase</option>
               <option value="ff_only">FF only</option>
-            </select>
+            </SelectField>
           )}
-          <button
+          <Button variant="ghost" size="content"
             type="button"
-            className="h-[26px] shrink-0 px-2 flex items-center gap-[5px] text-[11px] rounded-[3px] border border-[var(--nx-border,#35363D)] text-[var(--nx-muted,#9B9CA3)] hover:bg-[var(--nx-panel2,#27282E)] disabled:opacity-50 font-[family-name:var(--nx-font-ui)]"
+            className="h-control shrink-0 px-2 flex items-center gap-widget-gap text-ui-sm rounded-vscode border border-nx-border text-vscode-description hover:bg-vscode-widget-bg disabled:opacity-40 font-ui"
             onClick={() => onPull(pullStrategy)}
             disabled={disabled || !canPull}
             aria-label={`Pull (${pullStrategy})`}
             data-testid="pull-button"
           >
             <ArrowDownToLine size={12} aria-hidden />
-            <span className="max-[400px]:hidden">Pull</span>
-          </button>
-          <button
+            <span className="max-form-narrow:hidden">Pull</span>
+          </Button>
+          <Button variant="primary" size="content"
             type="button"
-            className="h-[26px] shrink-0 px-2 flex items-center gap-[5px] text-[11px] font-semibold rounded-[3px] bg-[var(--vscode-button-background,var(--nx-orange))] text-[var(--vscode-button-foreground,var(--primary-foreground))] border border-[var(--vscode-button-border,transparent)] hover:bg-[var(--vscode-button-hoverBackground,var(--primary-hover))] disabled:opacity-50 font-[family-name:var(--nx-font-ui)]"
+            className="h-control shrink-0 px-2 flex items-center gap-widget-gap text-ui-sm font-semibold rounded-vscode bg-primary text-primary-foreground border border-button-border hover:bg-primary-hover disabled:opacity-40 font-ui"
             onClick={onPush}
             disabled={disabled || !canPush}
             aria-label="Push"
             data-testid="push-button"
           >
             <ArrowUpFromLine size={12} aria-hidden />
-            <span className="max-[400px]:hidden">Push</span>
-          </button>
+            <span className="max-form-narrow:hidden">Push</span>
+          </Button>
           {multiRoot && onUpdateAllRoots && (
-            <button
+            <Button variant="ghost" size="content"
               type="button"
-              className="h-[26px] shrink-0 px-2 text-[10px] rounded-[2px] border border-[var(--nx-border,#35363D)] hover:bg-list-hover disabled:opacity-50 max-[520px]:hidden font-[family-name:var(--nx-font-ui)]"
+              className="h-control shrink-0 px-2 text-section rounded-vscode border border-nx-border hover:bg-list-hover disabled:opacity-40 max-panel-narrow:hidden font-ui"
               onClick={onUpdateAllRoots}
               disabled={disabled}
               aria-label="Update all roots"
               data-testid="update-all-roots-button"
             >
               Update all
-            </button>
+            </Button>
           )}
           <IconButton
             label="Refresh Git status"

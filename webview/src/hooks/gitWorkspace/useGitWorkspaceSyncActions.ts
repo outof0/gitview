@@ -3,6 +3,7 @@ import {
   isConfirmationEvidence,
   type ConfirmationSubmission,
 } from "@gitview/shared/types/confirmation";
+import type { ReviewFilters } from "@gitview/shared/types/review";
 import {
   isSyncOperationActive,
   type SyncOperationEvent,
@@ -15,6 +16,8 @@ import type { GitWorkspaceDialogPayloads } from "../../stores/gitWorkspaceDialog
 import type { GitWorkspaceSyncApi } from "../../apps/gitWorkspace/gitWorkspaceControllerTypes";
 import { ProtocolRequestTimeoutError } from "../../protocol/clientCore";
 import type { GitWorkspaceDeps } from "./gitWorkspaceDeps";
+import { captureRepoToken, isRepoTokenCurrent } from "./repoScope";
+import { useRepoRequestScope } from "./useRepoRequestScope";
 
 type RootUpdateResult =
   GitWorkspaceDialogPayloads["updateAllRootsReport"]["results"][number];
@@ -87,12 +90,13 @@ export function useGitWorkspaceSyncActions(deps: GitWorkspaceDeps): GitWorkspace
       request: () => Promise<T>,
       failureMessage: string,
     ): Promise<TrackedSyncResult<T>> => {
+      const requestToken = captureRepoToken(repoId);
       const knownOperationIds = new Set(
         useGitWorkspaceStore
           .getState()
           .syncOperations.map((record) => record.event.operationId),
       );
-      setSyncing(true);
+      setSyncing(true, repoId);
       useGitWorkspaceStore.getState().setError(null);
       try {
         const response = await request();
@@ -123,13 +127,15 @@ export function useGitWorkspaceSyncActions(deps: GitWorkspaceDeps): GitWorkspace
         if (startedForRequest && !isSyncOperationActive(current.event)) {
           return { response: null, operation: current };
         }
-        state.setError(err instanceof Error ? err.message : failureMessage);
+        if (isRepoTokenCurrent(requestToken)) {
+          state.setError(err instanceof Error ? err.message : failureMessage);
+        }
         return {
           response: null,
           operation: startedForRequest ? current : null,
         };
       } finally {
-        setSyncing(false);
+        setSyncing(false, repoId);
       }
     },
     [setSyncing],
@@ -259,12 +265,16 @@ export function useGitWorkspaceSyncActions(deps: GitWorkspaceDeps): GitWorkspace
     if (!activeRepo) {
       return;
     }
+    const requestToken = captureRepoToken(activeRepo.id);
     const execution = await runTrackedSyncRequest(
       activeRepo.id,
       "push",
       () => clientRef.current.push(activeRepo.id),
       "Push failed",
     );
+    if (!isRepoTokenCurrent(requestToken)) {
+      return;
+    }
     const result = execution.response;
     if (result?.upstreamRequired) {
       openDialog("pushUpstream", {
@@ -301,6 +311,7 @@ export function useGitWorkspaceSyncActions(deps: GitWorkspaceDeps): GitWorkspace
       if (!activeRepo) {
         return;
       }
+      const requestToken = captureRepoToken(activeRepo.id);
       try {
         if (usesSyncBranchCheckout()) {
           const result = await clientRef.current.syncBranchOperation(
@@ -309,11 +320,13 @@ export function useGitWorkspaceSyncActions(deps: GitWorkspaceDeps): GitWorkspace
             { ...opts, confirmed, confirmation },
           );
           if (result.confirmationRequired && result.targets) {
-            openDialog("syncBranch", {
-              ref: result.ref ?? ref,
-              targets: result.targets,
-              opts,
-            });
+            if (isRepoTokenCurrent(requestToken)) {
+              openDialog("syncBranch", {
+                ref: result.ref ?? ref,
+                targets: result.targets,
+                opts,
+              });
+            }
             return;
           }
           const results = result.results ?? [];
@@ -321,28 +334,32 @@ export function useGitWorkspaceSyncActions(deps: GitWorkspaceDeps): GitWorkspace
           const failed = results.filter(
             (result) => !result.ok && !result.error?.includes("not available"),
           ).length;
-          if (failed > 0) {
-            setWorkspaceNotification({
-              level: "warning",
-              message: `Branch checkout failed in ${failed} repositor${failed === 1 ? "y" : "ies"}.`,
-            });
-          } else if (succeeded > 0) {
-            setWorkspaceNotification({
-              level: "info",
-              message: `Checked out ${ref} in ${succeeded} repositor${succeeded === 1 ? "y" : "ies"}.`,
-            });
+          if (isRepoTokenCurrent(requestToken)) {
+            if (failed > 0) {
+              setWorkspaceNotification({
+                level: "warning",
+                message: `Branch checkout failed in ${failed} repositor${failed === 1 ? "y" : "ies"}.`,
+              });
+            } else if (succeeded > 0) {
+              setWorkspaceNotification({
+                level: "info",
+                message: `Checked out ${ref} in ${succeeded} repositor${succeeded === 1 ? "y" : "ies"}.`,
+              });
+            }
+            closeDialog("syncBranch");
+            closeDialog("forceCheckout");
+            setBranchesOpen(false);
           }
-          closeDialog("syncBranch");
-          closeDialog("forceCheckout");
-          setBranchesOpen(false);
           return;
         }
         await clientRef.current.checkoutBranch(activeRepo.id, ref, {
           ...opts,
           confirmation,
         });
-        closeDialog("forceCheckout");
-        setBranchesOpen(false);
+        if (isRepoTokenCurrent(requestToken)) {
+          closeDialog("forceCheckout");
+          setBranchesOpen(false);
+        }
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Branch checkout failed";
@@ -356,13 +373,15 @@ export function useGitWorkspaceSyncActions(deps: GitWorkspaceDeps): GitWorkspace
           (isErrorCode(err, "CONFIRMATION_REQUIRED") ||
             isErrorCode(err, "CONFIRMATION_STALE"))
         ) {
-          openDialog("forceCheckout", {
-            ref,
-            opts: { ...opts, force: true },
-            confirmation: nextConfirmation,
-          });
-          if (isErrorCode(err, "CONFIRMATION_STALE")) {
-            useGitWorkspaceStore.getState().setError(message);
+          if (isRepoTokenCurrent(requestToken)) {
+            openDialog("forceCheckout", {
+              ref,
+              opts: { ...opts, force: true },
+              confirmation: nextConfirmation,
+            });
+            if (isErrorCode(err, "CONFIRMATION_STALE")) {
+              useGitWorkspaceStore.getState().setError(message);
+            }
           }
           return;
         }
@@ -384,6 +403,7 @@ export function useGitWorkspaceSyncActions(deps: GitWorkspaceDeps): GitWorkspace
     if (!activeRepo || !pending) {
       return;
     }
+    const requestToken = captureRepoToken(activeRepo.id);
     const execution = await runTrackedSyncRequest(
       activeRepo.id,
       "push",
@@ -396,7 +416,9 @@ export function useGitWorkspaceSyncActions(deps: GitWorkspaceDeps): GitWorkspace
     );
     const event = execution.operation?.event;
     if (execution.response?.ok || event?.state === "completed") {
-      closeDialog("pushUpstream");
+      if (isRepoTokenCurrent(requestToken)) {
+        closeDialog("pushUpstream");
+      }
     } else if (event && isSyncOperationActive(event)) {
       pendingUpstreamPushIds.current.add(event.operationId);
     }
@@ -463,34 +485,56 @@ export function useGitWorkspaceSyncActions(deps: GitWorkspaceDeps): GitWorkspace
     [clientRef, pullStrategy, runTrackedSyncRequest, updateRootReport],
   );
 
-  const loadReviews = useCallback(async () => {
-    if (!activeRepo) {
-      return;
-    }
-    setReviewLoading(true);
-    setReviewError(null);
-    try {
-      await clientRef.current.listReviews(activeRepo.id, {
-        providerId: reviewSnapshot?.selectedProviderId ?? undefined,
-        filters: reviewFilters,
-      });
-    } catch (err) {
-      setReviewError(err instanceof Error ? err.message : "Failed to load reviews");
-    }
-  }, [
-    activeRepo,
-    reviewFilters,
-    reviewSnapshot?.selectedProviderId,
-    setReviewError,
-    setReviewLoading,
-  ]);
+  const { begin, isCurrent } = useRepoRequestScope();
+
+  const loadReviews = useCallback(
+    async (overrides?: { filters?: ReviewFilters; providerId?: string }) => {
+      if (!activeRepo) {
+        return;
+      }
+      const token = begin(activeRepo.id, "reviews");
+      setReviewLoading(true);
+      setReviewError(null);
+      try {
+        await clientRef.current.listReviews(activeRepo.id, {
+          providerId:
+            overrides?.providerId ??
+            reviewSnapshot?.selectedProviderId ??
+            undefined,
+          filters: overrides?.filters ?? reviewFilters,
+        });
+      } catch (err) {
+        if (!isCurrent(token)) {
+          return;
+        }
+        setReviewError(err instanceof Error ? err.message : "Failed to load reviews");
+      } finally {
+        if (isCurrent(token)) {
+          setReviewLoading(false);
+        }
+      }
+    },
+    [
+      activeRepo,
+      begin,
+      isCurrent,
+      reviewFilters,
+      reviewSnapshot?.selectedProviderId,
+      setReviewError,
+      setReviewLoading,
+    ],
+  );
 
   const handleApplyNonConflicting = useCallback(() => {
     if (!activeRepo) {
       return;
     }
+    const requestToken = captureRepoToken(activeRepo.id);
     void runMutation(async () => {
       const result = await clientRef.current.applyNonConflicting(activeRepo.id);
+      if (!isRepoTokenCurrent(requestToken)) {
+        return;
+      }
       const applied = result.applied.length;
       const skipped = result.skipped.length;
       setWorkspaceNotification({

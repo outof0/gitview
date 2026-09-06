@@ -1,3 +1,4 @@
+import { Button } from "../ui/Button";
 import { useEffect, useState } from "react";
 import type { ProtocolClient } from "../../protocol/client";
 import { useGitViewStore } from "../../stores/gitViewStore";
@@ -50,7 +51,7 @@ export function ConflictMergeView({
   if (error) {
     return (
       <div
-        className="flex-1 min-h-0 p-3 text-[12px] text-[var(--vscode-errorForeground,#f48771)]"
+        className="flex-1 min-h-0 p-3 text-ui text-danger-fg"
         data-testid="conflict-merge-error"
       >
         {error}
@@ -69,7 +70,7 @@ export function ConflictMergeView({
         }
         loadingLabel={`Loading conflict — ${filePath}`}
         footer={(surface) => (
-          <div className="shrink-0 flex items-center gap-2 px-3 py-1.5 border-t border-border text-[11px] text-[var(--vscode-descriptionForeground)]">
+          <div className="shrink-0 flex items-center gap-2 px-3 py-1.5 border-t border-border text-ui-sm text-vscode-description">
             <span data-testid="conflict-merge-remaining">
               {surface.remaining > 0
                 ? `${surface.remaining} of ${surface.totalChanges} conflicts left`
@@ -77,9 +78,9 @@ export function ConflictMergeView({
             </span>
             <div className="flex-1" />
             {surface.unresolvedSimpleConflicts > 0 && (
-              <button
+              <Button variant="secondary" size="content"
                 type="button"
-                className="btn-vscode-secondary h-6 px-2 text-[11px] inline-flex items-center gap-1"
+                className="btn-vscode-secondary h-6 px-2 text-ui-sm inline-flex items-center gap-1"
                 onClick={() =>
                   useGitViewStore.getState().resolveSimpleConflicts()
                 }
@@ -89,17 +90,17 @@ export function ConflictMergeView({
               >
                 <span aria-hidden="true">✦</span>
                 Magic Merge
-              </button>
+              </Button>
             )}
-            <button
+            <Button variant="primary" size="content"
               type="button"
-              className="h-6 px-3 text-[11px] rounded-vscode bg-[var(--vscode-button-background)] text-[var(--vscode-button-foreground)] disabled:opacity-50"
+              className="h-6 px-3 text-ui-sm rounded-vscode bg-primary text-primary-foreground disabled:opacity-40"
               disabled={surface.remaining > 0}
               onClick={surface.onApply}
               data-testid="conflict-merge-apply"
             >
               Apply
-            </button>
+            </Button>
           </div>
         )}
       />

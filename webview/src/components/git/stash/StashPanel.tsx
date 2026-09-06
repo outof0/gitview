@@ -1,3 +1,4 @@
+import { Button } from "../../ui/Button";
 import { Archive, RefreshCw, Undo2 } from "lucide-react";
 import type { StashListSnapshot } from "@gitview/shared/types/stash";
 import { StashList } from "./StashList";
@@ -21,7 +22,7 @@ type StashPanelProps = {
 };
 
 const toolbarBtn =
-  "h-[var(--nx-row-h)] min-h-[var(--nx-row-h)] px-1.5 text-[length:var(--nx-font-size-ui-sm)] rounded-vscode border border-border hover:bg-list-hover disabled:opacity-40 inline-flex items-center gap-1 cursor-pointer";
+  "h-row min-h-row px-1.5 text-ui-sm rounded-vscode border border-border hover:bg-list-hover disabled:opacity-40 inline-flex items-center gap-1 cursor-pointer";
 
 export function StashPanel({
   snapshot,
@@ -37,11 +38,11 @@ export function StashPanel({
 
   return (
     <div
-      className="flex-1 min-h-0 flex flex-col px-[var(--nx-pad-x)] py-1.5 gap-1.5"
+      className="flex-1 min-h-0 flex flex-col px-pad-x py-1.5 gap-1.5"
       data-testid="stash-panel"
     >
       <div className="flex flex-wrap items-center gap-1.5">
-        <button
+        <Button variant="ghost" size="content"
           type="button"
           className={toolbarBtn}
           disabled={busy}
@@ -50,8 +51,8 @@ export function StashPanel({
         >
           <Archive size={14} aria-hidden />
           Stash Changes…
-        </button>
-        <button
+        </Button>
+        <Button variant="ghost" size="content"
           type="button"
           className={toolbarBtn}
           disabled={busy || stashes.length === 0}
@@ -60,8 +61,8 @@ export function StashPanel({
         >
           <Undo2 size={14} aria-hidden />
           Unstash Changes…
-        </button>
-        <button
+        </Button>
+        <Button variant="ghost" size="content"
           type="button"
           className={toolbarBtn}
           disabled={busy}
@@ -70,7 +71,7 @@ export function StashPanel({
         >
           <RefreshCw size={14} aria-hidden />
           Refresh
-        </button>
+        </Button>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto">

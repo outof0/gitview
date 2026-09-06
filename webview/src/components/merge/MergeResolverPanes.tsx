@@ -114,14 +114,14 @@ export function MergeResolverPanes({
   if (!activeDocument || !changeCounts) {
     return (
       <div
-        className="flex flex-col h-full min-h-0 font-[family-name:var(--nx-font-ui)]"
+        className="flex flex-col h-full min-h-0 font-ui"
         data-testid="merge-resolver-loading"
       >
-        <div className="nx-tool-empty flex flex-col items-start justify-start gap-1 px-[var(--nx-pad-x)] py-2 text-left">
-          <div className="text-[length:var(--nx-font-size-ui)] font-medium text-foreground">
+        <div className="nx-tool-empty flex flex-col items-start justify-start gap-1 px-pad-x py-2 text-left">
+          <div className="text-ui font-medium text-foreground">
             {loadingLabel}
           </div>
-          <div className="text-[length:var(--nx-font-size-ui-sm)] text-vscode-description">
+          <div className="text-ui-sm text-vscode-description">
             Preparing left / result / right panes.
           </div>
         </div>

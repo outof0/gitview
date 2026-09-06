@@ -1,4 +1,6 @@
+import { Button } from "../ui/Button";
 import { useEffect, useRef } from "react";
+import { TextField } from "../ui/TextField";
 
 type SearchPanelProps = {
   query: string;
@@ -36,14 +38,14 @@ export function SearchPanel({
 
   return (
     <div
-      className="absolute right-6 top-2 z-[200] flex flex-col gap-1 p-1.5 rounded-vscode border border-border bg-[var(--vscode-editorWidget-background,var(--background))] shadow-xl font-sans"
+      className="absolute right-6 top-2 z-[200] flex flex-col gap-1 p-1.5 rounded-vscode border border-border bg-vscode-widget-bg shadow-xl font-sans"
       data-testid="search-panel"
       role="dialog"
       aria-label="Find and replace"
       aria-modal="false"
     >
       <div className="flex items-center gap-1">
-        <input
+        <TextField
           ref={findRef}
           type="text"
           aria-label="find"
@@ -60,9 +62,11 @@ export function SearchPanel({
               }
             }
           }}
-          className="w-[150px] px-1.5 py-0.5 text-xs rounded-vscode bg-input text-input-foreground border border-input-border focus:outline-none focus:border-ring"
+          size="compact"
+          containerClassName="w-search-field"
+          inputClassName="text-xs"
         />
-        <button
+        <Button variant="ghost" size="content"
           type="button"
           className="w-5 h-5 flex items-center justify-center rounded-vscode text-foreground/80 hover:bg-list-hover hover:text-foreground cursor-pointer border-none bg-transparent outline-none"
           aria-label="find-prev"
@@ -70,8 +74,8 @@ export function SearchPanel({
           onClick={onPrev}
         >
           ↑
-        </button>
-        <button
+        </Button>
+        <Button variant="ghost" size="content"
           type="button"
           className="w-5 h-5 flex items-center justify-center rounded-vscode text-foreground/80 hover:bg-list-hover hover:text-foreground cursor-pointer border-none bg-transparent outline-none"
           aria-label="find-next"
@@ -79,49 +83,51 @@ export function SearchPanel({
           onClick={onNext}
         >
           ↓
-        </button>
+        </Button>
         <span
-          className="text-[10px] text-[var(--vscode-descriptionForeground,#70727a)] px-1 min-w-[32px] text-center"
+          className="text-section text-vscode-description px-1 min-w-search-count text-center"
           data-testid="search-count"
         >
           {countLabel}
         </span>
-        <button
+        <Button variant="ghost" size="content"
           type="button"
-          className="w-5 h-5 flex items-center justify-center rounded-vscode text-[var(--vscode-descriptionForeground,#70727a)] hover:text-foreground hover:bg-list-hover cursor-pointer border-none bg-transparent outline-none"
+          className="w-5 h-5 flex items-center justify-center rounded-vscode text-vscode-description hover:text-foreground hover:bg-list-hover cursor-pointer border-none bg-transparent outline-none"
           aria-label="close-search"
           title="Close"
           onClick={onClose}
         >
           ✕
-        </button>
+        </Button>
       </div>
       <div className="flex items-center gap-1">
-        <input
+        <TextField
           ref={replaceRef}
           type="text"
           aria-label="replace-input"
           placeholder="Replace (Ctrl+H)"
-          className="w-[150px] px-1.5 py-0.5 text-xs rounded-vscode bg-input text-input-foreground border border-input-border focus:outline-none focus:border-ring"
+          size="compact"
+          containerClassName="w-search-field"
+          inputClassName="text-xs"
         />
-        <button
+        <Button variant="secondary" size="content"
           type="button"
-          className="px-2 py-0.5 text-[10px] rounded-vscode bg-secondary hover:bg-secondary-hover text-secondary-foreground border border-[var(--vscode-button-border,var(--border))] cursor-pointer font-medium outline-none"
+          className="px-2 py-0.5 text-section rounded-vscode bg-secondary hover:bg-secondary-hover text-secondary-foreground border border-button-border cursor-pointer font-medium outline-none"
           aria-label="replace"
           title="Replace current match"
           onClick={() => onReplace(replaceRef.current?.value ?? "")}
         >
           Replace
-        </button>
-        <button
+        </Button>
+        <Button variant="secondary" size="content"
           type="button"
-          className="px-2 py-0.5 text-[10px] rounded-vscode bg-secondary hover:bg-secondary-hover text-secondary-foreground border border-[var(--vscode-button-border,var(--border))] cursor-pointer font-medium outline-none"
+          className="px-2 py-0.5 text-section rounded-vscode bg-secondary hover:bg-secondary-hover text-secondary-foreground border border-button-border cursor-pointer font-medium outline-none"
           aria-label="replace-all"
           title="Replace all matches"
           onClick={() => onReplaceAll(replaceRef.current?.value ?? "")}
         >
           All
-        </button>
+        </Button>
       </div>
     </div>
   );

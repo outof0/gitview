@@ -1,3 +1,4 @@
+import { Button } from "../../ui/Button";
 import type { WorkspaceDiffDocument } from "@gitview/shared/types/diff";
 import type { StashDetail, StashFileEntry } from "@gitview/shared/types/stash";
 import { ResizableSplit } from "../../ui/ResizableSplit";
@@ -43,7 +44,7 @@ export function StashDetailView({
 
   const fileList = (
     <div className="h-full min-h-0 flex flex-col" data-testid="stash-detail-files">
-      <div className="shrink-0 h-[var(--nx-toolbar-h)] min-h-[var(--nx-toolbar-h)] px-[var(--nx-pad-x)] flex items-center text-[length:var(--nx-font-size-section)] font-semibold uppercase tracking-wide text-vscode-description border-b border-border">
+      <div className="shrink-0 h-toolbar min-h-toolbar px-pad-x flex items-center text-section font-semibold uppercase tracking-wide text-vscode-description border-b border-border">
         {detail ? `${detail.files.length} changed` : "Changes"}
       </div>
       {loading ? (
@@ -52,7 +53,7 @@ export function StashDetailView({
         </div>
       ) : error ? (
         <div
-          className="px-1.5 py-2 text-[var(--vscode-inputValidation-errorForeground)]"
+          className="px-1.5 py-2 text-danger-fg"
           data-testid="stash-detail-error"
         >
           {error}
@@ -68,17 +69,17 @@ export function StashDetailView({
               selectedFile !== null && fileKey(selectedFile) === fileKey(file);
             return (
               <li key={fileKey(file)} className="list-none">
-                <button
+                <Button variant="ghost" size="content"
                   type="button"
                   role="option"
                   aria-selected={selected}
                   onClick={() => onSelectFile(file)}
                   className={cn(
                     "w-full text-left border-0 bg-transparent cursor-pointer",
-                    "flex items-center gap-1.5 px-1.5 min-h-[var(--nx-row-h)]",
-                    "text-[length:var(--nx-font-size-ui)]",
+                    "flex items-center gap-1.5 px-1.5 min-h-row",
+                    "text-ui",
                     selected
-                      ? "bg-[var(--vscode-list-activeSelectionBackground)] text-[var(--vscode-list-activeSelectionForeground)]"
+                      ? "bg-list-active text-list-activeForeground"
                       : "hover:bg-list-hover",
                   )}
                   data-testid={`stash-file-${file.path}`}
@@ -97,20 +98,20 @@ export function StashDetailView({
                   <span className="flex-1 min-w-0 truncate">{file.path}</span>
                   {file.origin === "untracked" ? (
                     <span
-                      className="shrink-0 text-[length:var(--nx-font-size-ui-sm)] opacity-70"
+                      className="shrink-0 text-ui-sm opacity-70"
                       data-testid={`stash-file-untracked-${file.path}`}
                     >
                       untracked
                     </span>
                   ) : stagedPaths.has(file.path) ? (
                     <span
-                      className="shrink-0 text-[length:var(--nx-font-size-ui-sm)] opacity-70"
+                      className="shrink-0 text-ui-sm opacity-70"
                       data-testid={`stash-file-staged-${file.path}`}
                     >
                       staged
                     </span>
                   ) : null}
-                </button>
+                </Button>
               </li>
             );
           })}

@@ -79,36 +79,72 @@ export function useGitWorkspaceHostSubscription(
       setIssueTrackerBaseUrl(settings.issueTrackerBaseUrl);
     };
     const onMessage = (event: MessageEvent) => {
+      // Request correlation: snapshot/diff events from a superseded request
+      // must not overwrite fresher data. The host stamps request-driven
+      // emissions with their request id; spontaneous pushes (refresh,
+      // watchers) carry none and always apply.
+      const eventRequestId = (data: unknown): string | undefined => {
+        const id = (data as { requestId?: unknown } | null)?.requestId;
+        return typeof id === "string" && id.length > 0 ? id : undefined;
+      };
+      const isCurrent = (eventType: string, data: unknown): boolean =>
+        client.isCurrentEvent(eventType, eventRequestId(data));
       if (isRepoSnapshot(event.data)) {
-        applyRepoSnapshot(event.data.payload);
+        if (isCurrent("repo.snapshot", event.data)) {
+          applyRepoSnapshot(event.data.payload);
+        }
       } else if (isStatusSnapshot(event.data)) {
-        applyStatusSnapshot(event.data.payload);
+        if (isCurrent("status.snapshot", event.data)) {
+          applyStatusSnapshot(event.data.payload);
+        }
       } else if (isSyncOperationMessage(event.data)) {
         applySyncOperation(event.data.payload);
       } else if (isBranchSnapshot(event.data)) {
-        applyBranchSnapshot(event.data.payload);
+        if (isCurrent("branch.snapshot", event.data)) {
+          applyBranchSnapshot(event.data.payload);
+        }
       } else if (isLogSnapshot(event.data)) {
-        applyLogSnapshot(event.data.payload);
+        if (isCurrent("log.snapshot", event.data)) {
+          applyLogSnapshot(event.data.payload);
+        }
       } else if (isBlameSnapshot(event.data)) {
-        applyBlameSnapshot(event.data.payload);
+        if (isCurrent("blame.snapshot", event.data)) {
+          applyBlameSnapshot(event.data.payload);
+        }
       } else if (isStashSnapshot(event.data)) {
-        applyStashSnapshot(event.data.payload);
+        if (isCurrent("stash.snapshot", event.data)) {
+          applyStashSnapshot(event.data.payload);
+        }
       } else if (isShelfSnapshot(event.data)) {
-        applyShelfSnapshot(event.data.payload);
+        if (isCurrent("shelf.snapshot", event.data)) {
+          applyShelfSnapshot(event.data.payload);
+        }
       } else if (isTagSnapshot(event.data)) {
-        applyTagSnapshot(event.data.payload);
+        if (isCurrent("tag.snapshot", event.data)) {
+          applyTagSnapshot(event.data.payload);
+        }
       } else if (isWorktreeSnapshot(event.data)) {
-        applyWorktreeSnapshot(event.data.payload);
+        if (isCurrent("worktree.snapshot", event.data)) {
+          applyWorktreeSnapshot(event.data.payload);
+        }
       } else if (isBranchCompareSnapshot(event.data)) {
-        applyBranchCompareSnapshot(event.data.payload);
+        if (isCurrent("branch.compare.snapshot", event.data)) {
+          applyBranchCompareSnapshot(event.data.payload);
+        }
       } else if (isDiffResult(event.data)) {
-        setDiffDocument(event.data.payload);
+        if (isCurrent("diff.result", event.data)) {
+          setDiffDocument(event.data.payload);
+        }
       } else if (isNotification(event.data)) {
         setWorkspaceNotification(event.data.payload);
       } else if (isReviewSnapshot(event.data)) {
-        applyReviewSnapshot(event.data.payload);
+        if (isCurrent("review.snapshot", event.data)) {
+          applyReviewSnapshot(event.data.payload);
+        }
       } else if (isReviewDetails(event.data)) {
-        applyReviewDetails(event.data.payload);
+        if (isCurrent("review.details", event.data)) {
+          applyReviewDetails(event.data.payload);
+        }
       } else if (isGitSettings(event.data)) {
         applySettings(event.data.payload);
       } else if (isOpenDialogRequest(event.data)) {
@@ -126,10 +162,24 @@ export function useGitWorkspaceHostSubscription(
     };
 
     window.addEventListener("message", onMessage);
-    void client.ready("gitWorkspace").then((response) => {
-      applySettings(response.settings);
-      return refreshRef.current();
-    });
+    void client
+      .ready("gitWorkspace")
+      .then((response) => {
+        applySettings(response.settings);
+        return refreshRef.current();
+      })
+      .catch((error: unknown) => {
+        // The host starts pushing snapshots and flushes the queued dialog only
+        // after this handshake (src/webview/gitWorkspacePanel.ts). A rejected
+        // handshake used to be an unhandled rejection here, which left the
+        // panel on an empty tree with no explanation and nothing in the UI.
+        setWorkspaceNotification({
+          level: "error",
+          message: `GitView could not start: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        });
+      });
 
     return () => window.removeEventListener("message", onMessage);
   }, [

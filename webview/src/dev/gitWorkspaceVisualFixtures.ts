@@ -51,10 +51,10 @@ type GitWorkspaceVisualFixture = {
 function repository(overrides: Partial<Repository> = {}): Repository {
   return {
     id: REPO_ID,
-    rootPath: "/workspace/nexusdiff",
-    workspaceFolderPath: "/workspace/nexusdiff",
-    gitDirPath: "/workspace/nexusdiff/.git",
-    name: "nexusdiff",
+    rootPath: "/workspace/gitview",
+    workspaceFolderPath: "/workspace/gitview",
+    gitDirPath: "/workspace/gitview/.git",
+    name: "gitview",
     currentBranch: "main",
     headSha: "9c82b7d5f4a3e2109876543210abcdef12345678",
     upstream: "origin/main",
@@ -123,7 +123,7 @@ function fetchOperation(
       roots: [
         {
           repoId: REPO_ID,
-          name: "nexusdiff",
+          name: "gitview",
           state: "running",
           phase: "fetching",
         },
@@ -347,7 +347,7 @@ const fixtures: Record<
         roots: [
           {
             repoId: REPO_ID,
-            name: "nexusdiff",
+            name: "gitview",
             state: "failed",
             outcome: {
               kind: "offline",
@@ -396,7 +396,7 @@ const fixtures: Record<
         roots: [
           {
             repoId: REPO_ID,
-            name: "nexusdiff",
+            name: "gitview",
             state: "failed",
             outcome: {
               kind: "conflicts",

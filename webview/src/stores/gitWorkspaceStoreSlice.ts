@@ -61,6 +61,15 @@ function trimSyncOperations(
 }
 
 export function createGitWorkspaceStoreSlice(set: SetState, get: GetState) {
+  // Late host events carry the repoId they were requested for. Only the
+  // status snapshot was filtered, so a delayed response for repo A could
+  // overwrite repo B's UI — and a later action would then pair B's repoId
+  // with A's ref/path/SHA. Every per-repository snapshot below is rejected
+  // when it does not target the active repository.
+  function isStaleSnapshot(repoId: string): boolean {
+    const activeRepoId = get().repoSnapshot?.activeRepoId;
+    return Boolean(activeRepoId) && repoId !== activeRepoId;
+  }
   return {
     setLoading: (loading: boolean) => set({ loading }),
     openDialog: <K extends GitWorkspaceDialogId>(
@@ -91,24 +100,68 @@ export function createGitWorkspaceStoreSlice(set: SetState, get: GetState) {
       set({ nativeFocusSurface: surface }),
     setError: (error: string | null) => set({ error }),
     applyRepoSnapshot: (snapshot: RepositorySnapshot) => {
-      const activeRepoChanged =
-        get().repoSnapshot?.activeRepoId !== snapshot.activeRepoId;
+      const previousActiveRepoId = get().repoSnapshot?.activeRepoId;
+      const activeRepoChanged = previousActiveRepoId !== snapshot.activeRepoId;
+      // User-draft fields (commit message, options, selections) are only
+      // reset when replacing an already-established repository. The very
+      // first hydration (null -> repo A) must not wipe a draft the user
+      // typed while the panel was still booting.
+      const hadActiveRepo = previousActiveRepoId != null;
       set({
         repoSnapshot: snapshot,
         loading: false,
         ...(activeRepoChanged
           ? {
+              repoEpoch: get().repoEpoch + 1,
               statusSnapshot: null,
               selectedFilePath: null,
               diffDocument: null,
               diffError: null,
               commitScope: new Set<string>(),
+              // Mutation-form state belongs to the previous repository: a
+              // message/amend/signing/author typed for repo A must never be
+              // committed into repo B after a switch.
+              ...(hadActiveRepo
+                ? {
+                    commitMessage: "",
+                    amend: false,
+                    signoff: false,
+                    gpgSign: false,
+                    author: "",
+                    commitAfterChecksConfirmed: false,
+                  }
+                : {}),
+              // Transient loading/error flags belong to the previous
+              // repository's in-flight requests. The scoped loaders skip
+              // stale completions, so without this reset a repo switch
+              // during a request would leave the new repository's spinner
+              // stuck on forever.
+              branchesLoading: false,
+              logLoading: false,
+              logError: null,
+              blameLoading: false,
+              blameError: null,
+              diffLoading: false,
+              tagsLoading: false,
+              worktreesLoading: false,
+              reviewLoading: false,
+              reviewError: null,
               branchSnapshot: null,
               branchCompareSnapshot: null,
+              branchCompareOpen: false,
+              branchCompareSelectedFile: null,
               blameSnapshot: null,
               logSnapshot: null,
+              logSelectedSha: null,
+              logSelectedShas: [],
+              logSelectedFilePath: null,
+              stashSnapshot: null,
+              shelfSnapshot: null,
+              tagSnapshot: null,
+              worktreeSnapshot: null,
               reviewSnapshot: null,
               reviewDetails: null,
+              selectedReviewId: null,
             }
           : {}),
       });
@@ -195,14 +248,22 @@ export function createGitWorkspaceStoreSlice(set: SetState, get: GetState) {
       }
       return matches.at(-1) ?? null;
     },
-    applyBranchSnapshot: (snapshot: BranchListSnapshot) =>
-      set({ branchSnapshot: snapshot, branchesLoading: false }),
-    applyBranchCompareSnapshot: (snapshot: BranchCompareSnapshot | null) =>
+    applyBranchSnapshot: (snapshot: BranchListSnapshot) => {
+      if (isStaleSnapshot(snapshot.repoId)) {
+        return;
+      }
+      set({ branchSnapshot: snapshot, branchesLoading: false });
+    },
+    applyBranchCompareSnapshot: (snapshot: BranchCompareSnapshot | null) => {
+      if (snapshot && isStaleSnapshot(snapshot.repoId)) {
+        return;
+      }
       set({
         branchCompareSnapshot: snapshot,
         branchCompareOpen: snapshot !== null,
         branchCompareSelectedFile: snapshot?.files[0]?.path ?? null,
-      }),
+      });
+    },
     setBranchCompareOpen: (open: boolean) => set({ branchCompareOpen: open }),
     setBranchCompareSelectedFile: (path: string | null) =>
       set({ branchCompareSelectedFile: path }),
@@ -223,8 +284,12 @@ export function createGitWorkspaceStoreSlice(set: SetState, get: GetState) {
             : get().nativeFocusSurface,
       }),
     setBranchesLoading: (loading: boolean) => set({ branchesLoading: loading }),
-    setDiffDocument: (document: WorkspaceDiffDocument | null) =>
-      set({ diffDocument: document, diffLoading: false, diffError: null }),
+    setDiffDocument: (document: WorkspaceDiffDocument | null) => {
+      if (document && isStaleSnapshot(document.repoId)) {
+        return;
+      }
+      set({ diffDocument: document, diffLoading: false, diffError: null });
+    },
     setDiffLoading: (loading: boolean) => set({ diffLoading: loading }),
     setDiffError: (error: string | null) =>
       set({ diffError: error, diffLoading: false }),
@@ -253,21 +318,41 @@ export function createGitWorkspaceStoreSlice(set: SetState, get: GetState) {
       set({ workspaceTab: tab }),
     setTemporarySubTab: (tab: GitWorkspaceState["temporarySubTab"]) =>
       set({ temporarySubTab: tab }),
-    applyStashSnapshot: (snapshot: StashListSnapshot) =>
-      set({ stashSnapshot: snapshot }),
-    applyShelfSnapshot: (snapshot: ShelfListSnapshot) =>
-      set({ shelfSnapshot: snapshot }),
+    applyStashSnapshot: (snapshot: StashListSnapshot) => {
+      if (isStaleSnapshot(snapshot.repoId)) {
+        return;
+      }
+      set({ stashSnapshot: snapshot });
+    },
+    applyShelfSnapshot: (snapshot: ShelfListSnapshot) => {
+      if (isStaleSnapshot(snapshot.repoId)) {
+        return;
+      }
+      set({ shelfSnapshot: snapshot });
+    },
     setTagsOpen: (open: boolean) => set({ tagsOpen: open }),
     setTagsLoading: (loading: boolean) => set({ tagsLoading: loading }),
-    applyTagSnapshot: (snapshot: TagListSnapshot) =>
-      set({ tagSnapshot: snapshot, tagsLoading: false }),
+    applyTagSnapshot: (snapshot: TagListSnapshot) => {
+      if (isStaleSnapshot(snapshot.repoId)) {
+        return;
+      }
+      set({ tagSnapshot: snapshot, tagsLoading: false });
+    },
     setWorktreesOpen: (open: boolean) => set({ worktreesOpen: open }),
     setWorktreesLoading: (loading: boolean) => set({ worktreesLoading: loading }),
-    applyWorktreeSnapshot: (snapshot: WorktreeListSnapshot) =>
-      set({ worktreeSnapshot: snapshot, worktreesLoading: false }),
+    applyWorktreeSnapshot: (snapshot: WorktreeListSnapshot) => {
+      if (isStaleSnapshot(snapshot.repoId)) {
+        return;
+      }
+      set({ worktreeSnapshot: snapshot, worktreesLoading: false });
+    },
     setPatchPreview: (patch: string | null) => set({ patchPreview: patch }),
-    applyBlameSnapshot: (snapshot: BlameSnapshot) =>
-      set({ blameSnapshot: snapshot, blameLoading: false, blameError: null }),
+    applyBlameSnapshot: (snapshot: BlameSnapshot) => {
+      if (isStaleSnapshot(snapshot.repoId)) {
+        return;
+      }
+      set({ blameSnapshot: snapshot, blameLoading: false, blameError: null });
+    },
     setBlameLoading: (loading: boolean) => set({ blameLoading: loading }),
     setBlameError: (error: string | null) =>
       set({ blameError: error, blameLoading: false }),
@@ -275,8 +360,12 @@ export function createGitWorkspaceStoreSlice(set: SetState, get: GetState) {
       notification: GitWorkspaceState["workspaceNotification"],
     ) => set({ workspaceNotification: notification }),
     clearWorkspaceNotification: () => set({ workspaceNotification: null }),
-    applyLogSnapshot: (snapshot: LogSnapshot) =>
-      set({ logSnapshot: snapshot, logLoading: false, logError: null }),
+    applyLogSnapshot: (snapshot: LogSnapshot) => {
+      if (isStaleSnapshot(snapshot.repoId)) {
+        return;
+      }
+      set({ logSnapshot: snapshot, logLoading: false, logError: null });
+    },
     setLogLoading: (loading: boolean) => set({ logLoading: loading }),
     setLogError: (error: string | null) =>
       set({ logError: error, logLoading: false }),
@@ -322,10 +411,18 @@ export function createGitWorkspaceStoreSlice(set: SetState, get: GetState) {
       set({ whitespacePolicy: policy }),
     setCommitAfterChecksConfirmed: (confirmed: boolean) =>
       set({ commitAfterChecksConfirmed: confirmed }),
-    applyReviewSnapshot: (snapshot: ReviewListSnapshot) =>
-      set({ reviewSnapshot: snapshot, reviewLoading: false, reviewError: null }),
-    applyReviewDetails: (details: ReviewDetailsSnapshot | null) =>
-      set({ reviewDetails: details }),
+    applyReviewSnapshot: (snapshot: ReviewListSnapshot) => {
+      if (isStaleSnapshot(snapshot.repoId)) {
+        return;
+      }
+      set({ reviewSnapshot: snapshot, reviewLoading: false, reviewError: null });
+    },
+    applyReviewDetails: (details: ReviewDetailsSnapshot | null) => {
+      if (details && isStaleSnapshot(details.repoId)) {
+        return;
+      }
+      set({ reviewDetails: details });
+    },
     setReviewLoading: (loading: boolean) => set({ reviewLoading: loading }),
     setReviewError: (error: string | null) =>
       set({ reviewError: error, reviewLoading: false }),

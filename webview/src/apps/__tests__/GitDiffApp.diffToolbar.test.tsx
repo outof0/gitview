@@ -156,15 +156,41 @@ describe("GitDiffApp diff viewer toolbar", () => {
 
     const host = screen.getByTestId("monaco-diff-host");
     fireEvent.click(screen.getByTestId("git-diff-next-difference"));
-    expect(host.getAttribute("data-fake-goto-diff")).toBe("next");
+    expect(host.getAttribute("data-fake-reveal-line")).toBe("2");
 
     fireEvent.click(screen.getByTestId("git-diff-prev-difference"));
-    expect(host.getAttribute("data-fake-goto-diff")).toBe("previous");
+    expect(host.getAttribute("data-fake-reveal-line")).toBe("4");
 
     fireEvent.keyDown(window, { key: "F7" });
-    expect(host.getAttribute("data-fake-goto-diff")).toBe("next");
+    expect(host.getAttribute("data-fake-reveal-line")).toBe("2");
 
     fireEvent.keyDown(window, { key: "F7", shiftKey: true });
-    expect(host.getAttribute("data-fake-goto-diff")).toBe("previous");
+    expect(host.getAttribute("data-fake-reveal-line")).toBe("4");
+  });
+
+  it("paints diff markers and reveals the matching line hunk", async () => {
+    render(<GitDiffApp />);
+    sendPreview();
+    await screen.findByTestId("git-diff-next-difference");
+
+    const host = screen.getByTestId("monaco-diff-host");
+    expect(host.getAttribute("data-fake-decorations")).toBe("2");
+
+    fireEvent.click(screen.getByTestId("git-diff-next-difference"));
+    expect(host.getAttribute("data-fake-reveal-line")).toBe("2");
+
+    fireEvent.click(screen.getByTestId("git-diff-prev-difference"));
+    expect(host.getAttribute("data-fake-reveal-line")).toBe("4");
+  });
+
+  it("navigates when a diff gutter marker is clicked", async () => {
+    render(<GitDiffApp />);
+    sendPreview();
+    await screen.findByTestId("git-diff-next-difference");
+
+    const host = screen.getByTestId("monaco-diff-host");
+    fakeMonaco.getLastDiffEditor()?.clickDiffMarker("right", 4);
+
+    expect(host.getAttribute("data-fake-reveal-line")).toBe("4");
   });
 });

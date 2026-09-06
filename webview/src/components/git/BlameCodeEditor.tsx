@@ -1,3 +1,4 @@
+import { Button } from "../ui/Button";
 import {
   useCallback,
   useEffect,
@@ -13,7 +14,7 @@ import { useBlameGutterWidth } from "./useBlameGutterWidth";
 import { BlameCommitHoverCard } from "./BlameCommitHoverCard";
 import {
   blameBlockBackground,
-  formatBlameAnnotationDate,
+  formatBlameAnnotationLabel,
   isCurrentRevisionLine,
 } from "../../lib/blameFormat";
 import { mapBlameAnchors } from "../../lib/mapBlameAnchors";
@@ -130,8 +131,9 @@ export function BlameCodeEditor({
 
   const initialValue = useMemo(
     () => lines.map((l) => l.text ?? "").join("\n"),
-    // Only seed from host when blame snapshot identity changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Keyed on a flattened snapshot instead of `lines` itself: the host sends a
+    // fresh array identity on every render, and reseeding from it would clobber
+    // edits the user has not saved yet.
     [lines.map((l) => `${l.lineNumber}:${l.sha}:${l.text ?? ""}`).join("\n")],
   );
 
@@ -300,7 +302,7 @@ export function BlameCodeEditor({
           fontSize: 12.5,
           lineHeight: LINE_HEIGHT,
           fontFamily:
-            "var(--vscode-editor-font-family, ui-monospace, 'Cascadia Code', Consolas, monospace)",
+            "var(--nx-font-code)",
           contextmenu: true,
           links: true,
           occurrencesHighlight: "off",
@@ -370,8 +372,9 @@ export function BlameCodeEditor({
       modelRef.current = null;
       setMonacoReady(false);
     };
-    // Recreate when file path changes (new annotate target)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Keyed on `filePath` alone: this effect builds and tears down the editor
+    // for a new annotate target. Reloaded blame data for the same file is
+    // pushed into the existing model by the effect below.
   }, [filePath]);
 
   // Push host snapshot into model when blame data reloads for same file
@@ -507,7 +510,7 @@ export function BlameCodeEditor({
   return (
     <div
       ref={hostRef}
-      className="nx-editor nx-blame-editor flex-1 min-h-0 relative h-full flex flex-col bg-vscode-editor-bg font-editor text-[12.5px] leading-5 overflow-hidden"
+      className="nx-editor nx-blame-editor flex-1 min-h-0 relative h-full flex flex-col bg-vscode-editor-bg font-editor text-editor-ui leading-5 overflow-hidden"
       style={gridStyle}
       data-testid="blame-editor"
       data-language={language}
@@ -515,7 +518,7 @@ export function BlameCodeEditor({
       data-save-state={saveState}
     >
       {/* Hidden save hook for title bar button */}
-      <button
+      <Button variant="ghost" size="content"
         type="button"
         className="absolute w-px h-px p-0 m-[-1px] overflow-hidden border-0"
         style={{ clip: "rect(0,0,0,0)" }}
@@ -528,7 +531,7 @@ export function BlameCodeEditor({
         {/* Blame gutter — scrolls with Monaco */}
         <div
           ref={gutterRef}
-          className="nx-blame-gutter shrink-0 overflow-y-auto overflow-x-hidden border-r border-vscode-panel-border bg-[var(--vscode-editorGutter-background,var(--vscode-editor-background,#1e1e1e))] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+          className="nx-blame-gutter shrink-0 overflow-y-auto overflow-x-hidden border-r border-vscode-panel-border bg-gutter-bg [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
           style={{ width: `${gutterWidth}px` }}
           onScroll={handleGutterScroll}
           data-testid="blame-annotate-gutter"
@@ -543,10 +546,7 @@ export function BlameCodeEditor({
               ? isCurrentRevisionLine(source.sha, headSha)
               : false;
             const selected = Boolean(source && selectedSha === source.sha);
-            const date = source
-              ? formatBlameAnnotationDate(source.authorTime)
-              : "";
-            const currentMarker = isCurrent ? " *" : "";
+            const label = source ? formatBlameAnnotationLabel(source) : "";
 
             return (
               <div
@@ -561,18 +561,17 @@ export function BlameCodeEditor({
                 data-block-sha={source?.sha}
               >
                 {annotated && source ? (
-                  <button
+                  <Button variant="ghost" size="content"
                     type="button"
                     className={cn(
-                      "nx-blame-annotate w-full min-w-0 py-0 pl-[10px] pr-2 flex items-center gap-2 overflow-hidden select-none",
-                      "font-editor text-[11px] leading-5 text-left cursor-pointer border-0 border-l-[3px]",
+                      "nx-blame-annotate w-full min-w-0 py-0 pl-pad-panel pr-2 flex items-center gap-2 overflow-hidden select-none",
+                      "font-editor text-ui-sm leading-5 text-left cursor-pointer border-0 border-l-blame-accent",
                       "bg-transparent text-vscode-description",
                       isCurrent && "font-bold text-vscode-editor-fg",
                     )}
                     style={{ borderLeftColor: accent, height: LINE_HEIGHT }}
                     aria-label={[
-                      source.author,
-                      `${date} ${source.author}${currentMarker}`,
+                      label,
                       `${source.shortSha} — ${source.summary}`,
                     ].join(", ")}
                     data-testid={`blame-sha-${row.lineNumber}`}
@@ -586,23 +585,13 @@ export function BlameCodeEditor({
                     onMouseLeave={handleAnnotLeave}
                     onClick={() => onOpenCommit?.(source.sha)}
                   >
-                    <span className="shrink min-w-0 font-medium whitespace-nowrap overflow-hidden text-ellipsis">
-                      {source.author}
-                      {currentMarker}
+                    <span className="min-w-0 flex-1 font-medium whitespace-nowrap overflow-hidden text-ellipsis">
+                      {label}
                     </span>
-                    <span className="shrink-0 whitespace-nowrap opacity-70">
-                      {date}
-                    </span>
-                    <span
-                      className="flex-1 min-w-0 whitespace-nowrap overflow-hidden text-ellipsis opacity-80"
-                      title={source.summary}
-                    >
-                      {source.summary}
-                    </span>
-                  </button>
+                  </Button>
                 ) : (
                   <div
-                    className="nx-blame-annotate nx-blame-annotate--empty w-full border-0 border-l-[3px] border-transparent"
+                    className="nx-blame-annotate nx-blame-annotate--empty w-full border-0 border-l-blame-accent border-transparent"
                     style={{ height: LINE_HEIGHT }}
                     data-testid={`blame-sha-${row.lineNumber}`}
                     aria-label="Local change — not committed"

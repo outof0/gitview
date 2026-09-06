@@ -1,3 +1,5 @@
+import { SelectField } from "../../components/ui/SelectField";
+import { Button } from "../../components/ui/Button";
 import type { GitWorkspaceController } from "./gitWorkspaceControllerTypes";
 import { GitBottomPanelHeader } from "./GitBottomPanelHeader";
 
@@ -22,12 +24,12 @@ function ShellStateBanner({
 }: ShellStateBannerProps) {
   return (
     <section
-      className={`font-[family-name:var(--nx-font-ui)] ${
+      className={`font-ui ${
         blocking
           ? "flex-1 min-h-0 flex items-center justify-center p-4"
           : warning
-            ? "shrink-0 border-b border-border bg-[var(--vscode-inputValidation-warningBackground)] px-[var(--nx-pad-x)] py-1.5"
-            : "shrink-0 border-b border-border bg-[var(--vscode-inputValidation-infoBackground)] px-[var(--nx-pad-x)] py-1.5"
+            ? "shrink-0 border-b border-border bg-warning-bg px-pad-x py-1.5"
+            : "shrink-0 border-b border-border bg-info-bg px-pad-x py-1.5"
       }`}
       data-testid={testId}
       aria-live={blocking ? "polite" : undefined}
@@ -36,40 +38,40 @@ function ShellStateBanner({
         className={
           blocking
             ? "w-[min(440px,100%)] border border-border p-3"
-            : "flex items-center gap-3 max-[360px]:items-stretch max-[360px]:flex-col"
+            : "flex items-center gap-3 max-pane-xs:items-stretch max-pane-xs:flex-col"
         }
       >
         <div className="min-w-0 flex-1">
-          <h2 className="m-0 text-[length:var(--nx-font-size-ui)] font-semibold text-foreground">
+          <h2 className="m-0 text-ui font-semibold text-foreground">
             {title}
           </h2>
-          <p className="m-0 mt-0.5 text-[length:var(--nx-font-size-ui-sm)] text-vscode-description">
+          <p className="m-0 mt-0.5 text-ui-sm text-vscode-description">
             {description}
           </p>
         </div>
         {primary || secondary ? (
           <div
-            className={`flex shrink-0 gap-1.5 max-[360px]:w-full max-[360px]:flex-col ${
+            className={`flex shrink-0 gap-1.5 max-pane-xs:w-full max-pane-xs:flex-col ${
               blocking ? "mt-3 justify-end" : ""
             }`}
           >
             {secondary ? (
-              <button
+              <Button variant="secondary" size="content"
                 type="button"
-                className="btn-vscode-secondary h-[var(--nx-row-h)] px-2.5 text-[length:var(--nx-font-size-ui-sm)] max-[360px]:w-full"
+                className="btn-vscode-secondary h-row px-2.5 text-ui-sm max-pane-xs:w-full"
                 onClick={secondary.onClick}
               >
                 {secondary.label}
-              </button>
+              </Button>
             ) : null}
             {primary ? (
-              <button
+              <Button variant="primary" size="content"
                 type="button"
-                className="btn-vscode h-[var(--nx-row-h)] px-2.5 text-[length:var(--nx-font-size-ui-sm)] max-[360px]:w-full"
+                className="btn-vscode h-row px-2.5 text-ui-sm max-pane-xs:w-full"
                 onClick={primary.onClick}
               >
                 {primary.label}
-              </button>
+              </Button>
             ) : null}
           </div>
         ) : null}
@@ -154,14 +156,14 @@ export function GitWorkspaceShell({ ctx }: { ctx: GitWorkspaceController }) {
       <GitBottomPanelHeader ctx={ctx} />
 
       {loading && (
-        <div className="px-[var(--nx-pad-x)] py-1 text-[length:var(--nx-font-size-ui-sm)] text-vscode-description">
+        <div className="px-pad-x py-1 text-ui-sm text-vscode-description">
           Loading repository…
         </div>
       )}
 
       {error && (
         <div
-          className="px-[var(--nx-pad-x)] py-1 text-[length:var(--nx-font-size-ui-sm)] text-[var(--vscode-errorForeground)]"
+          className="px-pad-x py-1 text-ui-sm text-danger-fg"
           data-testid="workspace-error"
         >
           {error}
@@ -170,34 +172,34 @@ export function GitWorkspaceShell({ ctx }: { ctx: GitWorkspaceController }) {
 
       {workspaceNotification && (
         <div
-          className={`px-[var(--nx-pad-x)] py-1 text-[length:var(--nx-font-size-ui-sm)] flex items-center justify-between gap-2 ${
+          className={`px-pad-x py-1 text-ui-sm flex items-center justify-between gap-2 ${
             workspaceNotification.level === "error"
-              ? "text-[var(--vscode-errorForeground)]"
+              ? "text-danger-fg"
               : workspaceNotification.level === "warning"
-                ? "text-[var(--vscode-editorWarning-foreground,#e0ad53)] bg-[var(--vscode-editorWarning-background,rgba(224,175,83,0.1))]"
+                ? "text-editor-warning-fg bg-editor-warning-bg"
                 : "text-vscode-description"
           }`}
           data-testid="workspace-notification"
         >
           <span>{workspaceNotification.message}</span>
-          <button
+          <Button variant="ghost" size="content"
             type="button"
-            className="text-[length:var(--nx-font-size-ui-sm)] underline hover:no-underline shrink-0"
+            className="text-ui-sm underline hover:no-underline shrink-0"
             onClick={() => clearWorkspaceNotification()}
             data-testid="workspace-notification-dismiss"
           >
             Dismiss
-          </button>
+          </Button>
         </div>
       )}
 
-      <div className="hidden h-[var(--nx-toolbar-h)] shrink-0 items-center border-b border-border px-2 max-[360px]:flex">
+      <div className="hidden h-toolbar shrink-0 items-center border-b border-border px-2 max-pane-xs:flex">
         <label className="sr-only" htmlFor="workspace-section-select">
           Workspace section
         </label>
-        <select
+        <SelectField
           id="workspace-section-select"
-          className="h-[var(--nx-row-h)] w-full rounded-vscode border border-border bg-[var(--vscode-input-background)] px-1.5 text-[length:var(--nx-font-size-ui)] text-foreground"
+          className="h-row w-full rounded-vscode border border-border bg-input px-1.5 text-ui text-foreground"
           value={workspaceTab}
           onChange={(event) =>
             setWorkspaceTab(event.target.value as typeof workspaceTab)
@@ -209,7 +211,7 @@ export function GitWorkspaceShell({ ctx }: { ctx: GitWorkspaceController }) {
           <option value="blame">Blame</option>
           <option value="temporary">Temporary Work</option>
           <option value="review">Review</option>
-        </select>
+        </SelectField>
       </div>
     </>
   );

@@ -38,9 +38,9 @@ export function MenuItem({
       aria-disabled={disabled || undefined}
       className={cn(
         "nx-menu-item w-full flex items-center gap-2 text-left border-0 bg-transparent outline-none",
-        "font-[family-name:var(--nx-font-ui)] text-[length:var(--nx-font-size-ui)] leading-none",
-        "min-h-[var(--nx-menu-item-h)] px-[var(--nx-menu-pad-x)] py-[var(--nx-menu-pad-y)]",
-        "focus-visible:ring-1 focus-visible:ring-[var(--ring)] focus-visible:ring-inset",
+        "font-ui text-ui leading-none",
+        "min-h-menu-item px-menu-pad-x py-menu-pad-y",
+        "focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset",
         disabled
           ? "text-menu-fg/40 cursor-not-allowed"
           : "text-menu-fg hover:bg-menu-selection hover:text-menu-selectionForeground cursor-pointer",
@@ -54,7 +54,7 @@ export function MenuItem({
     >
       {!hideIcon ? (
         <span
-          className="inline-flex items-center justify-center shrink-0 w-[var(--nx-icon-sm)] h-[var(--nx-icon-sm)] text-current opacity-80"
+          className="inline-flex items-center justify-center shrink-0 w-icon-sm h-icon-sm text-current opacity-80"
           aria-hidden="true"
         >
           {icon ?? null}
@@ -62,7 +62,7 @@ export function MenuItem({
       ) : null}
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {trailing ? (
-        <span className="shrink-0 text-[length:var(--nx-font-size-ui-sm)] opacity-80">
+        <span className="shrink-0 text-ui-sm opacity-80">
           {trailing}
         </span>
       ) : null}
@@ -83,8 +83,8 @@ export function MenuSectionHeader({
       data-testid={testId ?? "git-menu-section"}
       data-section={label}
       className={cn(
-        "px-[var(--nx-menu-pad-x)] pt-1.5 pb-0.5 select-none",
-        "text-[length:var(--nx-font-size-section)] font-semibold uppercase tracking-wider",
+        "px-menu-pad-x pt-1.5 pb-0.5 select-none",
+        "text-section font-semibold uppercase tracking-wider",
         "text-menu-fg/55",
       )}
     >
@@ -98,7 +98,7 @@ export function MenuDivider() {
     <div
       role="separator"
       data-testid="git-menu-divider"
-      className="h-px bg-menu-border my-[var(--nx-section-gap)] mx-1"
+      className="h-px bg-menu-border my-section-gap mx-1"
     />
   );
 }

@@ -11,7 +11,7 @@ export function ProtectedBranchBanner({ branchName }: ProtectedBranchBannerProps
 
   return (
     <div
-      className="flex items-center gap-2 px-3 py-1.5 text-[11px] bg-[var(--vscode-inputValidation-warningBackground)] text-[var(--vscode-inputValidation-warningForeground)] border-b border-border"
+      className="flex items-center gap-2 px-3 py-1.5 text-ui-sm bg-warning-bg text-warning-fg border-b border-border"
       data-testid="protected-branch-banner"
     >
       <ShieldAlert size={14} aria-hidden />

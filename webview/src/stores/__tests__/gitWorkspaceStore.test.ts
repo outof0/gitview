@@ -193,6 +193,55 @@ describe("gitWorkspaceStore slice", () => {
     expect(useGitWorkspaceStore.getState().statusSnapshot).toBeNull();
   });
 
+  it("rejects branch, log, and diff snapshots for a repository that is not active", () => {
+    const store = useGitWorkspaceStore.getState();
+    store.applyRepoSnapshot(repoSnapshot);
+    store.applyBranchSnapshot({ repoId: "r1", branches: [], refreshedAt: 0 });
+    store.applyLogSnapshot({
+      repoId: "r1",
+      branch: "main",
+      commits: [],
+      refreshedAt: 0,
+    });
+    store.setDiffDocument({
+      repoId: "r1",
+      filePath: "a.ts",
+      layout: "split",
+      status: "M",
+      left: null,
+      right: null,
+      binary: false,
+      staged: false,
+    });
+
+    const state = useGitWorkspaceStore.getState();
+    expect(state.branchSnapshot).toBeNull();
+    expect(state.logSnapshot).toBeNull();
+    expect(state.diffDocument).toBeNull();
+  });
+
+  it("resets mutation-form state when the active repository changes", () => {
+    const store = useGitWorkspaceStore.getState();
+    store.applyRepoSnapshot({ ...repoSnapshot, activeRepoId: "r1" });
+    store.setCommitMessage("repo A message");
+    store.setAmend(true);
+    store.setSignoff(true);
+    store.setGpgSign(true);
+    store.setAuthor("A U Thor <a@example.com>");
+    store.selectLogCommit("abc123");
+
+    store.applyRepoSnapshot(repoSnapshot);
+
+    const state = useGitWorkspaceStore.getState();
+    expect(state.commitMessage).toBe("");
+    expect(state.amend).toBe(false);
+    expect(state.signoff).toBe(false);
+    expect(state.gpgSign).toBe(false);
+    expect(state.author).toBe("");
+    expect(state.logSelectedSha).toBeNull();
+    expect(state.logSelectedShas).toEqual([]);
+  });
+
   it("applies only newer lifecycle events for each sync operation", () => {
     const store = useGitWorkspaceStore.getState();
     store.applySyncOperation(syncEvent());
@@ -295,6 +344,32 @@ describe("gitWorkspaceStore slice", () => {
     expect(
       store.syncOperationForRepository("r1", "fetch")?.event.operationId,
     ).toBe("sync-2");
+  });
+
+  it("preserves a typed draft across initial hydration", () => {
+    const store = useGitWorkspaceStore.getState();
+    expect(store.repoSnapshot).toBeNull();
+    store.setCommitMessage("typed while booting");
+    store.setAmend(true);
+
+    store.applyRepoSnapshot(repoSnapshot);
+
+    const state = useGitWorkspaceStore.getState();
+    expect(state.commitMessage).toBe("typed while booting");
+    expect(state.amend).toBe(true);
+  });
+
+  it("resets the draft when replacing an established repository", () => {
+    const store = useGitWorkspaceStore.getState();
+    store.applyRepoSnapshot({ ...repoSnapshot, activeRepoId: "r1" });
+    store.setCommitMessage("repo A message");
+    store.setAmend(true);
+
+    store.applyRepoSnapshot(repoSnapshot);
+
+    const state = useGitWorkspaceStore.getState();
+    expect(state.commitMessage).toBe("");
+    expect(state.amend).toBe(false);
   });
 
   it("clears repository-dependent state when the active repository changes", () => {

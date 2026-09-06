@@ -12,7 +12,7 @@ const MENU_MARGIN = 8;
 const MENU_MAX_HEIGHT = 280;
 
 const popoverCls =
-  "fixed z-[200] min-w-[200px] overflow-x-hidden overflow-y-auto p-1.5 flex flex-col gap-1 rounded-sm border border-[var(--vscode-menu-border,var(--border))] bg-[var(--vscode-menu-background,var(--vscode-editorWidget-background,var(--background)))] text-[var(--vscode-menu-foreground,var(--vscode-editor-foreground))] shadow-lg pointer-events-auto";
+  "fixed z-[200] min-w-log-menu overflow-x-hidden overflow-y-auto p-1.5 flex flex-col gap-1 rounded-vscode border border-menu-border bg-menu-bg text-menu-fg shadow-lg pointer-events-auto";
 
 function place(
   anchor: HTMLElement,

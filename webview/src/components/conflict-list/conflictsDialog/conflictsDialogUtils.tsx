@@ -1,3 +1,4 @@
+import { fileTypeGlyph } from "../../ui/FileTypeGlyph";
 import { FileIcon } from "./ConflictsDialogIcons";
 
 export function getDirectory(path: string) {
@@ -12,24 +13,13 @@ export function getFilename(path: string) {
 }
 
 export function getFileIcon(fileName: string) {
-  if (fileName.endsWith(".tsx") || fileName.endsWith(".ts")) {
+  const glyph = fileTypeGlyph(fileName);
+  if (glyph) {
     return (
-      <span className="inline-flex items-center justify-center w-4 h-4 mr-2 text-[8px] font-bold bg-[#4f7df3] text-white rounded-[2px] flex-shrink-0">
-        TS
-      </span>
-    );
-  }
-  if (fileName.endsWith(".js")) {
-    return (
-      <span className="inline-flex items-center justify-center w-4 h-4 mr-2 text-[8px] font-bold bg-[#f4c84f] text-black rounded-[2px] flex-shrink-0">
-        JS
-      </span>
-    );
-  }
-  if (fileName.endsWith(".json")) {
-    return (
-      <span className="inline-flex items-center justify-center w-4 h-4 mr-2 text-[8px] font-bold bg-[#83cd29]/90 text-white rounded-[2px] flex-shrink-0">
-        JSON
+      <span
+        className={`inline-flex items-center justify-center w-4 h-4 mr-2 text-file-glyph font-bold ${glyph.bg} ${glyph.ink} rounded-vscode flex-shrink-0`}
+      >
+        {glyph.label}
       </span>
     );
   }

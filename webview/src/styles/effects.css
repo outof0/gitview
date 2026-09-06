@@ -369,6 +369,7 @@ pre,
 /* Monaco diff viewer — LCS on main thread (diff worker is a noop in webview) */
 .monaco-editor .view-line.monaco-diff-added,
 .nx-monaco-diff-host .monaco-editor .view-line.monaco-diff-added,
+.nx-monaco-diff-host .monaco-editor .cmdr.monaco-diff-added,
 .cdr.monaco-diff-added {
   background: var(
     --vscode-diffEditor-insertedTextBackground,
@@ -377,6 +378,7 @@ pre,
 }
 .monaco-editor .view-line.monaco-diff-removed,
 .nx-monaco-diff-host .monaco-editor .view-line.monaco-diff-removed,
+.nx-monaco-diff-host .monaco-editor .cmdr.monaco-diff-removed,
 .cdr.monaco-diff-removed {
   background: var(
     --vscode-diffEditor-removedTextBackground,
@@ -385,11 +387,44 @@ pre,
 }
 .monaco-editor .view-line.monaco-diff-changed,
 .nx-monaco-diff-host .monaco-editor .view-line.monaco-diff-changed,
+.nx-monaco-diff-host .monaco-editor .cmdr.monaco-diff-changed,
 .cdr.monaco-diff-changed {
   background: var(
     --vscode-diffEditor-modifiedTextBackground,
     rgba(187, 128, 9, 0.28)
   ) !important;
+}
+
+/* VS Code-style diff markers: the line wash is useful, but the gutter stripe
+ * is what makes a change discoverable when the code is scrolled. */
+.nx-monaco-diff-host .monaco-editor .lines-decoration.monaco-diff-added-gutter,
+.nx-monaco-diff-host .monaco-editor .margin-view-overlays .monaco-diff-added-gutter {
+  background-color: var(--nx-added-bar) !important;
+  cursor: pointer;
+}
+.nx-monaco-diff-host .monaco-editor .lines-decoration.monaco-diff-removed-gutter,
+.nx-monaco-diff-host .monaco-editor .margin-view-overlays .monaco-diff-removed-gutter {
+  background-color: var(--nx-deleted-bar) !important;
+  cursor: pointer;
+}
+.nx-monaco-diff-host .monaco-editor .lines-decoration.monaco-diff-changed-gutter,
+.nx-monaco-diff-host .monaco-editor .margin-view-overlays .monaco-diff-changed-gutter {
+  background-color: var(--nx-modified-bar) !important;
+  cursor: pointer;
+}
+.nx-monaco-diff-host .monaco-editor .decorationsOverviewRuler {
+  cursor: pointer;
+}
+.nx-monaco-diff-host .monaco-editor .view-line.monaco-diff-active {
+  box-shadow: inset 0 0 0 9999px var(--nx-active-block) !important;
+}
+.nx-monaco-diff-host .monaco-editor .cmdr.monaco-diff-active,
+.nx-monaco-diff-host .monaco-editor .cdr.monaco-diff-active {
+  box-shadow: inset 0 0 0 9999px var(--nx-active-block) !important;
+}
+.nx-monaco-diff-host .monaco-editor .monaco-diff-active-gutter {
+  outline: 1px solid var(--vscode-focusBorder, var(--nx-modified-bar));
+  outline-offset: -1px;
 }
 
 /*

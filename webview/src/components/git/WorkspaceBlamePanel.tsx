@@ -1,3 +1,4 @@
+import { Button } from "../ui/Button";
 import { useCallback, useState } from "react";
 import type { BlameSnapshot } from "@gitview/shared/types/blame";
 import { ToolEmptyState } from "../ui/ToolEmptyState";
@@ -91,13 +92,13 @@ export function WorkspaceBlamePanel({
       data-save-state={saveState}
     >
       <div
-        className="nx-tool-titlebar shrink-0 flex items-center gap-2 h-7 min-h-7 px-2 border-b border-vscode-panel-border bg-vscode-editor-bg font-[family-name:var(--nx-font-ui)]"
+        className="nx-tool-titlebar shrink-0 flex items-center gap-2 h-7 min-h-7 px-2 border-b border-vscode-panel-border bg-vscode-editor-bg font-ui"
         data-testid="blame-editor-tab"
       >
         {filePath ? (
           <span
             className={cn(
-              "text-[11px] font-editor truncate flex items-center gap-1.5 min-w-0",
+              "text-ui-sm font-editor truncate flex items-center gap-1.5 min-w-0",
               dirty
                 ? "text-vscode-editor-fg font-semibold"
                 : "text-vscode-editor-fg opacity-90",
@@ -106,7 +107,7 @@ export function WorkspaceBlamePanel({
           >
             {dirty && (
               <span
-                className="inline-block w-2 h-2 rounded-full shrink-0 bg-[var(--vscode-gitDecoration-modifiedResourceForeground,#e2c08d)]"
+                className="inline-block w-2 h-2 rounded-full shrink-0 bg-status-modified"
                 aria-hidden
                 data-testid="blame-dirty-dot"
               />
@@ -116,7 +117,7 @@ export function WorkspaceBlamePanel({
             </span>
           </span>
         ) : (
-          <span className="text-[11px] text-vscode-description">Annotate</span>
+          <span className="text-ui-sm text-vscode-description">Annotate</span>
         )}
 
         <span className="flex-1 min-w-0" />
@@ -124,11 +125,11 @@ export function WorkspaceBlamePanel({
         {status && (
           <span
             className={cn(
-              "text-[10px] shrink-0",
+              "text-section shrink-0",
               saveState === "error"
                 ? "text-vscode-error"
                 : saveState === "saved"
-                  ? "text-[var(--vscode-testing-iconPassed,#73c991)]"
+                  ? "text-testing-passed"
                   : "text-vscode-description",
             )}
             data-testid="blame-save-status"
@@ -138,10 +139,10 @@ export function WorkspaceBlamePanel({
         )}
 
         {onSaveContent && filePath && (
-          <button
+          <Button variant="secondary" size="content"
             type="button"
             className={cn(
-              "btn-vscode-secondary shrink-0 h-5 min-h-5 px-2 text-[10px]",
+              "btn-vscode-secondary shrink-0 h-5 min-h-5 px-2 text-section",
               dirty
                 ? "opacity-100"
                 : "opacity-70",
@@ -152,12 +153,12 @@ export function WorkspaceBlamePanel({
             title="Save (Ctrl/Cmd+S)"
           >
             {saveState === "saving" ? "Saving…" : "Save"}
-          </button>
+          </Button>
         )}
       </div>
 
       {error && (
-        <div className="shrink-0 py-1 px-[var(--nx-pad-x)] text-[length:var(--nx-font-size-ui-sm)] text-vscode-error bg-[color-mix(in_srgb,var(--vscode-inputValidation-errorBackground,#5a1d1d)_40%,transparent)]">
+        <div className="shrink-0 py-1 px-pad-x text-ui-sm text-vscode-error bg-[color-mix(in_srgb,var(--danger-background)_40%,transparent)]">
           {error}
         </div>
       )}

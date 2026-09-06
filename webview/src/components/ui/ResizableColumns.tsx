@@ -160,7 +160,7 @@ export function ResizableColumns({
               role="separator"
               aria-orientation="vertical"
               tabIndex={0}
-              className="shrink-0 z-10 w-[4px] cursor-col-resize bg-[var(--vscode-panel-border,var(--vscode-editorGroup-border,#444))] hover:bg-[var(--vscode-focusBorder,#007fd4)] transition-colors"
+              className="shrink-0 z-10 w-splitter cursor-col-resize bg-vscode-panel-border hover:bg-ring transition-colors"
               onMouseDown={() => startDrag(i)}
               data-testid={`resizable-column-handle-${i}`}
             />

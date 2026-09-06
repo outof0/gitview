@@ -1,3 +1,4 @@
+import { Button } from "../ui/Button";
 import { ChevronDown, ChevronRight, GitBranch, Star } from "lucide-react";
 import { useMemo, useState } from "react";
 import { cn } from "../../lib/cn";
@@ -60,15 +61,15 @@ export function LogBranchTree({
     const current = currentBranch === name;
     const fav = favSet.has(name);
     return (
-      <button
+      <Button variant="ghost" size="content"
         key={name}
         type="button"
         className={cn(
           "w-full flex items-center gap-1.5 text-left border-0 cursor-pointer",
-          "h-[var(--nx-row-h)] min-h-[var(--nx-row-h)] px-2 pl-5",
-          "text-[length:var(--nx-font-size-ui)] truncate",
+          "h-row min-h-row px-2 pl-5",
+          "text-ui truncate",
           selected
-            ? "bg-list-active text-list-active-foreground"
+            ? "bg-list-active text-list-activeForeground"
             : "bg-transparent text-foreground hover:bg-list-hover",
         )}
         onClick={() => onSelectBranch(name)}
@@ -78,7 +79,7 @@ export function LogBranchTree({
         {fav ? (
           <Star
             size={12}
-            className="shrink-0 text-[var(--vscode-textLink-foreground)]"
+            className="shrink-0 text-vscode-link"
             fill="currentColor"
             aria-hidden
           />
@@ -88,36 +89,36 @@ export function LogBranchTree({
         <span className="truncate">
           {name}
           {current ? (
-            <span className="ml-1 opacity-60 text-[length:var(--nx-font-size-section)]">
+            <span className="ml-1 opacity-60 text-section">
               current
             </span>
           ) : null}
         </span>
-      </button>
+      </Button>
     );
   };
 
   return (
     <div
-      className="h-full min-h-0 w-full overflow-y-auto bg-[var(--vscode-sideBar-background,var(--vscode-editor-background))] text-foreground font-[family-name:var(--nx-font-ui)]"
+      className="h-full min-h-0 w-full overflow-y-auto bg-vscode-sidebar-bg text-foreground font-ui"
       data-testid="log-branch-tree"
     >
       <div className="px-2 py-1">
-        <button
+        <Button variant="ghost" size="content"
           type="button"
-          className="w-full flex items-center gap-1 h-[20px] px-1 text-[length:var(--nx-font-size-ui-sm)] font-semibold text-vscode-description border-0 bg-transparent cursor-pointer hover:bg-list-hover rounded-[var(--nx-menu-radius)]"
+          className="w-full flex items-center gap-1 h-tree-section px-1 text-ui-sm font-semibold text-vscode-description border-0 bg-transparent cursor-pointer hover:bg-list-hover rounded-vscode"
           onClick={() => setLocalOpen((o) => !o)}
         >
           {localOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
           Local
-        </button>
+        </Button>
         {localOpen ? local.map(renderRow) : null}
       </div>
       {remote.length > 0 ? (
         <div className="px-2 py-1">
-          <button
+          <Button variant="ghost" size="content"
             type="button"
-            className="w-full flex items-center gap-1 h-[20px] px-1 text-[length:var(--nx-font-size-ui-sm)] font-semibold text-vscode-description border-0 bg-transparent cursor-pointer hover:bg-list-hover rounded-[var(--nx-menu-radius)]"
+            className="w-full flex items-center gap-1 h-tree-section px-1 text-ui-sm font-semibold text-vscode-description border-0 bg-transparent cursor-pointer hover:bg-list-hover rounded-vscode"
             onClick={() => setRemoteOpen((o) => !o)}
           >
             {remoteOpen ? (
@@ -126,7 +127,7 @@ export function LogBranchTree({
               <ChevronRight size={12} />
             )}
             Remote
-          </button>
+          </Button>
           {remoteOpen ? remote.map(renderRow) : null}
         </div>
       ) : null}

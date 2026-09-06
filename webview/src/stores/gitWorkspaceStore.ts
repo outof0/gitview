@@ -11,6 +11,7 @@ export const useGitWorkspaceStore = create<GitWorkspaceState & GitWorkspaceActio
     dialogs: {},
     nativeFocusSurface: null,
     repoSnapshot: null,
+    repoEpoch: 0,
     statusSnapshot: null,
     syncOperations: [],
     branchSnapshot: null,

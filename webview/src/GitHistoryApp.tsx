@@ -54,10 +54,25 @@ export function GitHistoryApp() {
   }, [store]);
 
   useEffect(() => {
-    void client.ready("gitHistory").catch(() => {});
-  }, [client]);
+    // The host pushes `history.init` only after it answers this handshake
+    // (src/webview/GitHistoryWebviewPanel.ts), so swallowing a failure here is
+    // not cosmetic: the tool window would sit on "Loading history…" forever,
+    // with nothing on screen and nothing in the log.
+    void client.ready("gitHistory").catch((error: unknown) => {
+      store.getState().setLogResult({
+        error:
+          error instanceof Error
+            ? error.message
+            : "Could not start the Git History view.",
+      });
+    });
+  }, [client, store]);
 
   useEffect(() => {
+    const eventRequestId = (data: unknown): string | undefined => {
+      const id = (data as { requestId?: unknown } | null)?.requestId;
+      return typeof id === "string" && id.length > 0 ? id : undefined;
+    };
     const onMessage = (event: MessageEvent) => {
       const data = event.data;
       if (isHistoryInit(data)) {
@@ -65,13 +80,18 @@ export function GitHistoryApp() {
         return;
       }
       if (isLogSnapshot(data)) {
-        store.getState().setLogResult(logSnapshotToStorePayload(data.payload));
+        if (client.isCurrentEvent("log.snapshot", eventRequestId(data))) {
+          store.getState().setLogResult(logSnapshotToStorePayload(data.payload));
+        }
         return;
       }
       if (isDiffResult(data)) {
         const { selectedSha: sha, selectedChangedFilePath: filePath } =
           store.getState();
         if (!sha || !filePath) {
+          return;
+        }
+        if (!client.isCurrentEvent("diff.result", eventRequestId(data))) {
           return;
         }
         store.getState().setFileDiffResult({
@@ -98,7 +118,7 @@ export function GitHistoryApp() {
 
   return (
     <div
-      className={`h-screen w-screen overflow-hidden font-[family-name:var(--nx-font-ui)] text-[length:var(--nx-font-size-ui)] bg-vscode-editor-bg text-vscode-editor-fg ${themeClass}`}
+      className={`h-screen w-screen overflow-hidden font-ui text-ui bg-vscode-editor-bg text-vscode-editor-fg ${themeClass}`}
       data-testid="git-history-app"
     >
       <div

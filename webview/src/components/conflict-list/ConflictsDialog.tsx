@@ -1,3 +1,5 @@
+import { Input } from "../ui/Input";
+import { Button } from "../ui/Button";
 import { useState, useEffect } from "react";
 import { useGitViewStore } from "../../stores/gitViewStore";
 import { useGitPanels } from "../../hooks/useGitPanels";
@@ -109,32 +111,32 @@ export function ConflictsDialog() {
 
   return (
     <div className="absolute inset-0 z-[100]">
-      <div className="absolute inset-0 bg-black/40 flex items-center justify-center select-none font-sans p-6">
+      <div className="absolute inset-0 bg-overlay-modal flex items-center justify-center select-none font-sans p-6">
       <div
-        className="w-[min(920px,calc(100%-48px))] h-[min(560px,calc(100%-48px))] max-h-full bg-[var(--vscode-editorWidget-background,var(--background))] border border-border rounded-vscode shadow-2xl flex flex-col overflow-hidden text-foreground"
+        className="w-[min(920px,calc(100%-48px))] h-[min(560px,calc(100%-48px))] max-h-full bg-vscode-widget-bg border border-border rounded-vscode shadow-2xl flex flex-col overflow-hidden text-foreground"
         role="dialog"
         aria-modal="true"
         aria-label="Conflicts"
         data-testid="conflicts-dialog"
       >
-        <div className="h-[var(--nx-toolbar-h)] min-h-[var(--nx-toolbar-h)] px-[var(--nx-pad-x)] bg-[var(--vscode-editorWidget-background,var(--background))] grid grid-cols-[1fr_auto_1fr] items-center flex-shrink-0 border-b border-border font-[family-name:var(--nx-font-ui)]">
+        <div className="h-toolbar min-h-toolbar px-pad-x bg-vscode-widget-bg grid grid-cols-[1fr_auto_1fr] items-center flex-shrink-0 border-b border-border font-ui">
           <span />
-          <span className="text-[length:var(--nx-font-size-ui)] font-semibold text-foreground">
+          <span className="text-ui font-semibold text-foreground">
             Conflicts
           </span>
-          <button
+          <Button variant="ghost" size="content"
             onClick={handleCloseAttempt}
-            className="justify-self-end w-[var(--nx-row-h)] h-[var(--nx-row-h)] flex items-center justify-center rounded-vscode hover:bg-list-hover text-foreground/70 hover:text-foreground cursor-pointer border-none bg-transparent outline-none"
+            className="justify-self-end w-row h-row flex items-center justify-center rounded-vscode hover:bg-list-hover text-foreground/70 hover:text-foreground cursor-pointer border-none bg-transparent outline-none"
             title="Close"
             aria-label="Close conflicts dialog"
           >
-            <span className="text-[length:var(--nx-font-size-ui)]">✕</span>
-          </button>
+            <span className="text-ui">✕</span>
+          </Button>
         </div>
 
-        <div className="flex-1 px-[var(--nx-pad-x)] pb-2 pt-2 flex flex-col gap-2 min-h-0 font-[family-name:var(--nx-font-ui)]">
+        <div className="flex-1 px-pad-x pb-2 pt-2 flex flex-col gap-2 min-h-0 font-ui">
           {branchInfo && (
-            <div className="text-[length:var(--nx-font-size-ui)] leading-snug text-foreground/90 flex-shrink-0">
+            <div className="text-ui leading-snug text-foreground/90 flex-shrink-0">
               Merging branch{" "}
               <strong>{branchInfo.mergeHead || "incoming"}</strong> into branch{" "}
               <strong>{branchInfo.currentBranch}</strong>
@@ -162,41 +164,41 @@ export function ConflictsDialog() {
               onMerge={handleMerge}
             />
 
-            <div className="w-[136px] flex flex-col gap-2 flex-shrink-0">
-              <button
+            <div className="w-conflict-actions flex flex-col gap-2 flex-shrink-0">
+              <Button variant="secondary" size="content"
                 onClick={handleAcceptYours}
                 disabled={!selectedPath}
                 className="btn-vscode-secondary w-full disabled:opacity-40 disabled:cursor-not-allowed"
                 title="Accept Yours version for selected file"
               >
                 Accept Yours
-              </button>
-              <button
+              </Button>
+              <Button variant="secondary" size="content"
                 onClick={handleAcceptTheirs}
                 disabled={!selectedPath}
                 className="btn-vscode-secondary w-full disabled:opacity-40 disabled:cursor-not-allowed"
                 title="Accept Theirs version for selected file"
               >
                 Accept Theirs
-              </button>
-              <button
+              </Button>
+              <Button variant="primary" size="content"
                 onClick={handleMerge}
                 disabled={!selectedPath}
                 className="btn-vscode w-full disabled:opacity-40 disabled:cursor-not-allowed"
                 title="Open Conflict resolver"
               >
                 Merge...
-              </button>
+              </Button>
             </div>
           </div>
         </div>
 
         <div
-          className="shrink-0 flex items-center justify-between gap-3 border-t border-border bg-[var(--vscode-editorWidget-background,var(--background))] px-3 pt-2.5 pb-3 font-[family-name:var(--nx-font-ui)]"
+          className="shrink-0 flex items-center justify-between gap-3 border-t border-border bg-vscode-widget-bg px-3 pt-2.5 pb-3 font-ui"
           data-testid="conflicts-dialog-footer"
         >
-          <label className="flex items-center gap-1.5 text-[length:var(--nx-font-size-ui-sm)] text-foreground cursor-pointer select-none">
-            <input
+          <label className="flex items-center gap-1.5 text-ui-sm text-foreground cursor-pointer select-none">
+            <Input
               type="checkbox"
               checked={groupDir}
               onChange={(e) => setGroupDir(e.target.checked)}
@@ -204,13 +206,13 @@ export function ConflictsDialog() {
             />
             Group files by directory
           </label>
-          <button
+          <Button variant="secondary" size="content"
             onClick={handleCloseAttempt}
-            className="btn-vscode-secondary min-w-[72px] h-[var(--nx-row-h)] text-[length:var(--nx-font-size-ui-sm)]"
+            className="btn-vscode-secondary min-w-conflicts-close h-row text-ui-sm"
             data-testid="conflicts-dialog-close"
           >
             Close
-          </button>
+          </Button>
         </div>
       </div>
       </div>

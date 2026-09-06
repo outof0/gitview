@@ -111,4 +111,35 @@ describe("CommitPanel", () => {
     fireEvent.click(screen.getByTestId("commit-button"));
     expect(onCommit).toHaveBeenCalledTimes(1);
   });
+
+  it("renders not-run state instead of fabricated results until checks run", () => {
+    const onRunChecks = vi.fn();
+    render(
+      <CommitPanel
+        files={[file("src/a.ts")]}
+        commitScope={new Set(["src/a.ts"])}
+        message="Ship it"
+        amend={false}
+        signoff={false}
+        gpgSign={false}
+        author=""
+        runChecks
+        busy={false}
+        onMessageChange={vi.fn()}
+        onAmendChange={vi.fn()}
+        onSignoffChange={vi.fn()}
+        onGpgSignChange={vi.fn()}
+        onAuthorChange={vi.fn()}
+        onRunChecksChange={vi.fn()}
+        onCommit={vi.fn()}
+        onCommitAndPush={vi.fn()}
+        onRunChecks={onRunChecks}
+      />,
+    );
+
+    expect(screen.getByTestId("commit-checks-not-run")).toBeTruthy();
+    expect(screen.queryByText("248 passed")).toBeNull();
+    fireEvent.click(screen.getByTestId("commit-run-checks-now"));
+    expect(onRunChecks).toHaveBeenCalledTimes(1);
+  });
 });

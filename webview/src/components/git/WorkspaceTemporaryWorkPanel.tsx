@@ -1,8 +1,11 @@
+import { Button } from "../ui/Button";
 import { useState } from "react";
 import { Archive, ClipboardPaste, Package, Trash2 } from "lucide-react";
 import type { ShelfListSnapshot } from "@gitview/shared/types/shelf";
 import type { StashListSnapshot } from "@gitview/shared/types/stash";
 import { StashPanel } from "./stash/StashPanel";
+import { ScrollArea } from "../ui/ScrollArea";
+import { TextField } from "../ui/TextField";
 
 type WorkspaceTemporaryWorkPanelProps = {
   subTab: "stash" | "shelf" | "patch";
@@ -54,28 +57,28 @@ export function WorkspaceTemporaryWorkPanel({
   const [patchDirectory, setPatchDirectory] = useState("");
 
   const btn =
-    "h-[var(--nx-row-h)] min-h-[var(--nx-row-h)] px-1.5 text-[length:var(--nx-font-size-ui-sm)] rounded-vscode border border-border hover:bg-list-hover disabled:opacity-40 inline-flex items-center gap-1";
+    "h-row min-h-row px-1.5 text-ui-sm rounded-vscode border border-border hover:bg-list-hover disabled:opacity-40 inline-flex items-center gap-1";
 
   return (
     <div
-      className="flex-1 min-h-0 flex flex-col font-[family-name:var(--nx-font-ui)]"
+      className="flex-1 min-h-0 flex flex-col font-ui"
       data-testid="workspace-temporary-panel"
     >
-      <div className="shrink-0 flex h-[var(--nx-toolbar-h)] min-h-[var(--nx-toolbar-h)] border-b border-border">
+      <div className="shrink-0 flex h-toolbar min-h-toolbar border-b border-border">
         {(["stash", "shelf", "patch"] as const).map((tab) => (
-          <button
+          <Button variant="ghost" size="content"
             key={tab}
             type="button"
-            className={`px-2.5 h-full text-[length:var(--nx-font-size-ui)] border-b-2 capitalize ${
+            className={`px-2.5 h-full text-ui border-b-2 capitalize ${
               subTab === tab
-                ? "border-[var(--vscode-focusBorder)] font-semibold"
+                ? "border-ring font-semibold"
                 : "border-transparent text-vscode-description hover:bg-list-hover"
             }`}
             onClick={() => onSubTabChange(tab)}
             data-testid={`temporary-subtab-${tab}`}
           >
             {tab}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -93,9 +96,9 @@ export function WorkspaceTemporaryWorkPanel({
       )}
 
       {subTab === "shelf" && (
-        <div className="flex-1 min-h-0 flex flex-col px-[var(--nx-pad-x)] py-1.5 gap-1.5">
+        <div className="flex-1 min-h-0 flex flex-col px-pad-x py-1.5 gap-1.5">
           <div className="flex flex-wrap items-center gap-1.5">
-            <button
+            <Button variant="ghost" size="content"
               type="button"
               className={btn}
               disabled={busy || selectedPaths.length === 0}
@@ -104,8 +107,8 @@ export function WorkspaceTemporaryWorkPanel({
             >
               <Archive size={14} aria-hidden />
               Shelve selected
-            </button>
-            <button
+            </Button>
+            <Button variant="ghost" size="content"
               type="button"
               className={btn}
               onClick={onRefreshShelf}
@@ -113,31 +116,31 @@ export function WorkspaceTemporaryWorkPanel({
               data-testid="shelf-refresh"
             >
               Refresh
-            </button>
+            </Button>
           </div>
           <ul className="flex-1 min-h-0 overflow-y-auto m-0 p-0 list-none" data-testid="shelf-list">
             {(shelfSnapshot?.shelves ?? []).map((entry) => (
               <li
                 key={entry.id}
-                className="flex items-center gap-1.5 px-1.5 h-[var(--nx-row-h)] min-h-[var(--nx-row-h)] border-b border-border text-[length:var(--nx-font-size-ui)]"
+                className="flex items-center gap-1.5 px-1.5 h-row min-h-row border-b border-border text-ui"
                 data-testid={`shelf-entry-${entry.id}`}
               >
                 <Package size={14} className="shrink-0 opacity-70" aria-hidden />
                 <div className="flex-1 min-w-0 flex items-baseline gap-1.5">
                   <span className="font-medium truncate">{entry.name}</span>
-                  <span className="text-[length:var(--nx-font-size-ui-sm)] text-vscode-description truncate">
+                  <span className="text-ui-sm text-vscode-description truncate">
                     {entry.paths.join(", ")}
                   </span>
                 </div>
-                <button
+                <Button variant="ghost" size="content"
                   type="button"
                   className={btn}
                   disabled={busy}
                   onClick={() => onUnshelve(entry.id)}
                 >
                   Unshelve
-                </button>
-                <button
+                </Button>
+                <Button variant="ghost" size="content"
                   type="button"
                   className={btn}
                   disabled={busy}
@@ -145,12 +148,12 @@ export function WorkspaceTemporaryWorkPanel({
                   aria-label="Delete shelf"
                 >
                   <Trash2 size={14} aria-hidden />
-                </button>
+                </Button>
               </li>
             ))}
             {(shelfSnapshot?.shelves ?? []).length === 0 && (
               <li
-                className="px-1 py-2 text-[length:var(--nx-font-size-ui)] text-vscode-description list-none"
+                className="px-3 py-2 text-ui-sm text-vscode-description list-none"
                 data-testid="shelf-empty"
               >
                 No shelves.
@@ -161,9 +164,9 @@ export function WorkspaceTemporaryWorkPanel({
       )}
 
       {subTab === "patch" && (
-        <div className="flex-1 min-h-0 flex flex-col px-[var(--nx-pad-x)] py-1.5 gap-1.5">
+        <div className="flex-1 min-h-0 flex flex-col px-pad-x py-1.5 gap-1.5">
           <div className="flex flex-wrap items-center gap-1.5">
-            <button
+            <Button variant="ghost" size="content"
               type="button"
               className={btn}
               disabled={busy}
@@ -171,8 +174,8 @@ export function WorkspaceTemporaryWorkPanel({
               data-testid="patch-create-button"
             >
               Create patch from changes
-            </button>
-            <button
+            </Button>
+            <Button variant="ghost" size="content"
               type="button"
               className={btn}
               disabled={busy}
@@ -186,8 +189,8 @@ export function WorkspaceTemporaryWorkPanel({
             >
               <ClipboardPaste size={14} aria-hidden />
               Apply from clipboard
-            </button>
-            <button
+            </Button>
+            <Button variant="ghost" size="content"
               type="button"
               className={btn}
               disabled={busy}
@@ -196,36 +199,41 @@ export function WorkspaceTemporaryWorkPanel({
             >
               <Archive size={14} aria-hidden />
               Import to shelf
-            </button>
+            </Button>
           </div>
-          <div className="flex flex-wrap items-center gap-1.5 text-[length:var(--nx-font-size-ui-sm)]">
+          <div className="flex flex-wrap items-center gap-1.5 text-ui-sm">
             <label className="flex items-center gap-1">
               Strip
-              <input
+              <TextField
                 type="number"
+                size="compact"
                 min={0}
                 max={10}
-                className="w-10 h-[var(--nx-row-h)] px-1 rounded-vscode border border-border bg-[var(--vscode-input-background)]"
+                containerClassName="w-12"
                 value={patchStrip}
                 onChange={(e) => setPatchStrip(Number(e.target.value) || 0)}
                 data-testid="patch-strip-input"
               />
             </label>
-            <input
-              type="text"
-              className="flex-1 min-w-[120px] h-[var(--nx-row-h)] px-1.5 rounded-vscode border border-border bg-[var(--vscode-input-background)]"
+            <TextField
+              size="compact"
+              containerClassName="flex-1 min-w-temporary-prefix"
               placeholder="Directory prefix (optional)"
               value={patchDirectory}
               onChange={(e) => setPatchDirectory(e.target.value)}
               data-testid="patch-directory-input"
             />
           </div>
-          <pre
-            className="flex-1 min-h-0 overflow-auto m-0 p-1.5 text-[length:var(--nx-font-size-ui-sm)] font-mono rounded-vscode border border-border bg-[var(--vscode-editor-background)] whitespace-pre-wrap"
-            data-testid="patch-preview"
+          {/* The chrome (border + background) stays put; only the text scrolls. */}
+          <ScrollArea
+            axis="vertical"
+            className="flex-1 p-1.5 text-ui-sm font-mono rounded-vscode border border-border bg-vscode-editor-bg"
           >
-            {patchPreview?.trim() || "Create a patch to preview unified diff output."}
-          </pre>
+            <pre className="m-0 whitespace-pre-wrap" data-testid="patch-preview">
+              {patchPreview?.trim() ||
+                "Create a patch to preview unified diff output."}
+            </pre>
+          </ScrollArea>
         </div>
       )}
     </div>

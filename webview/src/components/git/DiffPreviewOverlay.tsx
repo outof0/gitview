@@ -1,3 +1,4 @@
+import { Button } from "../ui/Button";
 import { useEffect } from "react";
 import { GitHistoryDiffViewer } from "./GitHistoryDiffViewer";
 import { useDiffPreviewStore } from "../../stores/diffPreviewStore";
@@ -33,7 +34,7 @@ export function DiffPreviewOverlay() {
       className="fixed inset-0 z-[120] flex items-center justify-center p-4"
       style={{
         background:
-          "color-mix(in srgb, var(--vscode-widget-shadow, #000000) 38%, transparent)",
+          "color-mix(in srgb, var(--nx-widget-shadow) 38%, transparent)",
       }}
       data-testid="git-diff-preview-overlay"
       onMouseDown={(event) => {
@@ -47,12 +48,12 @@ export function DiffPreviewOverlay() {
         style={{
           width: "min(1120px, calc(100% - 24px))",
           height: "min(760px, calc(100% - 24px))",
-          background: "var(--vscode-editor-background, var(--background))",
+          background: "var(--nx-bg)",
           borderColor:
-            "var(--vscode-widget-border, var(--vscode-editorWidget-border, var(--border)))",
-          boxShadow: "0 0 24px 4px var(--vscode-widget-shadow, rgba(0,0,0,0.36))",
-          fontFamily: "var(--vscode-font-family)",
-          fontSize: "var(--vscode-font-size, 13px)",
+            "var(--nx-widget-border)",
+          boxShadow: "0 0 24px 4px var(--nx-widget-shadow)",
+          fontFamily: "var(--nx-font-app)",
+          fontSize: "var(--nx-font-size-base)",
         }}
         role="dialog"
         aria-modal="true"
@@ -60,24 +61,24 @@ export function DiffPreviewOverlay() {
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div
-          className="flex h-[35px] min-h-[35px] shrink-0 items-center justify-between border-b px-3"
+          className="flex h-diff-preview-header min-h-diff-preview-header shrink-0 items-center justify-between border-b px-3"
           style={{
             background:
-              "var(--vscode-editorWidget-background, var(--vscode-titleBar-activeBackground))",
+              "var(--nx-panel2)",
             borderColor:
-              "var(--vscode-widget-border, var(--vscode-editorWidget-border, var(--border)))",
-            color: "var(--vscode-foreground)",
+              "var(--nx-widget-border)",
+            color: "var(--nx-text)",
           }}
         >
           <span className="min-w-0 truncate font-medium">{title}</span>
-          <button
+          <Button variant="ghost" size="content"
             type="button"
-            className="h-[22px] shrink-0 px-2 text-[length:var(--vscode-font-size,13px)] hover:bg-[var(--vscode-toolbar-hoverBackground)]"
+            className="h-row shrink-0 px-2 text-ui-base hover:bg-toolbar-hover"
             onClick={close}
             data-testid="git-diff-preview-close"
           >
             Close
-          </button>
+          </Button>
         </div>
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <GitHistoryDiffViewer

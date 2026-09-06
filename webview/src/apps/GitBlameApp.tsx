@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { WorkspaceBlamePanel } from "../components/git/WorkspaceBlamePanel";
 import { GitHistoryToolWindow } from "../screens/GitHistoryToolWindow";
 import { ResizableSplit } from "../components/ui/ResizableSplit";
@@ -11,7 +18,17 @@ import {
   isDiffResult,
   isLogSnapshot,
 } from "./historyBlameHostMessageGuards";
-import { logSnapshotToStorePayload, workspaceDiffToFileDiffView } from "./historyBlameAdapters";
+import {
+  logSnapshotToStorePayload,
+  requestCommitDetail as fetchCommitDetail,
+  workspaceDiffToFileDiffView,
+} from "./historyBlameAdapters";
+import {
+  isOpenOverlayEvent,
+  type BranchOverlayRequest,
+} from "./branchOverlayGuards";
+import { BranchOverlay } from "../components/git/BranchOverlay";
+import { warnHandshakeFailure } from "../lib/userError";
 import type { BlameBootstrap } from "../types/gitviewBootstrap";
 import type { BlameSnapshot } from "@gitview/shared/types/blame";
 
@@ -27,6 +44,7 @@ function isBlameBootstrap(
 }
 
 const LOAD_TIMEOUT_MS = 12_000;
+const ANNOTATE_LOG_LIMIT = 200;
 
 function toSnapshot(bootstrap: BlameBootstrap): BlameSnapshot {
   return {
@@ -58,6 +76,14 @@ export function GitBlameApp() {
     return initial.loading ?? !hasBlameLines(initial);
   });
   const [error, setError] = useState<string | null>(null);
+  const [blamePreviewReady, setBlamePreviewReady] = useState(() => {
+    const initial = window.__GITVIEW_BOOTSTRAP__;
+    return isBlameBootstrap(initial) && hasBlameLines(initial);
+  });
+  const requestedBlameKey = useRef<string | null>(null);
+  // New Branch / Branches overlay posted by the native Git submenu when this
+  // tab is the active one — no new tab is opened.
+  const [overlay, setOverlay] = useState<BranchOverlayRequest | null>(null);
   const filePath = bootstrap?.relativePath ?? null;
   const repoId = bootstrap?.repoId ?? null;
   const selectedSha = useGitHistoryStore((s) => s.selectedSha);
@@ -67,14 +93,7 @@ export function GitBlameApp() {
       if (!repoId) {
         return;
       }
-      void client.commitDetail(repoId, sha).then((payload) => {
-        const store = useGitHistoryStore.getState();
-        if (payload.error) {
-          store.setCommitDetailError(payload.error.message);
-        } else if (payload.commit) {
-          store.applyCommitDetail(payload.commit);
-        }
-      });
+      fetchCommitDetail(client, repoId, sha);
     },
     [client, repoId],
   );
@@ -104,9 +123,14 @@ export function GitBlameApp() {
         repoId,
       });
       void client
-        .queryLog(repoId, { path, isFolder: false, limit: 500, scope: "repo" })
+        .queryLog(repoId, {
+          path,
+          isFolder: false,
+          limit: ANNOTATE_LOG_LIMIT,
+        })
         .then((snapshot) => {
-          useGitHistoryStore.getState().setLogResult(logSnapshotToStorePayload(snapshot));
+          const store = useGitHistoryStore.getState();
+          store.setLogResult(logSnapshotToStorePayload(snapshot));
           const { annotateMode, selectedSha: sha } = useGitHistoryStore.getState();
           if (annotateMode && sha) {
             requestCommitDetail(sha);
@@ -122,7 +146,13 @@ export function GitBlameApp() {
   );
 
   useEffect(() => {
-    void client.ready("gitBlame").catch(() => {});
+    // The host pushes `blame.preview` only after it answers this handshake
+    // (src/webview/gitViewPresentation.ts). A failure is not fatal — the
+    // timeout below renders "Blame preview did not load" — but it must leave a
+    // trace, or a dead handshake looks exactly like a slow host.
+    void client
+      .ready("gitBlame")
+      .catch((error: unknown) => warnHandshakeFailure("gitBlame", error));
   }, [client]);
 
   useEffect(() => {
@@ -142,6 +172,14 @@ export function GitBlameApp() {
     if (!repoId) {
       return;
     }
+    if (!blamePreviewReady) {
+      return;
+    }
+    const requestKey = `${repoId}\0${filePath}`;
+    if (requestedBlameKey.current === requestKey) {
+      return;
+    }
+    requestedBlameKey.current = requestKey;
     setLoading(true);
     void client
       .queryBlame(repoId, filePath, "HEAD")
@@ -160,6 +198,9 @@ export function GitBlameApp() {
         setError(null);
       })
       .catch((err) => {
+        if (requestedBlameKey.current === requestKey) {
+          requestedBlameKey.current = null;
+        }
         setLoading(false);
         setError(err instanceof Error ? err.message : String(err));
       });
@@ -170,7 +211,7 @@ export function GitBlameApp() {
       );
     }, LOAD_TIMEOUT_MS);
     return () => window.clearTimeout(timer);
-  }, [bootstrap, filePath, repoId, client]);
+  }, [blamePreviewReady, bootstrap, filePath, repoId, client]);
 
   useEffect(() => {
     if (filePath && hasBlameLines(bootstrap)) {
@@ -179,9 +220,19 @@ export function GitBlameApp() {
   }, [filePath, bootstrap?.lines.length, loadFileHistory]);
 
   useEffect(() => {
+    const eventRequestId = (data: unknown): string | undefined => {
+      const id = (data as { requestId?: unknown } | null)?.requestId;
+      return typeof id === "string" && id.length > 0 ? id : undefined;
+    };
     const onMessage = (event: MessageEvent) => {
       const data = event.data;
+      if (isOpenOverlayEvent(data)) {
+        setOverlay(data.payload);
+        return;
+      }
       if (isBlamePreview(data)) {
+        setBlamePreviewReady(true);
+        requestedBlameKey.current = null;
         setBootstrap((prev) => ({
           relativePath: data.payload.relativePath,
           repoId: repoId ?? prev?.repoId ?? bootstrap?.repoId ?? "",
@@ -197,6 +248,9 @@ export function GitBlameApp() {
         return;
       }
       if (isBlameSnapshotEvent(data)) {
+        if (!client.isCurrentEvent("blame.snapshot", eventRequestId(data))) {
+          return;
+        }
         setBootstrap((prev) => ({
           relativePath: data.payload.filePath,
           repoId: data.payload.repoId,
@@ -211,18 +265,20 @@ export function GitBlameApp() {
         return;
       }
       if (isLogSnapshot(data)) {
+        if (!client.isCurrentEvent("log.snapshot", eventRequestId(data))) {
+          return;
+        }
         const store = useGitHistoryStore.getState();
         store.setLogResult(logSnapshotToStorePayload(data.payload));
-        const { annotateMode, selectedSha: sha } = useGitHistoryStore.getState();
-        if (annotateMode && sha) {
-          requestCommitDetail(sha);
-        }
         return;
       }
       if (isDiffResult(data)) {
         const store = useGitHistoryStore.getState();
         const { selectedSha: sha, selectedChangedFilePath: path } = store;
         if (!sha || !path) {
+          return;
+        }
+        if (!client.isCurrentEvent("diff.result", eventRequestId(data))) {
           return;
         }
         store.setFileDiffResult({
@@ -272,9 +328,16 @@ export function GitBlameApp() {
 
   return (
     <div
-      className="h-full min-h-0 w-full flex flex-col text-foreground bg-vscode-editor-bg font-[family-name:var(--nx-font-ui)]"
+      className="h-full min-h-0 w-full flex flex-col text-foreground bg-vscode-editor-bg font-ui"
       data-testid="git-blame-app"
     >
+      {overlay && (
+        <BranchOverlay
+          request={overlay}
+          client={client}
+          onClose={() => setOverlay(null)}
+        />
+      )}
       {hasFile ? (
         <ResizableSplit
           direction="vertical"

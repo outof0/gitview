@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo } from "react";
 import type { ResetMode } from "@gitview/shared/types/log";
 import type { DiffLineSelection } from "@gitview/shared/types/diff";
+import { orderShasOldestFirst } from "@gitview/shared/lib/commitBatchOrder";
 import type { GitWorkspaceController } from "./gitWorkspaceControllerTypes";
 import { WorkspaceBlamePanel } from "../../components/git/WorkspaceBlamePanel";
 import { WorkspaceLogPanel } from "../../components/git/WorkspaceLogPanel";
 import { useGitWorkspaceStore } from "../../stores/gitWorkspaceStore";
+import { reportDiffOpenError } from "../../lib/userError";
 import { workspaceDiffToFileDiffView } from "../historyBlameAdapters";
 
 export function GitWorkspaceLogTab({ ctx }: { ctx: GitWorkspaceController }) {
@@ -127,7 +129,7 @@ export function GitWorkspaceLogTab({ ctx }: { ctx: GitWorkspaceController }) {
             diff: workspaceDiffToFileDiffView(document),
             repoId: document.repoId,
           })
-          .catch(() => {});
+          .catch(reportDiffOpenError);
       });
     },
     [clientRef, loadLogFileDiff, selectLogFile],
@@ -152,12 +154,18 @@ export function GitWorkspaceLogTab({ ctx }: { ctx: GitWorkspaceController }) {
       if (!activeRepo) {
         return;
       }
+      // Click order is not history order: normalize against the displayed
+      // newest-first log so a stack is always picked oldest-first.
+      const ordered = orderShasOldestFirst(
+        shas,
+        (logSnapshot?.commits ?? []).map((commit) => commit.sha),
+      );
       void runMutation(async () => {
-        await clientRef.current.cherryPickMultiple(activeRepo.id, shas);
+        await clientRef.current.cherryPickMultiple(activeRepo.id, ordered);
         await loadLog();
       });
     },
-    [activeRepo, clientRef, loadLog, runMutation],
+    [activeRepo, clientRef, loadLog, logSnapshot, runMutation],
   );
 
   const handleRevert = useCallback(
@@ -175,12 +183,18 @@ export function GitWorkspaceLogTab({ ctx }: { ctx: GitWorkspaceController }) {
       if (!activeRepo) {
         return;
       }
+      // Same oldest-first normalization: the host reverses the batch into a
+      // single newest-first sequencer, so click order must not leak through.
+      const ordered = orderShasOldestFirst(
+        shas,
+        (logSnapshot?.commits ?? []).map((commit) => commit.sha),
+      );
       void runMutation(async () => {
-        await clientRef.current.revertMultiple(activeRepo.id, shas);
+        await clientRef.current.revertMultiple(activeRepo.id, ordered);
         await loadLog();
       });
     },
-    [activeRepo, clientRef, loadLog, runMutation],
+    [activeRepo, clientRef, loadLog, logSnapshot, runMutation],
   );
 
   const handleCopyHashClick = useCallback(

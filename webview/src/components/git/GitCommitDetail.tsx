@@ -2,6 +2,7 @@ import type { GitCommitEntry } from "@gitview/types";
 import { cn } from "../../lib/cn";
 import { HighlightedCodeLine } from "./HighlightedCodeLine";
 import { formatRelativeTime, statusBadge } from "./gitPanelFormat";
+import { ScrollArea } from "../ui/ScrollArea";
 
 type GitCommitDetailProps = {
   commit: GitCommitEntry | null;
@@ -25,13 +26,23 @@ function HighlightedCodeBlock({
 }) {
   const lines = text.split("\n");
   return (
-    <div className="flex-1 min-h-0 m-0 py-2.5 px-3 overflow-auto bg-vscode-editor-bg text-vscode-editor-fg font-editor text-editor leading-5">
-      {lines.map((line, i) => (
-        <div key={i} className="nx-diff-hover-line relative min-h-[18px] whitespace-pre">
-          <HighlightedCodeLine text={line} filePath={filePath} />
-        </div>
-      ))}
-    </div>
+    <ScrollArea
+      axis="both"
+      className="flex-1 m-0 py-2.5 px-3 bg-vscode-editor-bg text-vscode-editor-fg font-editor text-editor leading-5"
+    >
+      {/* max-content wrapper: rows stretch to the widest line so tints and
+          gutters stay correct while scrolling horizontally. */}
+      <div className="min-w-max">
+        {lines.map((line, i) => (
+          <div
+            key={i}
+            className="nx-diff-hover-line relative min-h-code whitespace-pre"
+          >
+            <HighlightedCodeLine text={line} filePath={filePath} />
+          </div>
+        ))}
+      </div>
+    </ScrollArea>
   );
 }
 
@@ -58,7 +69,7 @@ export function GitCommitDetail({
     }
     return (
       <div
-        className="p-3 text-[length:var(--nx-font-size-ui-sm)] text-vscode-description"
+        className="p-3 text-ui-sm text-vscode-description"
         data-testid="git-commit-detail"
       >
         Select a commit to view details.
@@ -73,15 +84,15 @@ export function GitCommitDetail({
         !detailsOnly && "border-b border-border bg-vscode-widget-bg",
       )}
     >
-      <div className="text-[13px] font-semibold leading-[18px] text-foreground">
+      <div className="text-title font-semibold leading-code text-foreground">
         {commit.subject}
       </div>
       {commit.body ? (
-        <pre className="mt-1.5 m-0 text-xs leading-[17px] text-vscode-description whitespace-pre-wrap font-sans">
+        <pre className="mt-1.5 m-0 text-xs leading-commit-body text-vscode-description whitespace-pre-wrap font-sans">
           {commit.body}
         </pre>
       ) : null}
-      <div className="mt-1.5 text-[11px] leading-4 text-vscode-description">
+      <div className="mt-1.5 text-ui-sm leading-4 text-vscode-description">
         <span className="font-mono text-vscode-link">{commit.shortSha}</span>{" "}
         {commit.author}
         {commit.authorEmail ? (
@@ -97,12 +108,13 @@ export function GitCommitDetail({
 
   if (detailsOnly) {
     return (
-      <div
-        className="flex flex-col min-h-0 h-full overflow-auto"
+      <ScrollArea
+        axis="vertical"
+        className="flex flex-col h-full"
         data-testid="git-commit-detail"
       >
         {header}
-      </div>
+      </ScrollArea>
     );
   }
 
@@ -113,12 +125,15 @@ export function GitCommitDetail({
     >
       {header}
 
-      <div className="grid flex-1 min-h-0 grid-cols-[minmax(190px,0.85fr)_minmax(0,1.15fr)] max-[780px]:grid-cols-1 max-[780px]:grid-rows-[minmax(88px,34%)_minmax(0,1fr)]">
-        <div className="min-w-0 min-h-0 overflow-auto border-r border-border max-[780px]:border-r-0 max-[780px]:border-b max-[780px]:border-border">
-          <div className="flex items-center min-h-7 px-2.5 border-b border-border text-[11px] font-semibold text-vscode-description">
+      <div className="grid flex-1 min-h-0 grid-cols-[minmax(190px,0.85fr)_minmax(0,1.15fr)] max-surface-stacked:grid-cols-1 max-surface-stacked:grid-rows-[minmax(88px,34%)_minmax(0,1fr)]">
+        <ScrollArea
+          axis="vertical"
+          className="border-r border-border max-surface-stacked:border-r-0 max-surface-stacked:border-b max-surface-stacked:border-border"
+        >
+          <div className="flex items-center min-h-7 px-2.5 border-b border-border text-ui-sm font-semibold text-vscode-description">
             Changed files
           </div>
-          <ul className="m-0 p-0 list-none text-[12px]">
+          <ul className="m-0 p-0 list-none text-ui">
             {commit.changedFiles.map((f) => {
               const hit =
                 highlightPath &&
@@ -130,10 +145,10 @@ export function GitCommitDetail({
                   className={cn(
                     "flex items-center gap-1.5 min-h-6 px-2.5 overflow-hidden font-editor leading-6 text-vscode-editor-fg",
                     hit &&
-                      "bg-[color-mix(in_srgb,var(--vscode-list-activeSelectionBackground,#2f4f87)_28%,transparent)] text-vscode-link",
+                      "bg-[color-mix(in_srgb,var(--list-active)_28%,transparent)] text-vscode-link",
                   )}
                 >
-                  <span className="shrink-0 w-[18px] text-[11px] text-center text-vscode-description">
+                  <span className="shrink-0 w-icon-lg text-ui-sm text-center text-vscode-description">
                     {statusBadge(f.status)}
                   </span>
                   <span className="truncate">{f.path}</span>
@@ -146,11 +161,11 @@ export function GitCommitDetail({
               </li>
             )}
           </ul>
-        </div>
+        </ScrollArea>
 
         {previewText !== undefined && (
           <div className="flex flex-col min-w-0 min-h-0 overflow-hidden">
-            <div className="flex items-center min-h-7 px-2.5 border-b border-border text-[11px] font-semibold text-vscode-description">
+            <div className="flex items-center min-h-7 px-2.5 border-b border-border text-ui-sm font-semibold text-vscode-description">
               Revision preview
             </div>
             <HighlightedCodeBlock text={previewText} filePath={filePath} />

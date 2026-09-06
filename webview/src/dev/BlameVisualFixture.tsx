@@ -51,7 +51,7 @@ export function BlameVisualFixture() {
 
   return (
     <div
-      className="h-full min-h-screen w-full flex flex-col text-foreground bg-vscode-editor-bg font-[family-name:var(--nx-font-ui)] vscode-dark"
+      className="h-full min-h-screen w-full flex flex-col text-foreground bg-vscode-editor-bg font-ui vscode-dark"
       data-testid="git-blame-app"
     >
       <ResizableSplit

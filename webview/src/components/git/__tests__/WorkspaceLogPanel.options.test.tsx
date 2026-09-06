@@ -25,6 +25,26 @@ const snapshot: LogSnapshot = {
 describe("WorkspaceLogPanel log options", () => {
   afterEach(() => cleanup());
 
+  it("gives the commit list its own vertical scroll container", () => {
+    render(
+      <WorkspaceLogPanel
+        snapshot={snapshot}
+        selectedSha={null}
+        selectedFilePath={null}
+        diffDocument={null}
+        onSelectCommit={vi.fn()}
+        onSelectFile={vi.fn()}
+        onRefresh={vi.fn()}
+        filters={{ range: "all", limit: 200 }}
+        onFiltersChange={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByTestId("workspace-log-commits-scroll").className,
+    ).toContain("overflow-y-auto");
+  });
+
   it("toggles hide merge commits and first parent filters", () => {
     const onFiltersChange = vi.fn();
     render(

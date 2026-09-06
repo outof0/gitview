@@ -4,6 +4,7 @@ import type { ConfirmationSubmission } from "@gitview/shared/types/confirmation"
 import type { DiffLineSelection } from "@gitview/shared/types/diff";
 import type { ResetMode } from "@gitview/shared/types/log";
 import type { Repository } from "@gitview/shared/types/repository";
+import type { ReviewFilters } from "@gitview/shared/types/review";
 import type { ProtocolClient } from "../../protocol/client";
 import type {
   GitWorkspaceActions,
@@ -22,7 +23,7 @@ export type GitWorkspaceCoreApi = {
   clientRef: MutableRefObject<ProtocolClient>;
   refreshing: boolean;
   syncing: boolean;
-  setSyncing: (syncing: boolean) => void;
+  setSyncing: (syncing: boolean, repoId?: string) => void;
   syncOperation: GitWorkspaceSyncOperation | null;
   reviewSelectedCommitSha: string | null;
   setReviewSelectedCommitSha: (sha: string | null) => void;
@@ -87,7 +88,10 @@ export type GitWorkspaceSyncApi = {
   confirmPushUpstream: () => Promise<void>;
   handleUpdateAllRoots: () => Promise<void>;
   handleRetrySyncRoot: (repoId: string) => Promise<void>;
-  loadReviews: () => Promise<void>;
+  loadReviews: (overrides?: {
+    filters?: ReviewFilters;
+    providerId?: string;
+  }) => Promise<void>;
   handleApplyNonConflicting: () => void;
 };
 

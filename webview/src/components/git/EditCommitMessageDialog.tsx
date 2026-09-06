@@ -1,4 +1,9 @@
+import { TextArea } from "../ui/TextArea";
 import { useEffect, useState } from "react";
+import {
+  GitDialogShell,
+} from "../ui/GitDialogShell";
+import { Button } from "../ui/Button";
 
 type EditCommitMessageDialogProps = {
   open: boolean;
@@ -23,46 +28,44 @@ export function EditCommitMessageDialog({
     }
   }, [open, initialMessage]);
 
-  if (!open) {
-    return null;
-  }
-
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40"
-      data-testid="edit-commit-message-dialog"
-    >
-      <div className="w-[min(480px,90vw)] rounded-vscode border border-border bg-[var(--vscode-editor-background)] p-4 shadow-lg">
-        <h3 className="text-[13px] font-semibold mb-2">Edit commit message</h3>
-        <p className="text-[12px] text-[var(--vscode-descriptionForeground)] mb-3">
-          Commit <span className="font-mono">{sha.slice(0, 7)}</span>
-        </p>
-        <textarea
-          className="w-full min-h-[96px] mb-4 px-2 py-1.5 text-[12px] rounded-vscode border border-border bg-[var(--vscode-input-background)] resize-y"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          data-testid="edit-commit-message-input"
-        />
-        <div className="flex justify-end gap-2">
-          <button
+    <GitDialogShell
+      open={open}
+      title="Edit commit message"
+      size="wide"
+      onCancel={onCancel}
+      testId="edit-commit-message-dialog"
+      footer={
+        <>
+          <Button
             type="button"
-            className="h-7 px-3 text-[12px] rounded-vscode hover:bg-list-hover"
+            variant="secondary" size="compact"
             onClick={onCancel}
             data-testid="edit-commit-message-cancel"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="h-7 px-3 text-[12px] rounded-vscode bg-[var(--vscode-button-background)] text-[var(--vscode-button-foreground)] hover:opacity-90 disabled:opacity-40"
+            variant="primary" size="compact"
             disabled={!message.trim()}
             onClick={() => onConfirm(message.trim())}
             data-testid="edit-commit-message-confirm"
           >
             Save
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </>
+      }
+    >
+      <p className="mb-3 mt-0">
+        Commit <span className="font-mono">{sha.slice(0, 7)}</span>
+      </p>
+      <TextArea
+        className="w-full min-h-edit-message px-2 py-1.5 text-ui text-foreground rounded-vscode border border-border bg-input resize-y"
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+        data-testid="edit-commit-message-input"
+      />
+    </GitDialogShell>
   );
 }

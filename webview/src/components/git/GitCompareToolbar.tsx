@@ -36,23 +36,23 @@ export function GitCompareToolbar({
 
   return (
     <header
-      className="nx-tool-titlebar shrink-0 flex items-center justify-between gap-3 h-[var(--nx-toolbar-h)] min-h-[var(--nx-toolbar-h)] px-[var(--nx-pad-x)] border-b border-vscode-panel-border bg-vscode-titlebar-bg font-[family-name:var(--nx-font-ui)]"
+      className="nx-tool-titlebar ui-responsive-toolbar shrink-0 flex min-w-0 items-center justify-between gap-3 h-toolbar min-h-toolbar px-pad-x border-b border-vscode-panel-border bg-vscode-titlebar-bg font-ui"
       data-testid="git-compare-toolbar"
     >
       <div className="flex items-center gap-2 min-w-0 flex-1">
         <span
-          className="text-[length:var(--nx-font-size-ui)] opacity-75 leading-none shrink-0"
+          className="text-ui opacity-75 leading-none shrink-0"
           aria-hidden
         >
           ⇄
         </span>
         <div className="min-w-0 flex items-baseline gap-2">
-          <div className="text-[length:var(--nx-font-size-ui)] font-semibold font-editor truncate">
+          <div className="text-ui font-semibold font-editor truncate">
             {fileName}
           </div>
           {filePath !== fileName && (
             <div
-              className="text-[length:var(--nx-font-size-ui-sm)] text-vscode-description truncate hidden sm:block"
+              className="text-ui-sm text-vscode-description truncate hidden sm:block"
               title={filePath}
             >
               {filePath}
@@ -61,20 +61,20 @@ export function GitCompareToolbar({
         </div>
       </div>
       {revisions && (
-        <div className="flex items-center gap-1.5 shrink-0">
-          <span className="py-0.5 px-2 text-[length:var(--nx-font-size-ui-sm)] font-medium rounded-[var(--nx-menu-radius)] border border-vscode-panel-border bg-input text-input-foreground whitespace-nowrap max-w-[12rem] truncate">
+        <div className="ui-toolbar-secondary flex items-center gap-1.5 shrink-0">
+          <span className="py-0.5 px-2 text-ui-sm font-medium rounded-[var(--nx-menu-radius)] border border-vscode-panel-border bg-input text-input-foreground whitespace-nowrap max-w-[12rem] truncate">
             {revisions.left}
           </span>
           <span
-            className="text-[length:var(--nx-font-size-ui-sm)] text-vscode-description"
+            className="text-ui-sm text-vscode-description"
             aria-hidden
           >
             ↔
           </span>
           <span
             className={cn(
-              "py-0.5 px-2 text-[length:var(--nx-font-size-ui-sm)] font-medium rounded-[var(--nx-menu-radius)] border bg-input text-input-foreground whitespace-nowrap max-w-[12rem] truncate",
-              "border-[color-mix(in_srgb,var(--vscode-gitDecoration-addedResourceForeground,#4ba85a)_50%,var(--vscode-panel-border,#393b40))]",
+              "py-0.5 px-2 text-ui-sm font-medium rounded-[var(--nx-menu-radius)] border bg-input text-input-foreground whitespace-nowrap max-w-[12rem] truncate",
+              "border-[color-mix(in_srgb,var(--nx-status-added)_50%,var(--nx-panel-border))]",
             )}
           >
             {revisions.right}

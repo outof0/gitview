@@ -1,4 +1,12 @@
-import { Download, FileDiff, FolderOpen, History } from "lucide-react";
+import {
+  Download,
+  ExternalLink,
+  FileDiff,
+  FileText,
+  FolderOpen,
+  History,
+  Link,
+} from "lucide-react";
 import type { GitMenuAction } from "@gitview/types";
 import { MenuDivider, MenuItem, MenuSectionHeader } from "../ui/MenuItem";
 
@@ -58,6 +66,26 @@ export function GitHistoryFileMenuItems({
         onClick={() => run("getFromRevision")}
         testId="git-history-file-menu-get-revision"
         icon={<Download {...ICON} />}
+      />
+      <MenuDivider />
+      <MenuSectionHeader label="Remote link" />
+      <MenuItem
+        label="Open on Remote"
+        onClick={() => run("openOnRemote")}
+        testId="git-history-file-menu-open-on-remote"
+        icon={<ExternalLink {...ICON} />}
+      />
+      <MenuItem
+        label="Copy Remote Link"
+        onClick={() => run("copyRemoteLink")}
+        testId="git-history-file-menu-copy-remote-link"
+        icon={<Link {...ICON} />}
+      />
+      <MenuItem
+        label="Copy Remote Link as Markdown"
+        onClick={() => run("copyRemoteLinkMarkdown")}
+        testId="git-history-file-menu-copy-remote-link-markdown"
+        icon={<FileText {...ICON} />}
       />
     </>
   );

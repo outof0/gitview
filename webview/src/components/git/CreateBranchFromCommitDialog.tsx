@@ -1,9 +1,9 @@
-import { useState } from "react";
 import {
-  GitDialogShell,
-  gitDialogBtnPrimary,
-  gitDialogBtnSecondary,
-} from "../ui/GitDialogShell";
+  useState,
+} from "react";
+import { GitDialogShell } from "../ui/GitDialogShell";
+import { Button } from "../ui/Button";
+import { TextField } from "../ui/TextField";
 
 type CreateBranchFromCommitDialogProps = {
   open: boolean;
@@ -27,23 +27,23 @@ export function CreateBranchFromCommitDialog({
       testId="create-branch-from-commit-dialog"
       footer={
         <>
-          <button
+          <Button
             type="button"
-            className={gitDialogBtnSecondary}
+            variant="secondary" size="compact"
             onClick={onCancel}
             data-testid="create-branch-from-commit-cancel"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className={gitDialogBtnPrimary}
+            variant="primary" size="compact"
             disabled={!name.trim()}
             onClick={() => onConfirm(name.trim())}
             data-testid="create-branch-from-commit-confirm"
           >
             Create
-          </button>
+          </Button>
         </>
       }
     >
@@ -51,9 +51,9 @@ export function CreateBranchFromCommitDialog({
         New branch at{" "}
         <span className="font-mono text-foreground">{sha.slice(0, 7)}</span>
       </p>
-      <input
-        type="text"
-        className="w-full h-[var(--nx-row-h)] px-1.5 text-[length:var(--nx-font-size-ui)] rounded-vscode border border-border bg-[var(--vscode-input-background)] text-foreground"
+      <TextField
+        size="compact"
+        containerClassName="w-full"
         placeholder="Branch name"
         value={name}
         onChange={(e) => setName(e.target.value)}

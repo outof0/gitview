@@ -11,6 +11,7 @@ import {
   selectionsFromKeys,
 } from "../../../lib/diffLineSelection";
 import { useScrollSync } from "../../../hooks/useScrollSync";
+import { ScrollArea } from "../../ui/ScrollArea";
 import { HunkActionBar, LineActionBar } from "./WorkspaceDiffActionBars";
 import { CodeLine } from "./WorkspaceDiffCodeLines";
 import type { DiffHunkPanelProps } from "./workspaceDiffPanelTypes";
@@ -117,7 +118,7 @@ export function SplitWithHunks({
 
   return (
     <div
-      className="flex-1 min-h-0 flex flex-col overflow-hidden bg-[var(--vscode-editor-background)]"
+      className="flex-1 min-h-0 flex flex-col overflow-hidden bg-vscode-editor-bg"
       data-testid="git-diff-split"
     >
       {showLineActions && selectedCount > 0 && (
@@ -158,40 +159,48 @@ export function SplitWithHunks({
       )}
       <div className="flex-1 min-h-0 grid grid-cols-2 divide-x divide-border overflow-hidden">
         <div className="min-h-0 flex flex-col overflow-hidden">
-          <div className="h-7 px-3 flex items-center text-[11px] font-semibold text-[var(--vscode-descriptionForeground)] border-b border-border shrink-0">
+          <div className="h-7 px-3 flex items-center text-ui-sm font-semibold text-vscode-description border-b border-border shrink-0">
             {left.label}
           </div>
-          <div
+          <ScrollArea
             ref={registerContainer(0)}
-            className="flex-1 overflow-auto font-mono text-[11px] leading-[18px] text-[var(--vscode-editor-foreground)]"
+            axis="both"
+            className="flex-1 font-mono text-ui-sm leading-code text-vscode-editor-fg"
             onScroll={handleScroll(0)}
             data-testid="workspace-diff-left-scroll"
           >
-            {renderSide(
-              "left",
-              (r) => r.leftNum,
-              (r) => r.leftText,
-              (r) => r.leftHighlight,
-            )}
-          </div>
+            {/* max-content wrapper: every row stretches to the widest line, so
+                row tints stay correct while scrolling horizontally. */}
+            <div className="min-w-max">
+              {renderSide(
+                "left",
+                (r) => r.leftNum,
+                (r) => r.leftText,
+                (r) => r.leftHighlight,
+              )}
+            </div>
+          </ScrollArea>
         </div>
         <div className="min-h-0 flex flex-col overflow-hidden">
-          <div className="h-7 px-3 flex items-center text-[11px] font-semibold text-[var(--vscode-descriptionForeground)] border-b border-border shrink-0">
+          <div className="h-7 px-3 flex items-center text-ui-sm font-semibold text-vscode-description border-b border-border shrink-0">
             {right.label}
           </div>
-          <div
+          <ScrollArea
             ref={registerContainer(1)}
-            className="flex-1 overflow-auto font-mono text-[11px] leading-[18px] text-[var(--vscode-editor-foreground)]"
+            axis="both"
+            className="flex-1 font-mono text-ui-sm leading-code text-vscode-editor-fg"
             onScroll={handleScroll(1)}
             data-testid="workspace-diff-right-scroll"
           >
-            {renderSide(
-              "right",
-              (r) => r.rightNum,
-              (r) => r.rightText,
-              (r) => r.rightHighlight,
-            )}
-          </div>
+            <div className="min-w-max">
+              {renderSide(
+                "right",
+                (r) => r.rightNum,
+                (r) => r.rightText,
+                (r) => r.rightHighlight,
+              )}
+            </div>
+          </ScrollArea>
         </div>
       </div>
     </div>

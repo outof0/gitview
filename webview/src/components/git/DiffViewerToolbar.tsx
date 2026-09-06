@@ -39,7 +39,7 @@ export function DiffViewerToolbar({
 
   return (
     <div
-      className="nx-tool-titlebar flex items-center gap-0.5 px-[var(--nx-pad-x)] h-[var(--nx-toolbar-h)] min-h-[var(--nx-toolbar-h)] border-b border-vscode-panel-border bg-[var(--vscode-editorGroupHeader-tabsBackground,var(--vscode-editor-background))] font-[family-name:var(--nx-font-ui)]"
+      className="nx-tool-titlebar ui-responsive-toolbar flex min-w-0 items-center gap-0.5 px-pad-x h-toolbar min-h-toolbar border-b border-vscode-panel-border bg-tabs-bg font-ui"
       data-testid="git-diff-toolbar"
     >
       <ToolbarIconButton
@@ -63,41 +63,63 @@ export function DiffViewerToolbar({
 
       <ToolbarSeparator />
 
-      <ToolbarDropdown
-        testId="git-diff-whitespace"
-        title="Whitespace policy"
-        label={
-          <>
-            Whitespace:{" "}
+      <div className="ui-toolbar-secondary contents">
+        <ToolbarDropdown
+          testId="git-diff-whitespace"
+          title="Whitespace policy"
+          label={
+            <>
+              Whitespace:{" "}
+              <span className="font-medium">
+                {options.trimWhitespace ? "Trim whitespaces" : "Do not ignore"}
+              </span>
+            </>
+          }
+          items={[
+            {
+              value: "doNotIgnore",
+              label: "Do not ignore",
+              active: !options.trimWhitespace,
+              onSelect: () => set({ trimWhitespace: false }),
+            },
+            {
+              value: "trimWhitespaces",
+              label: "Trim whitespaces",
+              active: options.trimWhitespace,
+              onSelect: () => set({ trimWhitespace: true }),
+            },
+          ]}
+        />
+
+        <ToolbarDropdown
+          testId="git-diff-viewer-mode"
+          title="Viewer mode"
+          label={
             <span className="font-medium">
-              {options.trimWhitespace ? "Trim whitespaces" : "Do not ignore"}
+              {options.sideBySide ? "Side-by-side viewer" : "Unified viewer"}
             </span>
-          </>
-        }
-        items={[
-          {
-            value: "doNotIgnore",
-            label: "Do not ignore",
-            active: !options.trimWhitespace,
-            onSelect: () => set({ trimWhitespace: false }),
-          },
-          {
-            value: "trimWhitespaces",
-            label: "Trim whitespaces",
-            active: options.trimWhitespace,
-            onSelect: () => set({ trimWhitespace: true }),
-          },
-        ]}
-      />
+          }
+          items={[
+            {
+              value: "sideBySide",
+              label: "Side-by-side viewer",
+              active: options.sideBySide,
+              onSelect: () => set({ sideBySide: true }),
+            },
+            {
+              value: "unified",
+              label: "Unified viewer",
+              active: !options.sideBySide,
+              onSelect: () => set({ sideBySide: false }),
+            },
+          ]}
+        />
+      </div>
 
       <ToolbarDropdown
-        testId="git-diff-viewer-mode"
-        title="Viewer mode"
-        label={
-          <span className="font-medium">
-            {options.sideBySide ? "Side-by-side viewer" : "Unified viewer"}
-          </span>
-        }
+        testId="git-diff-view-options"
+        title="Viewer settings"
+        label="View"
         items={[
           {
             value: "sideBySide",
@@ -111,14 +133,12 @@ export function DiffViewerToolbar({
             active: !options.sideBySide,
             onSelect: () => set({ sideBySide: false }),
           },
-        ]}
-      />
-
-      <ToolbarDropdown
-        testId="git-diff-view-options"
-        title="Viewer settings"
-        label="View"
-        items={[
+          {
+            value: "trimWhitespaces",
+            label: "Trim whitespaces",
+            active: options.trimWhitespace,
+            onSelect: () => set({ trimWhitespace: !options.trimWhitespace }),
+          },
           {
             value: "collapseUnchanged",
             label: "Collapse unchanged fragments",
@@ -138,7 +158,7 @@ export function DiffViewerToolbar({
       <div className="flex-1" />
 
       <span
-        className="text-[length:var(--nx-font-size-ui-sm)] text-vscode-description px-2 whitespace-nowrap"
+        className="ui-toolbar-tertiary text-ui-sm text-vscode-description px-2 whitespace-nowrap"
         data-testid="git-diff-difference-counter"
         role="status"
         aria-live="polite"

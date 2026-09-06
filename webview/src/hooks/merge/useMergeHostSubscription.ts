@@ -190,7 +190,15 @@ export function useMergeHostSubscription(client: MergeClient) {
     };
 
     window.addEventListener("message", onMessage);
-    void client.ready("merge");
+    // The host pushes the merge bootstrap while answering this handshake
+    // (src/webview/GitViewPanel.ts). Left bare, a rejected handshake was an
+    // unhandled rejection: no message, and the panel stayed on "Loading".
+    void client.ready("merge").catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      store.getState().setError(message);
+      store.getState().setLoading(false);
+      store.getState().showToast(message, "error");
+    });
     return () => window.removeEventListener("message", onMessage);
   }, [client, store]);
 }

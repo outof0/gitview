@@ -1,3 +1,4 @@
+import { Button } from "../ui/Button";
 import { GitMerge, SkipForward, X } from "lucide-react";
 import type { OperationState } from "@gitview/shared/types/operation";
 import {
@@ -32,15 +33,15 @@ export function OperationRecoveryBar({
     <div
       role="status"
       aria-live="polite"
-      className="shrink-0 flex items-center gap-2 px-3 py-2 border-b border-[var(--vscode-editorInfo-border,var(--vscode-focusBorder))] bg-[var(--vscode-editorInfo-background,rgba(0,122,204,0.1))] text-[var(--vscode-editorInfo-foreground,var(--foreground))]"
+      className="shrink-0 flex items-center gap-2 px-3 py-2 border-b border-editor-info-border bg-editor-info-bg text-editor-info-fg"
       data-testid="operation-recovery-bar"
       data-operation-type={operation.type}
     >
-      <span className="text-[11px] flex-1">{label}</span>
+      <span className="text-ui-sm flex-1">{label}</span>
       {operationCanContinue(operation) && onContinue && (
-        <button
+        <Button variant="ghost" size="content"
           type="button"
-          className="h-7 px-2 flex items-center gap-1 text-[11px] rounded-vscode border border-border hover:bg-list-hover disabled:opacity-40"
+          className="h-7 px-2 flex items-center gap-1 text-ui-sm rounded-vscode border border-border hover:bg-list-hover disabled:opacity-40"
           disabled={busy}
           onClick={onContinue}
           aria-label="Continue Git operation"
@@ -48,12 +49,12 @@ export function OperationRecoveryBar({
         >
           <GitMerge size={14} aria-hidden />
           Continue
-        </button>
+        </Button>
       )}
       {showSkip && onSkip && (
-        <button
+        <Button variant="ghost" size="content"
           type="button"
-          className="h-7 px-2 flex items-center gap-1 text-[11px] rounded-vscode border border-border hover:bg-list-hover disabled:opacity-40"
+          className="h-7 px-2 flex items-center gap-1 text-ui-sm rounded-vscode border border-border hover:bg-list-hover disabled:opacity-40"
           disabled={busy}
           onClick={onSkip}
           aria-label="Skip current Git operation step"
@@ -61,12 +62,12 @@ export function OperationRecoveryBar({
         >
           <SkipForward size={14} aria-hidden />
           Skip
-        </button>
+        </Button>
       )}
       {operation.canAbort && onAbort && (
-        <button
+        <Button variant="ghost" size="content"
           type="button"
-          className="h-7 px-2 flex items-center gap-1 text-[11px] rounded-vscode border border-border hover:bg-list-hover disabled:opacity-40"
+          className="h-7 px-2 flex items-center gap-1 text-ui-sm rounded-vscode border border-border hover:bg-list-hover disabled:opacity-40"
           disabled={busy}
           onClick={onAbort}
           aria-label="Abort Git operation"
@@ -74,7 +75,7 @@ export function OperationRecoveryBar({
         >
           <X size={14} aria-hidden />
           Abort
-        </button>
+        </Button>
       )}
     </div>
   );
