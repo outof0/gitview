@@ -25,15 +25,26 @@ export async function resolveRepoIdForResource(
   workspaceRoot: string,
   relativePath: string,
 ): Promise<string | null> {
-  const folders = workspaceFolders();
-  const repos = await gitView.repositoryService.discoverRepositories({
-    workspaceFolders: folders.length > 0 ? folders : [{ uriPath: workspaceRoot, name: "repo" }],
-    trusted: vscode.workspace.isTrusted,
-  });
   const resourcePath =
     !relativePath || relativePath === "."
       ? workspaceRoot
       : path.join(workspaceRoot, relativePath);
+  const cached = gitView.repositoryService.getCachedRepositories();
+  const cachedMatch = gitView.repositoryService.resolveRepositoryForResource(
+    cached,
+    resourcePath,
+  );
+  if (cachedMatch) {
+    return cachedMatch.id;
+  }
+
+  const folders = workspaceFolders();
+  const repos = await gitView.repositoryService.discoverRepositories({
+    workspaceFolders:
+      folders.length > 0 ? folders : [{ uriPath: workspaceRoot, name: "repo" }],
+    resourcePath,
+    trusted: vscode.workspace.isTrusted,
+  });
   const repo = gitView.repositoryService.resolveRepositoryForResource(
     repos,
     resourcePath,
@@ -117,6 +128,7 @@ export function createGitViewPanelRouter(
         manageTrust: "workbench.trust.manage",
         addRemote: "git.addRemote",
         collapsePanel: "workbench.action.closePanel",
+        toggleSidebar: "workbench.action.toggleSidebarVisibility",
       }[action];
       await vscode.commands.executeCommand(command);
     },

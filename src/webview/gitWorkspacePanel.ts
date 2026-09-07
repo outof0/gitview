@@ -15,45 +15,105 @@ import { createSafeWebviewPoster } from "./safeWebviewPoster";
 import { openGitViewPanel } from "./gitViewPresentation";
 import { runGitMenuAction } from "../commands/gitMenuActionDispatcher";
 import { resolveLegacyWorkspaceRoot } from "./resolveLegacyWorkspaceRoot";
+import { getWebviewHtml } from "./getWebviewHtml";
+
+type GitWorkspaceSurfaceRole = "bottom" | "content";
 
 type SurfaceState = {
   postMessage: (message: HostToWebview) => void;
   ready: boolean;
-  pendingDialog: { dialog: GitPanelSurface; relativePath?: string } | null;
+  pendingDialog: {
+    dialog: GitPanelSurface;
+    relativePath?: string;
+    index?: number | null;
+    repoId?: string;
+  } | null;
+  pendingHistory: {
+    repoId: string;
+    path: string;
+    isFolder: boolean;
+    showDiff?: boolean;
+  } | null;
+  pendingSelectCommit: { repoId: string; sha: string } | null;
+  pendingRollback: {
+    repoId: string;
+    path: string;
+    selectedPaths?: string[];
+  } | null;
+  pendingRootFocus: boolean;
 };
 
 let surfaceState: SurfaceState | null = null;
-const attachWaiters: Array<(state: SurfaceState) => void> = [];
+let contentSurfaceState: SurfaceState | null = null;
+let contentPanel: vscode.WebviewPanel | null = null;
+let contentPanelRepoId: string | null = null;
+let contentPanelOpening: Promise<void> | null = null;
+const attachWaiters: Record<
+  GitWorkspaceSurfaceRole,
+  Array<(state: SurfaceState) => void>
+> = {
+  bottom: [],
+  content: [],
+};
 
-function notifyAttached(state: SurfaceState): void {
-  while (attachWaiters.length > 0) {
-    attachWaiters.shift()?.(state);
+function getSurfaceState(role: GitWorkspaceSurfaceRole): SurfaceState | null {
+  return role === "content" ? contentSurfaceState : surfaceState;
+}
+
+function setSurfaceState(
+  role: GitWorkspaceSurfaceRole,
+  state: SurfaceState | null,
+): void {
+  if (role === "content") {
+    contentSurfaceState = state;
+  } else {
+    surfaceState = state;
   }
 }
 
-function waitForSurface(timeoutMs: number): Promise<SurfaceState | null> {
-  if (surfaceState) {
-    return Promise.resolve(surfaceState);
+function notifyAttached(
+  role: GitWorkspaceSurfaceRole,
+  state: SurfaceState,
+): void {
+  const waiters = attachWaiters[role];
+  while (waiters.length > 0) {
+    waiters.shift()?.(state);
+  }
+}
+
+function waitForSurface(
+  role: GitWorkspaceSurfaceRole,
+  timeoutMs: number,
+): Promise<SurfaceState | null> {
+  const state = getSurfaceState(role);
+  if (state) {
+    return Promise.resolve(state);
   }
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
-      const index = attachWaiters.indexOf(onAttach);
+      const waiters = attachWaiters[role];
+      const index = waiters.indexOf(onAttach);
       if (index >= 0) {
-        attachWaiters.splice(index, 1);
+        waiters.splice(index, 1);
       }
-      resolve(surfaceState);
+      resolve(getSurfaceState(role));
     }, timeoutMs);
     const onAttach = (state: SurfaceState): void => {
       clearTimeout(timer);
       resolve(state);
     };
-    attachWaiters.push(onAttach);
+    attachWaiters[role].push(onAttach);
   });
 }
 
 function deliverDialog(
   state: SurfaceState,
-  request: { dialog: GitPanelSurface; relativePath?: string },
+  request: {
+    dialog: GitPanelSurface;
+    relativePath?: string;
+    index?: number | null;
+    repoId?: string;
+  },
 ): void {
   if (!state.ready) {
     state.pendingDialog = request;
@@ -64,6 +124,41 @@ function deliverDialog(
     type: "git.openDialog",
     payload: request,
   });
+}
+
+function deliverHistory(
+  state: SurfaceState,
+  request: {
+    repoId: string;
+    path: string;
+    isFolder: boolean;
+    showDiff?: boolean;
+  },
+): void {
+  if (!state.ready) {
+    state.pendingHistory = request;
+    return;
+  }
+  state.postMessage(createHostEvent("git.openHistory", request));
+}
+
+function deliverRollback(
+  state: SurfaceState,
+  request: { repoId: string; path: string; selectedPaths?: string[] },
+): void {
+  if (!state.ready) {
+    state.pendingRollback = request;
+    return;
+  }
+  state.postMessage(createHostEvent("git.requestRollback", request));
+}
+
+function deliverRootFocus(state: SurfaceState): void {
+  if (!state.ready) {
+    state.pendingRootFocus = true;
+    return;
+  }
+  state.postMessage(createHostEvent("git.focusRoot", {}));
 }
 
 function workspaceFolders(): Array<{ uriPath: string; name: string }> {
@@ -110,20 +205,25 @@ function createRouter(
       );
     },
     onOpenGitHistory: async (repoId, historyPath, isFolder) => {
-      const { openGitHistoryPanel } = await import("./GitHistoryWebviewPanel");
-      const workspaceRoot = await resolveLegacyWorkspaceRoot(gitView, repoId);
-      if (!workspaceRoot) {
-        throw new Error(
-          "GitView could not find a workspace folder for this action.",
-        );
-      }
-      await openGitHistoryPanel(
-        context,
-        gitView,
-        historyPath,
+      await openGitWorkspaceHistory(context, gitView, {
+        repoId,
+        path: historyPath,
         isFolder,
-        workspaceRoot,
-      );
+      });
+    },
+    onOpenGitRollback: async (repoId, rollbackPath, selectedPaths) => {
+      await openGitWorkspaceRollback(context, gitView, {
+        repoId,
+        path: rollbackPath,
+        ...(selectedPaths ? { selectedPaths } : {}),
+      });
+    },
+    onOpenGitContentDialog: async (repoId, dialog, index) => {
+      await openGitWorkspaceContentDialog(context, gitView, {
+        repoId,
+        dialog,
+        ...(index !== undefined ? { index } : {}),
+      });
     },
     mergePanel: {
       fileService: createFileService(),
@@ -168,6 +268,7 @@ function createRouter(
         manageTrust: "workbench.trust.manage",
         addRemote: "git.addRemote",
         collapsePanel: "workbench.action.closePanel",
+        toggleSidebar: "workbench.action.toggleSidebarVisibility",
       }[action];
       await vscode.commands.executeCommand(command);
     },
@@ -218,11 +319,24 @@ function pushRefreshPayload(
   }
 }
 
+export type AttachGitWorkspaceOptions = {
+  /**
+   * The bottom Git panel owns native-menu dialogs. The activity-bar Commit
+   * sidebar is a second webview of the same app and must not steal that role.
+  */
+  ownsDialogs?: boolean;
+  /** The editor-area rollback surface has its own queued dialog state. */
+  surface?: GitWorkspaceSurfaceRole;
+  /** Optional panel-specific close hook for transient editor-area surfaces. */
+  onClose?: () => void;
+};
+
 export function attachGitWorkspaceWebview(
   webview: vscode.Webview,
   context: vscode.ExtensionContext,
   gitView: GitViewContext,
   onDispose: (listener: () => void) => void,
+  options?: AttachGitWorkspaceOptions,
 ): void {
   const poster = createSafeWebviewPoster<HostToWebview>(
     webview,
@@ -249,28 +363,47 @@ export function attachGitWorkspaceWebview(
     syncSubscriptionDisposed = true;
     syncSubscription?.();
   };
+  const ownsDialogs = options?.ownsDialogs !== false;
+  const surfaceRole = options?.surface ?? "bottom";
+  const previousState = getSurfaceState(surfaceRole);
   const currentState: SurfaceState = {
     postMessage,
     ready: false,
-    pendingDialog: surfaceState?.pendingDialog ?? null,
+    pendingDialog: ownsDialogs
+      ? (previousState?.pendingDialog ?? null)
+      : null,
+    pendingHistory: ownsDialogs
+      ? (previousState?.pendingHistory ?? null)
+      : null,
+    pendingSelectCommit: ownsDialogs
+      ? (previousState?.pendingSelectCommit ?? null)
+      : null,
+    pendingRollback: ownsDialogs
+      ? (previousState?.pendingRollback ?? null)
+      : null,
+    pendingRootFocus: ownsDialogs
+      ? (previousState?.pendingRootFocus ?? false)
+      : false,
   };
-  surfaceState = currentState;
-  notifyAttached(currentState);
+  if (ownsDialogs) {
+    setSurfaceState(surfaceRole, currentState);
+    notifyAttached(surfaceRole, currentState);
+  }
 
   onDispose(() => {
     disposed = true;
     poster.dispose();
     disposeRefreshSubscription();
     disposeSyncSubscription();
-    if (surfaceState === currentState) {
-      surfaceState = null;
+    if (ownsDialogs && getSurfaceState(surfaceRole) === currentState) {
+      setSurfaceState(surfaceRole, null);
     }
   });
 
   const router = createRouter(context, gitView, postMessage);
 
   refreshSubscription = gitView.refreshCoordinator.subscribe((payload) => {
-    if (!disposed && surfaceState === currentState) {
+    if (!disposed) {
       pushRefreshPayload(payload, postMessage);
     }
   });
@@ -279,6 +412,14 @@ export function attachGitWorkspaceWebview(
   }
 
   webview.onDidReceiveMessage(async (raw: unknown) => {
+    if (
+      surfaceRole === "content" &&
+      ((raw as { type?: unknown } | null)?.type === "git.rollback.close" ||
+        (raw as { type?: unknown } | null)?.type === "git.content.close")
+    ) {
+      options?.onClose?.();
+      return;
+    }
     await router.handleRawMessage(raw);
     if ((raw as { type?: string } | null)?.type === "webview.ready") {
       currentState.ready = true;
@@ -290,10 +431,33 @@ export function attachGitWorkspaceWebview(
           syncSubscription();
         }
       }
-      const pending = currentState.pendingDialog;
-      currentState.pendingDialog = null;
-      if (pending) {
-        deliverDialog(currentState, pending);
+      if (ownsDialogs) {
+        const pending = currentState.pendingDialog;
+        currentState.pendingDialog = null;
+        if (pending) {
+          deliverDialog(currentState, pending);
+        }
+        const pendingHistory = currentState.pendingHistory;
+        currentState.pendingHistory = null;
+        if (pendingHistory) {
+          deliverHistory(currentState, pendingHistory);
+        }
+        const pendingCommit = currentState.pendingSelectCommit;
+        currentState.pendingSelectCommit = null;
+        if (pendingCommit) {
+          currentState.postMessage(
+            createHostEvent("git.selectCommit", pendingCommit),
+          );
+        }
+        const pendingRollback = currentState.pendingRollback;
+        currentState.pendingRollback = null;
+        if (pendingRollback) {
+          deliverRollback(currentState, pendingRollback);
+        }
+        if (currentState.pendingRootFocus) {
+          currentState.pendingRootFocus = false;
+          deliverRootFocus(currentState);
+        }
       }
     }
   });
@@ -306,16 +470,193 @@ export function attachGitWorkspaceWebview(
 export async function openGitWorkspaceDialog(
   context: vscode.ExtensionContext,
   gitView: GitViewContext,
-  request: { dialog: GitPanelSurface; relativePath?: string },
+  request: {
+    dialog: GitPanelSurface;
+    relativePath?: string;
+    index?: number | null;
+  },
 ): Promise<void> {
   await openGitWorkspacePanel(context, gitView);
-  if (surfaceState) {
-    deliverDialog(surfaceState, request);
+  const state = getSurfaceState("bottom");
+  if (!state) {
+    throw new Error("GitView Git panel is unavailable.");
+  }
+  deliverDialog(state, request);
+}
+
+export async function openGitWorkspaceHistory(
+  context: vscode.ExtensionContext,
+  gitView: GitViewContext,
+  request: {
+    repoId: string;
+    path: string;
+    isFolder: boolean;
+    showDiff?: boolean;
+  },
+): Promise<void> {
+  await openGitWorkspacePanel(context, gitView);
+  const state = getSurfaceState("bottom");
+  if (!state) {
+    throw new Error("GitView Git panel is unavailable.");
+  }
+  deliverHistory(state, request);
+}
+
+export async function selectGitWorkspaceCommit(
+  _context: vscode.ExtensionContext,
+  _gitView: GitViewContext,
+  request: { repoId: string; sha: string },
+): Promise<void> {
+  const state = getSurfaceState("bottom");
+  if (!state) {
+    return;
+  }
+  if (!state.ready) {
+    state.pendingSelectCommit = request;
+    return;
+  }
+  state.postMessage(createHostEvent("git.selectCommit", request));
+}
+
+export async function openGitWorkspaceRollback(
+  context: vscode.ExtensionContext,
+  gitView: GitViewContext,
+  request: { repoId: string; path: string; selectedPaths?: string[] },
+): Promise<void> {
+  await openGitWorkspaceContentPanel(context, gitView, "Rollback Changes");
+  const state = getSurfaceState("content");
+  if (!state) {
+    throw new Error("GitView rollback panel is unavailable.");
+  }
+  deliverRollback(state, request);
+}
+
+export async function openGitWorkspaceContentDialog(
+  context: vscode.ExtensionContext,
+  gitView: GitViewContext,
+  request: {
+    dialog: "stash" | "unstash";
+    index?: number | null;
+    repoId?: string;
+  },
+): Promise<void> {
+  await openGitWorkspaceContentPanel(
+    context,
+    gitView,
+    request.dialog === "stash" ? "Stash Changes" : "Unstash Changes",
+    request.repoId,
+  );
+  const state = getSurfaceState("content");
+  if (!state) {
+    throw new Error("GitView stash panel is unavailable.");
+  }
+  deliverDialog(state, request);
+}
+
+export async function focusGitWorkspaceRoot(): Promise<void> {
+  const state = await waitForSurface("bottom", 8_000);
+  if (state) {
+    deliverRootFocus(state);
   }
 }
 
-export async function focusGitBottomPanel(): Promise<void> {
-  void vscode.commands.executeCommand("workbench.action.closeSidebar");
+async function openGitWorkspaceContentPanel(
+  context: vscode.ExtensionContext,
+  gitView: GitViewContext,
+  title = "GitView",
+  repoId?: string,
+): Promise<void> {
+  const requestedRepoId = repoId ?? null;
+  if (contentPanelOpening) {
+    await contentPanelOpening;
+  }
+  if (contentPanel && contentPanelRepoId === requestedRepoId) {
+    contentPanel.title = title;
+    contentPanel.reveal(vscode.ViewColumn.Active, false);
+    await waitForSurface("content", 8_000);
+    return;
+  }
+
+  if (contentPanel) {
+    const stalePanel = contentPanel;
+    contentPanel = null;
+    contentPanelRepoId = null;
+    setSurfaceState("content", null);
+    stalePanel.dispose();
+  }
+
+  const opening = (async (): Promise<void> => {
+    const panel = vscode.window.createWebviewPanel(
+      "gitViewGitRollback",
+      title,
+      { viewColumn: vscode.ViewColumn.Active, preserveFocus: false },
+      {
+        enableScripts: true,
+        retainContextWhenHidden: true,
+        localResourceRoots: [
+          vscode.Uri.joinPath(context.extensionUri, "dist"),
+          vscode.Uri.joinPath(context.extensionUri, "webview", "dist"),
+        ],
+      },
+    );
+    contentPanel = panel;
+    contentPanelRepoId = requestedRepoId;
+    panel.onDidDispose(() => {
+      if (contentPanel === panel) {
+        contentPanel = null;
+        contentPanelRepoId = null;
+        setSurfaceState("content", null);
+      }
+    });
+
+    try {
+      let html = await getWebviewHtml(panel.webview, context.extensionUri, {
+        app: "gitWorkspace",
+      });
+      const bootstrap = JSON.stringify({
+        surface: "content",
+        repoId: repoId ?? undefined,
+      }).replace(/</g, "\\u003c");
+      html = html.replace(
+        `window.__GITVIEW_APP__="gitWorkspace"`,
+        `window.__GITVIEW_APP__="gitWorkspace";window.__GITVIEW_BOOTSTRAP__=${bootstrap}`,
+      );
+
+      attachGitWorkspaceWebview(
+        panel.webview,
+        context,
+        gitView,
+        (listener) => panel.onDidDispose(listener),
+        { surface: "content", onClose: () => panel.dispose() },
+      );
+      panel.webview.html = html;
+      await waitForSurface("content", 8_000);
+    } catch (error) {
+      if (contentPanel === panel) {
+        contentPanel = null;
+        contentPanelRepoId = null;
+        setSurfaceState("content", null);
+      }
+      panel.dispose();
+      throw error;
+    }
+  })();
+  contentPanelOpening = opening;
+  try {
+    await opening;
+  } finally {
+    if (contentPanelOpening === opening) {
+      contentPanelOpening = null;
+    }
+  }
+}
+
+export async function focusGitBottomPanel(options?: {
+  keepSidebar?: boolean;
+}): Promise<void> {
+  if (!options?.keepSidebar) {
+    void vscode.commands.executeCommand("workbench.action.closeSidebar");
+  }
   try {
     await vscode.commands.executeCommand(
       "workbench.view.extension.gitViewPanel",
@@ -335,10 +676,7 @@ export async function openGitWorkspacePanel(
   gitView: GitViewContext,
 ): Promise<void> {
   await focusGitBottomPanel();
-  const state = await waitForSurface(8_000);
-  if (!state) {
-    return;
-  }
+  await waitForSurface("bottom", 8_000);
   if (vscode.workspace.isTrusted) {
     await gitView.refreshCoordinator.refreshNow();
   }

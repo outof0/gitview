@@ -1,22 +1,28 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const {
-  openGitHistoryPanel,
-  openGitViewPanel,
+  openGitWorkspaceHistory,
+  selectGitWorkspaceCommit,
   openGitViewBlamePanel,
+  openGitViewPanel,
   getGitViewOverlayTarget,
   openGitWorkspaceDialog,
+  openGitWorkspaceContentDialog,
+  openGitWorkspaceRollback,
   openGitCreateBranchPanel,
   openGitCommitPanel,
   openGitBranchesPanel,
   resolveRepoIdForResource,
   resolveRepoRoot,
 } = vi.hoisted(() => ({
-  openGitHistoryPanel: vi.fn(async () => undefined),
-  openGitViewPanel: vi.fn(async () => undefined),
+  openGitWorkspaceHistory: vi.fn(async () => undefined),
+  selectGitWorkspaceCommit: vi.fn(async () => undefined),
   openGitViewBlamePanel: vi.fn(async () => undefined),
+  openGitViewPanel: vi.fn(async () => undefined),
   getGitViewOverlayTarget: vi.fn((): unknown => null),
   openGitWorkspaceDialog: vi.fn(async () => undefined),
+  openGitWorkspaceContentDialog: vi.fn(async () => undefined),
+  openGitWorkspaceRollback: vi.fn(async () => undefined),
   openGitCreateBranchPanel: vi.fn(async () => undefined),
   openGitCommitPanel: vi.fn(async () => undefined),
   openGitBranchesPanel: vi.fn(async () => undefined),
@@ -38,13 +44,18 @@ vi.mock("vscode", () => ({
   window: vscodeWindow,
 }));
 
-vi.mock("../GitHistoryWebviewPanel", () => ({ openGitHistoryPanel }));
 vi.mock("../gitViewPresentation", () => ({
   openGitViewPanel,
   openGitViewBlamePanel,
   getGitViewOverlayTarget,
 }));
-vi.mock("../gitWorkspacePanel", () => ({ openGitWorkspaceDialog }));
+vi.mock("../gitWorkspacePanel", () => ({
+  openGitWorkspaceDialog,
+  openGitWorkspaceContentDialog,
+  openGitWorkspaceHistory,
+  selectGitWorkspaceCommit,
+  openGitWorkspaceRollback,
+}));
 vi.mock("../gitCreateBranchPanel", () => ({ openGitCreateBranchPanel }));
 vi.mock("../gitCommitPanel", () => ({ openGitCommitPanel }));
 vi.mock("../gitBranchesPanel", () => ({ openGitBranchesPanel }));
@@ -53,7 +64,10 @@ vi.mock("../../commands/gitMenuActionsHelpers", () => ({
   resolveRepoRoot,
 }));
 
-import type { GitDiffPreview } from "../../commands/gitMenuPresentation";
+import type {
+  GitDiffPreview,
+  GitMenuPresentation,
+} from "../../commands/gitMenuPresentation";
 import { createGitMenuPresentation } from "../gitMenuPresentationAdapter";
 
 const context = {
@@ -63,6 +77,7 @@ const context = {
 
 const gitView = {
   logger: { warn: vi.fn() },
+  repositoryService: { getCached: vi.fn(() => undefined) },
 } as unknown as import("../../activation").GitViewContext;
 
 const preview = {
@@ -73,6 +88,14 @@ const preview = {
 
 function presentation() {
   return createGitMenuPresentation(context, () => gitView);
+}
+
+function requiredPresentationMethod<K extends keyof GitMenuPresentation>(
+  name: K,
+): NonNullable<GitMenuPresentation[K]> {
+  const method = presentation()[name];
+  expect(method).toEqual(expect.any(Function));
+  return method as NonNullable<GitMenuPresentation[K]>;
 }
 
 function resetBranchSurfaces() {
@@ -87,19 +110,58 @@ describe("createGitMenuPresentation", () => {
     resetBranchSurfaces();
   });
 
-  it("forwards history requests with the workspace root", async () => {
+  it("opens history in the Git workspace panel", async () => {
     await presentation().openHistory({
       relativePath: "src/app.ts",
       isFolder: false,
       workspaceRoot: "/ws",
     });
 
-    expect(openGitHistoryPanel).toHaveBeenCalledWith(
+    expect(resolveRepoIdForResource).toHaveBeenCalledWith(
+      gitView,
+      "/ws",
+      "src/app.ts",
+    );
+    expect(openGitWorkspaceHistory).toHaveBeenCalledWith(
       context,
       gitView,
-      "src/app.ts",
-      false,
-      "/ws",
+      { repoId: "resolved-repo", path: "src/app.ts", isFolder: false },
+    );
+  });
+
+  it("converts a workspace-relative path to a nested repository path", async () => {
+    const getCached = (gitView.repositoryService as unknown as { getCached: ReturnType<typeof vi.fn> })
+      .getCached;
+    getCached.mockReturnValue({ rootPath: "/ws/packages" });
+
+    await presentation().openHistory({
+      relativePath: "packages/src/app.ts",
+      isFolder: false,
+      workspaceRoot: "/ws",
+    });
+
+    expect(openGitWorkspaceHistory).toHaveBeenCalledWith(
+      context,
+      gitView,
+      { repoId: "resolved-repo", path: "src/app.ts", isFolder: false },
+    );
+  });
+
+  it("maps a nested repository folder to its repository root", async () => {
+    const getCached = (gitView.repositoryService as unknown as { getCached: ReturnType<typeof vi.fn> })
+      .getCached;
+    getCached.mockReturnValue({ rootPath: "/ws/packages" });
+
+    await presentation().openHistory({
+      relativePath: "packages",
+      isFolder: true,
+      workspaceRoot: "/ws",
+    });
+
+    expect(openGitWorkspaceHistory).toHaveBeenCalledWith(
+      context,
+      gitView,
+      { repoId: "resolved-repo", path: ".", isFolder: true },
     );
   });
 
@@ -123,7 +185,7 @@ describe("createGitMenuPresentation", () => {
     );
   });
 
-  it("forwards blame requests with an empty line range", async () => {
+  it("opens blame in the editor panel", async () => {
     await presentation().openBlame({
       relativePath: "src/app.ts",
       workspaceRoot: "/ws",
@@ -143,18 +205,107 @@ describe("createGitMenuPresentation", () => {
       "/ws",
       "/ws",
     );
+    expect(openGitWorkspaceHistory).toHaveBeenCalledWith(
+      context,
+      gitView,
+      {
+        repoId: "resolved-repo",
+        path: "src/app.ts",
+        isFolder: false,
+        showDiff: false,
+      },
+    );
+  });
+
+  it("selectCommit forwards to selectGitWorkspaceCommit", async () => {
+    await requiredPresentationMethod("selectCommit")({
+      repoId: "resolved-repo",
+      sha: "abc1234",
+    });
+
+    expect(selectGitWorkspaceCommit).toHaveBeenCalledWith(
+      context,
+      gitView,
+      { repoId: "resolved-repo", sha: "abc1234" },
+    );
   });
 
   it("forwards panel dialog requests", async () => {
-    await presentation().openPanelDialog?.({ dialog: "commit" });
+    await requiredPresentationMethod("openPanelDialog")({ dialog: "commit" });
 
     expect(openGitWorkspaceDialog).toHaveBeenCalledWith(context, gitView, {
       dialog: "commit",
     });
   });
 
+  it("opens stash dialogs in the full-height content panel", async () => {
+    await requiredPresentationMethod("openPanelDialog")({
+      dialog: "unstash",
+      index: 2,
+    });
+
+    expect(openGitWorkspaceContentDialog).toHaveBeenCalledWith(
+      context,
+      gitView,
+      { dialog: "unstash", index: 2 },
+    );
+    expect(openGitWorkspaceDialog).not.toHaveBeenCalled();
+  });
+
+  it("routes native stash dialogs to the repository that owns the clicked resource", async () => {
+    await requiredPresentationMethod("openPanelDialog")({
+      dialog: "stash",
+      repoRoot: "/workspace/repo-b",
+      workspaceRoot: "/workspace",
+    });
+
+    expect(resolveRepoIdForResource).toHaveBeenCalledWith(
+      gitView,
+      "/workspace/repo-b",
+      ".",
+    );
+    expect(openGitWorkspaceContentDialog).toHaveBeenCalledWith(
+      context,
+      gitView,
+      { dialog: "stash", repoId: "resolved-repo" },
+    );
+  });
+
+  it("opens rollback in the workspace content for the resolved repository", async () => {
+    await requiredPresentationMethod("openRollbackConfirmation")({
+      relativePath: "src/app.ts",
+      workspaceRoot: "/ws",
+      repoRoot: "/ws",
+      selectedPaths: ["src/app.ts", "README.md"],
+    });
+
+    expect(resolveRepoIdForResource).toHaveBeenCalledWith(
+      gitView,
+      "/ws",
+      "src/app.ts",
+    );
+    expect(openGitWorkspaceRollback).toHaveBeenCalledWith(context, gitView, {
+      repoId: "resolved-repo",
+      path: "src/app.ts",
+      selectedPaths: ["src/app.ts", "README.md"],
+    });
+  });
+
+  it("reports and gives up when rollback cannot resolve a repository", async () => {
+    resolveRepoIdForResource.mockResolvedValueOnce(null);
+
+    await requiredPresentationMethod("openRollbackConfirmation")({
+      relativePath: "src/app.ts",
+      workspaceRoot: "/ws",
+      repoRoot: "/ws",
+    });
+
+    expect(vscodeWindow.showErrorMessage).toHaveBeenCalledOnce();
+    expect(openGitWorkspaceRollback).not.toHaveBeenCalled();
+  });
+
   it("uses the supplied repoId without resolving", async () => {
-    await presentation().openCreateBranchDialog?.({
+    await requiredPresentationMethod("openCreateBranchDialog")({
       workspaceRoot: "/ws",
       repoId: "explicit-repo",
       startPoint: "main",
@@ -169,7 +320,7 @@ describe("createGitMenuPresentation", () => {
   });
 
   it("resolves the repoId from the workspace root when omitted", async () => {
-    await presentation().openCreateBranchDialog?.({ workspaceRoot: "/ws" });
+    await requiredPresentationMethod("openCreateBranchDialog")({ workspaceRoot: "/ws" });
 
     expect(resolveRepoIdForResource).toHaveBeenCalledWith(gitView, "/ws", ".");
     expect(openGitCreateBranchPanel).toHaveBeenCalledWith(context, gitView, {
@@ -182,7 +333,7 @@ describe("createGitMenuPresentation", () => {
   it("reports and gives up when no repository can be resolved", async () => {
     resolveRepoIdForResource.mockResolvedValueOnce(null);
 
-    await presentation().openCreateBranchDialog?.({ workspaceRoot: "/ws" });
+    await requiredPresentationMethod("openCreateBranchDialog")({ workspaceRoot: "/ws" });
 
     expect(vscodeWindow.showErrorMessage).toHaveBeenCalledOnce();
     expect(openGitCreateBranchPanel).not.toHaveBeenCalled();
@@ -201,7 +352,7 @@ describe("createGitMenuPresentation.openCommitDialog", () => {
   });
 
   it("uses the supplied repoId without resolving", async () => {
-    await presentation().openCommitDialog?.({
+    await requiredPresentationMethod("openCommitDialog")({
       workspaceRoot: "/ws",
       repoId: "explicit-repo",
     });
@@ -214,7 +365,7 @@ describe("createGitMenuPresentation.openCommitDialog", () => {
   });
 
   it("resolves the repoId from the workspace root when omitted", async () => {
-    await presentation().openCommitDialog?.({ workspaceRoot: "/ws" });
+    await requiredPresentationMethod("openCommitDialog")({ workspaceRoot: "/ws" });
 
     expect(resolveRepoIdForResource).toHaveBeenCalledWith(gitView, "/ws", ".");
     expect(openGitCommitPanel).toHaveBeenCalledWith(context, gitView, {
@@ -224,7 +375,7 @@ describe("createGitMenuPresentation.openCommitDialog", () => {
   });
 
   it("never opens the panel dialog, which cannot carry a repoId", async () => {
-    await presentation().openCommitDialog?.({ workspaceRoot: "/ws" });
+    await requiredPresentationMethod("openCommitDialog")({ workspaceRoot: "/ws" });
 
     expect(openGitWorkspaceDialog).not.toHaveBeenCalled();
   });
@@ -232,7 +383,7 @@ describe("createGitMenuPresentation.openCommitDialog", () => {
   it("reports and gives up when no repository can be resolved", async () => {
     resolveRepoIdForResource.mockResolvedValueOnce(null);
 
-    await presentation().openCommitDialog?.({ workspaceRoot: "/ws" });
+    await requiredPresentationMethod("openCommitDialog")({ workspaceRoot: "/ws" });
 
     expect(vscodeWindow.showErrorMessage).toHaveBeenCalledOnce();
     expect(openGitCommitPanel).not.toHaveBeenCalled();
@@ -249,7 +400,7 @@ describe("createGitMenuPresentation.openBranchesDialog", () => {
   });
 
   it("uses the supplied repoId without resolving", async () => {
-    await presentation().openBranchesDialog?.({
+    await requiredPresentationMethod("openBranchesDialog")({
       workspaceRoot: "/ws",
       repoId: "explicit-repo",
     });
@@ -262,7 +413,7 @@ describe("createGitMenuPresentation.openBranchesDialog", () => {
   });
 
   it("resolves the repoId from the workspace root when omitted", async () => {
-    await presentation().openBranchesDialog?.({ workspaceRoot: "/ws" });
+    await requiredPresentationMethod("openBranchesDialog")({ workspaceRoot: "/ws" });
 
     expect(resolveRepoIdForResource).toHaveBeenCalledWith(gitView, "/ws", ".");
     expect(openGitBranchesPanel).toHaveBeenCalledWith(context, gitView, {
@@ -272,7 +423,7 @@ describe("createGitMenuPresentation.openBranchesDialog", () => {
   });
 
   it("never opens the panel dialog, which cannot carry a repoId", async () => {
-    await presentation().openBranchesDialog?.({ workspaceRoot: "/ws" });
+    await requiredPresentationMethod("openBranchesDialog")({ workspaceRoot: "/ws" });
 
     expect(openGitWorkspaceDialog).not.toHaveBeenCalled();
   });
@@ -280,7 +431,7 @@ describe("createGitMenuPresentation.openBranchesDialog", () => {
   it("reports and gives up when no repository can be resolved", async () => {
     resolveRepoIdForResource.mockResolvedValueOnce(null);
 
-    await presentation().openBranchesDialog?.({ workspaceRoot: "/ws" });
+    await requiredPresentationMethod("openBranchesDialog")({ workspaceRoot: "/ws" });
 
     expect(vscodeWindow.showErrorMessage).toHaveBeenCalledOnce();
     expect(openGitBranchesPanel).not.toHaveBeenCalled();
@@ -303,7 +454,7 @@ describe("createGitMenuPresentation branch overlays", () => {
     const deliver = vi.fn(async () => true);
     getGitViewOverlayTarget.mockReturnValue({ reveal, deliver });
 
-    await presentation().openCreateBranchDialog?.({
+    await requiredPresentationMethod("openCreateBranchDialog")({
       workspaceRoot: "/ws",
       repoId: "explicit-repo",
       startPoint: "main",
@@ -329,7 +480,7 @@ describe("createGitMenuPresentation branch overlays", () => {
     const deliver = vi.fn(async () => true);
     getGitViewOverlayTarget.mockReturnValue({ reveal, deliver });
 
-    await presentation().openBranchesDialog?.({
+    await requiredPresentationMethod("openBranchesDialog")({
       workspaceRoot: "/ws",
       repoId: "explicit-repo",
     });
@@ -352,7 +503,7 @@ describe("createGitMenuPresentation branch overlays", () => {
       deliver: vi.fn(async () => false),
     });
 
-    await presentation().openBranchesDialog?.({
+    await requiredPresentationMethod("openBranchesDialog")({
       workspaceRoot: "/ws",
       repoId: "explicit-repo",
     });
@@ -367,8 +518,8 @@ describe("createGitMenuPresentation branch overlays", () => {
   it("opens a panel when no overlay target exists, even with an active editor", async () => {
     vscodeWindow.activeTextEditor = { document: { uri: { fsPath: "/ws/a.ts" } } };
 
-    await presentation().openCreateBranchDialog?.({ workspaceRoot: "/ws" });
-    await presentation().openBranchesDialog?.({ workspaceRoot: "/ws" });
+    await requiredPresentationMethod("openCreateBranchDialog")({ workspaceRoot: "/ws" });
+    await requiredPresentationMethod("openBranchesDialog")({ workspaceRoot: "/ws" });
 
     expect(vscodeWindow.showInputBox).not.toHaveBeenCalled();
     expect(openGitCreateBranchPanel).toHaveBeenCalledWith(context, gitView, {
@@ -383,15 +534,15 @@ describe("createGitMenuPresentation branch overlays", () => {
   });
 
   it("opens a new panel when no tab can host the dialog", async () => {
-    await presentation().openCreateBranchDialog?.({ workspaceRoot: "/ws" });
-    await presentation().openBranchesDialog?.({ workspaceRoot: "/ws" });
+    await requiredPresentationMethod("openCreateBranchDialog")({ workspaceRoot: "/ws" });
+    await requiredPresentationMethod("openBranchesDialog")({ workspaceRoot: "/ws" });
 
     expect(openGitCreateBranchPanel).toHaveBeenCalledOnce();
     expect(openGitBranchesPanel).toHaveBeenCalledOnce();
   });
 
   it("prefers an explicit repoRoot when resolving the branches repository", async () => {
-    await presentation().openBranchesDialog?.({
+    await requiredPresentationMethod("openBranchesDialog")({
       workspaceRoot: "/ws",
       repoRoot: "/ws/nested",
     });
@@ -409,7 +560,7 @@ describe("createGitMenuPresentation branch overlays", () => {
   });
 
   it("prefers an explicit repoRoot when resolving the create-branch repository", async () => {
-    await presentation().openCreateBranchDialog?.({
+    await requiredPresentationMethod("openCreateBranchDialog")({
       workspaceRoot: "/ws",
       repoRoot: "/ws/nested",
     });

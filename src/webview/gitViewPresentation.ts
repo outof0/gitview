@@ -52,7 +52,7 @@ const blamePanels = new Map<string, BlamePanelState>();
  * overlay in place. New Branch / Branches from the native Git submenu prefer
  * posting to the currently active one instead of opening a new tab.
  *
- * Interaction contract (approved): overlay delivery is repo-scoped and
+ * Interaction contract: overlay delivery is repo-scoped and
  * queued until the webview is ready. The caller passes the repository it resolved from the
  * clicked resource; only a visible panel registered for that repository
  * (or a registration with unknown repository, which matches anything) is
@@ -84,7 +84,7 @@ type OverlayRegistration = {
 };
 
 /** How long a boot-time overlay request waits for the ready handshake. */
-export const OVERLAY_DELIVERY_TIMEOUT_MS = 10_000;
+const OVERLAY_DELIVERY_TIMEOUT_MS = 10_000;
 
 const overlayPanels = new Map<vscode.WebviewPanel, OverlayRegistration>();
 let lastActiveOverlayPanel: vscode.WebviewPanel | null = null;
@@ -121,7 +121,7 @@ function trackOverlayPanel(
   });
 }
 
-export function updateOverlayPanelRepo(
+function updateOverlayPanelRepo(
   panel: vscode.WebviewPanel,
   repoId: string | null,
 ): void {
@@ -135,7 +135,7 @@ export function updateOverlayPanelRepo(
  * Mark a panel's webview as ready and flush parked overlay requests in order.
  * Call this from the panel's `webview.ready` handler.
  */
-export function markOverlayPanelReady(panel: vscode.WebviewPanel): void {
+function markOverlayPanelReady(panel: vscode.WebviewPanel): void {
   const registration = overlayPanels.get(panel);
   if (!registration || registration.ready) {
     return;
@@ -328,16 +328,20 @@ async function revealOrCreateDiffPanel(
     ? vscode.ViewColumn.Active
     : vscode.ViewColumn.Beside;
 
-  const repoId = await resolveDiffRepoId(
+  // Open the tab before resolving repo id. Repo lookup used to rediscover the
+  // whole workspace (git status + change digest) and blocked first paint for
+  // seconds on a dirty tree. Overlay targeting can catch up after the tab exists.
+  const repoIdPromise = resolveDiffRepoId(
     options,
     workspaceRoot,
     payload.relativePath,
   );
-  const previewWithRepo = { ...payload, repoId };
 
   if (existing) {
     existing.title = payload.title;
     existing.reveal(targetColumn, true);
+    const repoId = await repoIdPromise;
+    const previewWithRepo = { ...payload, repoId };
     await existing.webview.postMessage(
       createHostEvent("diff.preview", previewWithRepo),
     );
@@ -367,13 +371,25 @@ async function revealOrCreateDiffPanel(
     poster.dispose();
     diffPanels.delete(key);
   });
-  trackOverlayPanel(panel, (message) => Promise.resolve(webview.postMessage(message)), repoId ?? null);
+  trackOverlayPanel(
+    panel,
+    (message) => Promise.resolve(webview.postMessage(message)),
+    null,
+  );
+  let previewWithRepo: GitViewPreviewPayload & { repoId?: string } = {
+    ...payload,
+  };
+  void repoIdPromise.then((repoId) => {
+    previewWithRepo = { ...payload, repoId };
+    updateOverlayPanelRepo(panel, repoId ?? null);
+  });
 
   // Compare menu actions that open another compare update THIS panel.
   const postDiffPreview = async (preview: GitViewPreviewPayload) => {
     const nextRepoId =
       (await resolveDiffRepoId(options, workspaceRoot, preview.relativePath)) ??
-      repoId;
+      overlayPanels.get(panel)?.repoId ??
+      undefined;
     panel.title = preview.title;
     updateOverlayPanelRepo(panel, nextRepoId ?? null);
     await poster.postMessage(
@@ -406,7 +422,7 @@ async function revealOrCreateDiffPanel(
         poster.postMessage(createHostEvent("diff.preview", previewWithRepo));
         return;
       }
-      // Same UX as Explorer → Annotate: open the full Annotate (blame + log) panel.
+      // Same UX as Explorer → Annotate: open the blame editor and workspace log.
       if (request?.type === "diff.annotate") {
         const gitView = options?.getGitView?.();
         if (!gitView) {
@@ -423,17 +439,12 @@ async function revealOrCreateDiffPanel(
         const rel =
           request.payload.relativePath.trim() || payload.relativePath;
         try {
-          await openGitViewBlamePanel(
-            context,
-            gitView,
-            {
-              relativePath: rel,
-              lines: [],
-              loading: true,
-              focusLine: request.payload.focusLine,
-            },
+          await gitView.gitMenuPresentation.openBlame({
+            relativePath: rel,
             workspaceRoot,
-          );
+            repoRoot: workspaceRoot ?? "",
+            focusLine: request.payload.focusLine,
+          });
           poster.postMessage(
             createHostResponse(request.requestId, "diff.annotate", {
               ok: true as const,
@@ -457,13 +468,11 @@ async function revealOrCreateDiffPanel(
     })();
   });
 
+  const html = await getWebviewHtml(webview, context.extensionUri, {
+    app: "gitDiff",
+  });
   const bootstrap = encodeBootstrap(previewWithRepo);
-  webview.html = await getWebviewHtml(
-    webview,
-    context.extensionUri,
-    { app: "gitDiff" },
-  );
-  webview.html = webview.html.replace(
+  webview.html = html.replace(
     `window.__GITVIEW_APP__="gitDiff"`,
     `window.__GITVIEW_APP__="gitDiff";window.__GITVIEW_BOOTSTRAP__=${bootstrap}`,
   );
@@ -471,13 +480,13 @@ async function revealOrCreateDiffPanel(
   diffPanels.set(key, panel);
 }
 
-/** Opens (or reveals) a GitView blame webview — annotate gutter + syntax-highlighted code + Git Log. */
+/** Opens (or reveals) a GitView blame webview — blame annotations plus code. */
 export async function openGitViewBlamePanel(
   context: vscode.ExtensionContext,
   gitView: GitViewContext,
   payload: GitViewBlamePreviewPayload,
   workspaceRoot?: string,
-  _repoRoot?: string,
+  repoRoot?: string,
 ): Promise<void> {
   try {
     await revealOrCreateBlamePanel(
@@ -485,6 +494,7 @@ export async function openGitViewBlamePanel(
       gitView,
       payload,
       workspaceRoot,
+      repoRoot,
     );
   } catch (err) {
     void vscode.window.showErrorMessage(
@@ -500,6 +510,7 @@ async function revealOrCreateBlamePanel(
   gitView: GitViewContext,
   payload: GitViewBlamePreviewPayload,
   workspaceRoot?: string,
+  repoRoot?: string,
 ): Promise<void> {
   const key = blamePanelKey(payload.relativePath, workspaceRoot);
   const fileName =
@@ -516,7 +527,7 @@ async function revealOrCreateBlamePanel(
 
   const resolvedRepoId = await resolveRepoIdForResource(
     gitView,
-    resolvedWorkspaceRoot,
+    repoRoot ?? resolvedWorkspaceRoot,
     payload.relativePath,
   );
   if (!resolvedRepoId) {
@@ -589,6 +600,22 @@ async function revealOrCreateBlamePanel(
         (raw as { payload?: { dirty?: boolean } }).payload?.dirty,
       );
       panel.title = dirty ? `\u25CF ${fileName}` : fileName;
+      return;
+    }
+
+    if (
+      raw &&
+      typeof raw === "object" &&
+      (raw as { type?: string }).type === "blame.selectCommit"
+    ) {
+      const payload = (raw as { payload?: { repoId?: string; sha?: string } })
+        .payload;
+      if (payload?.repoId && payload?.sha) {
+        await gitView.gitMenuPresentation.selectCommit?.({
+          repoId: payload.repoId,
+          sha: payload.sha,
+        });
+      }
       return;
     }
 

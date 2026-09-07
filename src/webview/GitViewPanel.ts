@@ -11,7 +11,7 @@ import { getWebviewHtml } from "./getWebviewHtml";
 import { createFileService } from "../services/fileService";
 import { createMergeApi } from "../services/git/merge";
 import { createRepoApi } from "../services/git/repo";
-import { openGitHistoryPanel } from "./GitHistoryWebviewPanel";
+import { openGitWorkspaceHistory } from "./gitWorkspacePanel";
 import {
   createHostEvent,
   parseWebviewRequest,
@@ -162,22 +162,11 @@ function createRouter(context: vscode.ExtensionContext, gitView: GitViewContext)
       if (!extensionContext) {
         return;
       }
-      const workspaceRoot = await resolveLegacyWorkspaceRoot(
-        gitView,
+      await openGitWorkspaceHistory(extensionContext, gitView, {
         repoId,
-      );
-      if (!workspaceRoot) {
-        throw new Error(
-          "GitView could not find a workspace folder for this action.",
-        );
-      }
-      await openGitHistoryPanel(
-        extensionContext,
-        gitView,
-        historyPath,
+        path: historyPath,
         isFolder,
-        workspaceRoot,
-      );
+      });
     },
     onGitMenuAction: async (payload) => {
       if (!extensionContext) {
@@ -437,8 +426,4 @@ export async function createOrReveal(
     null,
     context.subscriptions,
   );
-}
-
-export function getPanel(): vscode.WebviewPanel | undefined {
-  return panel;
 }

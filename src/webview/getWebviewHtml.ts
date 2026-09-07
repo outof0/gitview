@@ -11,6 +11,7 @@ export type WebviewAppMode =
   | "merge"
   | "gitHistory"
   | "gitWorkspace"
+  | "gitSidebar"
   | "gitDiff"
   | "gitBlame"
   | "gitCreateBranch"
