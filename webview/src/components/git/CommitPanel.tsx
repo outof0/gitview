@@ -14,6 +14,7 @@ type CommitPanelProps = {
   gpgSign: boolean;
   author: string;
   runChecks: boolean;
+  runHooks?: boolean;
   busy: boolean;
   protectedBranch?: boolean;
   onMessageChange: (value: string) => void;
@@ -22,6 +23,7 @@ type CommitPanelProps = {
   onGpgSignChange: (value: boolean) => void;
   onAuthorChange: (value: string) => void;
   onRunChecksChange: (value: boolean) => void;
+  onRunHooksChange?: (value: boolean) => void;
   onCommit: () => void;
   onCommitAndPush: () => void;
   onRunChecks?: () => void;
@@ -44,6 +46,7 @@ export function CommitPanel({
   gpgSign,
   author,
   runChecks,
+  runHooks = true,
   busy,
   protectedBranch = false,
   onMessageChange,
@@ -52,6 +55,7 @@ export function CommitPanel({
   onGpgSignChange,
   onAuthorChange,
   onRunChecksChange,
+  onRunHooksChange,
   onCommit,
   onCommitAndPush,
   onRunChecks,
@@ -60,8 +64,6 @@ export function CommitPanel({
   const canCommit = message.trim().length > 0 && selected.length > 0 && !busy;
   const { summary, description } = splitMessage(message);
   const fileCountLabel = `${selected.length} files selected`;
-  // Minimal stats placeholder — computed from files if needed; pen shows +148 −62
-  // Keep derived from selected for now.
 
   const handleSummaryChange = (value: string) => {
     const newMessage = description ? `${value}\n\n${description}` : value;
@@ -191,6 +193,15 @@ export function CommitPanel({
             testId="commit-gpg-sign"
           >
             GPG sign
+          </Checkbox>
+          <Checkbox
+            className="h-row text-section text-vscode-description"
+            checked={runHooks}
+            disabled={!onRunHooksChange}
+            onChange={(value) => onRunHooksChange?.(value)}
+            testId="commit-run-hooks"
+          >
+            Run Git hooks
           </Checkbox>
         </div>
 

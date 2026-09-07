@@ -36,6 +36,7 @@ export type CommitDialogProps = {
   gpgSign: boolean;
   author: string;
   runChecks: boolean;
+  runHooks?: boolean;
   busy: boolean;
   currentBranch?: string | null;
   protectedBranch?: boolean;
@@ -45,6 +46,7 @@ export type CommitDialogProps = {
   onGpgSignChange: (value: boolean) => void;
   onAuthorChange: (value: string) => void;
   onRunChecksChange: (value: boolean) => void;
+  onRunHooksChange?: (value: boolean) => void;
   onCommit: () => void;
   onCommitAndPush: () => void;
   onCancel: () => void;
@@ -66,6 +68,7 @@ export function CommitDialog({
   gpgSign,
   author,
   runChecks,
+  runHooks = true,
   busy,
   currentBranch,
   protectedBranch = false,
@@ -75,6 +78,7 @@ export function CommitDialog({
   onGpgSignChange,
   onAuthorChange,
   onRunChecksChange,
+  onRunHooksChange,
   onCommit,
   onCommitAndPush,
   onCancel,
@@ -267,6 +271,14 @@ export function CommitDialog({
             testId="commit-dialog-run-checks"
           >
             Run checks
+          </Checkbox>
+          <Checkbox
+            checked={runHooks}
+            disabled={!onRunHooksChange}
+            onChange={(value) => onRunHooksChange?.(value)}
+            testId="commit-dialog-run-hooks"
+          >
+            Run Git hooks
           </Checkbox>
         </div>
       </div>
