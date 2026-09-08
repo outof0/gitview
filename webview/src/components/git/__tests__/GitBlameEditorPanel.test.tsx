@@ -7,7 +7,7 @@ import {
   fireEvent,
   act,
 } from "@testing-library/react";
-import { WorkspaceBlamePanel } from "../WorkspaceBlamePanel";
+import { GitBlameEditorPanel } from "../GitBlameEditorPanel";
 import type { BlameSnapshot } from "@gitview/shared/types/blame";
 import { formatBlameAnnotationDate } from "../../../lib/blameFormat";
 import { createFakeMonaco } from "../../../test/fakeMonaco";
@@ -56,7 +56,7 @@ async function flushMonaco() {
   });
 }
 
-describe("WorkspaceBlamePanel", () => {
+describe("GitBlameEditorPanel", () => {
   beforeEach(() => {
     vi.useRealTimers();
   });
@@ -67,14 +67,14 @@ describe("WorkspaceBlamePanel", () => {
   });
 
   it("prompts to select a file when none is selected", () => {
-    render(<WorkspaceBlamePanel snapshot={null} filePath={null} />);
-    expect(screen.getByTestId("workspace-blame-panel")).toBeTruthy();
+    render(<GitBlameEditorPanel snapshot={null} filePath={null} />);
+    expect(screen.getByTestId("git-blame-editor-panel")).toBeTruthy();
     expect(screen.getByText(/No file open for annotate/i)).toBeTruthy();
   });
 
   it("mounts Monaco code editor and annotate gutter", async () => {
     render(
-      <WorkspaceBlamePanel
+      <GitBlameEditorPanel
         snapshot={snapshot}
         filePath="src/app.ts"
         headSha={snapshot.lines[0]!.sha}
@@ -98,7 +98,7 @@ describe("WorkspaceBlamePanel", () => {
   it("delegates commit clicks to onOpenCommit when provided", async () => {
     let openedSha: string | null = null;
     render(
-      <WorkspaceBlamePanel
+      <GitBlameEditorPanel
         snapshot={snapshot}
         filePath="src/app.ts"
         onOpenCommit={(sha) => {
@@ -113,7 +113,7 @@ describe("WorkspaceBlamePanel", () => {
 
   it("shows a commit hover card after hovering the left message column", async () => {
     render(
-      <WorkspaceBlamePanel
+      <GitBlameEditorPanel
         snapshot={snapshot}
         filePath="src/app.ts"
         onOpenCommit={() => {}}
@@ -134,7 +134,7 @@ describe("WorkspaceBlamePanel", () => {
   });
 
   it("clears annotation when Monaco content for a line is edited", async () => {
-    render(<WorkspaceBlamePanel snapshot={snapshot} filePath="src/app.ts" />);
+    render(<GitBlameEditorPanel snapshot={snapshot} filePath="src/app.ts" />);
     await flushMonaco();
     expect(screen.getByTestId("blame-editor").getAttribute("data-monaco")).toBe(
       "ready",
@@ -160,7 +160,7 @@ describe("WorkspaceBlamePanel", () => {
   });
 
   it("keeps annotate anchors when lines are inserted in the middle", async () => {
-    render(<WorkspaceBlamePanel snapshot={snapshot} filePath="src/app.ts" />);
+    render(<GitBlameEditorPanel snapshot={snapshot} filePath="src/app.ts" />);
     await flushMonaco();
     const uri = fakeMonaco.Uri.parse(
       `inmemory://gitview-blame/${encodeURIComponent("src/app.ts")}`,
@@ -196,7 +196,7 @@ describe("WorkspaceBlamePanel", () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const onDirty = vi.fn();
     render(
-      <WorkspaceBlamePanel
+      <GitBlameEditorPanel
         snapshot={snapshot}
         filePath="src/app.ts"
         onSaveContent={onSave}
@@ -216,7 +216,7 @@ describe("WorkspaceBlamePanel", () => {
     });
 
     expect(
-      screen.getByTestId("workspace-blame-panel").getAttribute("data-dirty"),
+      screen.getByTestId("git-blame-editor-panel").getAttribute("data-dirty"),
     ).toBe("true");
     expect(screen.getByTestId("blame-dirty-dot")).toBeTruthy();
     expect(screen.getByTestId("blame-save-status").textContent).toContain(

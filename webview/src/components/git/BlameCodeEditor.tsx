@@ -262,7 +262,7 @@ export function BlameCodeEditor({
     let resizeObserver: ResizeObserver | null = null;
     let layoutFrame: number | null = null;
 
-    void loadMonaco()
+    void loadMonaco(language)
       .then((monaco) => {
         if (disposed || !monacoHostRef.current) {
           return;

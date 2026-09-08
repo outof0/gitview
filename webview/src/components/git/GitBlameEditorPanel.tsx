@@ -9,7 +9,7 @@ import {
 import { BlameLoadingSkeleton } from "./BlameLoadingSkeleton";
 import { cn } from "../../lib/cn";
 
-type WorkspaceBlamePanelProps = {
+type GitBlameEditorPanelProps = {
   snapshot: BlameSnapshot | null;
   filePath: string | null;
   headSha?: string | null;
@@ -23,21 +23,6 @@ type WorkspaceBlamePanelProps = {
   /** Notify host to mark the webview tab dirty (● in title). */
   onDirtyChange?: (dirty: boolean) => void;
 };
-
-/** @deprecated Use blameBlockBackground from lib/blameFormat */
-export function blameStripeColor(sha: string): string {
-  let hash = 0;
-  for (let i = 0; i < sha.length; i += 1) {
-    hash = (hash * 31 + sha.charCodeAt(i)) >>> 0;
-  }
-  const hue = hash % 360;
-  return `hsl(${hue} 58% 48%)`;
-}
-
-/** @deprecated Use blameBandColor */
-export function blameBandColor(sha: string): string {
-  return blameStripeColor(sha);
-}
 
 function saveStateLabel(state: BlameSaveState): string | null {
   switch (state) {
@@ -54,7 +39,7 @@ function saveStateLabel(state: BlameSaveState): string | null {
   }
 }
 
-export function WorkspaceBlamePanel({
+export function GitBlameEditorPanel({
   snapshot,
   filePath,
   headSha,
@@ -65,7 +50,7 @@ export function WorkspaceBlamePanel({
   onOpenCommit,
   onSaveContent,
   onDirtyChange,
-}: WorkspaceBlamePanelProps) {
+}: GitBlameEditorPanelProps) {
   const fileName = filePath?.split("/").pop() ?? filePath;
   const [saveState, setSaveState] = useState<BlameSaveState>("clean");
 
@@ -87,7 +72,7 @@ export function WorkspaceBlamePanel({
   return (
     <div
       className="flex-1 min-h-0 flex flex-col h-full w-full bg-vscode-editor-bg text-vscode-editor-fg"
-      data-testid="workspace-blame-panel"
+      data-testid="git-blame-editor-panel"
       data-dirty={dirty ? "true" : "false"}
       data-save-state={saveState}
     >
