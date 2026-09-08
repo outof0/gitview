@@ -14,6 +14,8 @@ type TypedDestructiveConfirmDialogProps = {
   title: string;
   description: ReactNode;
   expectedTypedValue?: string;
+  /** Keep the evidence check server-side without making the user type a token. */
+  requireTypedValue?: boolean;
   confirmationKey?: string;
   confirmLabel: string;
   testId: string;
@@ -32,6 +34,7 @@ export function TypedDestructiveConfirmDialog({
   title,
   description,
   expectedTypedValue,
+  requireTypedValue = true,
   confirmationKey,
   confirmLabel,
   testId,
@@ -53,12 +56,16 @@ export function TypedDestructiveConfirmDialog({
   }, [confirmationKey, expectedTypedValue]);
 
   const typedValueMatches =
-    expectedTypedValue === undefined || typedValue === expectedTypedValue;
+    !requireTypedValue ||
+    expectedTypedValue === undefined ||
+    typedValue === expectedTypedValue;
   const canConfirm = typedValueMatches && !busy;
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (canConfirm) {
-      onConfirm(typedValue);
+      onConfirm(
+        requireTypedValue ? typedValue : expectedTypedValue ?? typedValue,
+      );
     }
   };
 
@@ -101,7 +108,7 @@ export function TypedDestructiveConfirmDialog({
             {warning}
           </div>
         ) : null}
-        {expectedTypedValue !== undefined ? (
+        {requireTypedValue && expectedTypedValue !== undefined ? (
           <label className="block mb-3" htmlFor={inputId}>
             <span className="block mb-1">
               Type <code className="font-mono">{expectedTypedValue}</code> to

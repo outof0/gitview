@@ -30,7 +30,7 @@ const evidence: RollbackConfirmationEvidence = {
 afterEach(cleanup);
 
 describe("RollbackConfirmDialog", () => {
-  it("requires the exact typed value and submits host evidence", async () => {
+  it("confirms with one click and submits host evidence", async () => {
     const onConfirm = vi.fn();
     render(
       <RollbackConfirmDialog
@@ -41,14 +41,13 @@ describe("RollbackConfirmDialog", () => {
       />,
     );
 
-    const input = screen.getByTestId("rollback-typed-value");
     const confirm = screen.getByTestId("rollback-confirm");
-    expect(confirm).toHaveProperty("disabled", true);
+    expect(screen.queryByTestId("rollback-typed-value")).toBeNull();
+    expect(confirm).toHaveProperty("disabled", false);
     await waitFor(() =>
       expect(document.activeElement).toBe(screen.getByTestId("rollback-cancel")),
     );
 
-    fireEvent.change(input, { target: { value: "DELETE" } });
     fireEvent.click(confirm);
 
     expect(onConfirm).toHaveBeenCalledWith({
@@ -57,7 +56,7 @@ describe("RollbackConfirmDialog", () => {
     });
   });
 
-  it("clears typed input when stale evidence is replaced", () => {
+  it("updates the confirmation target when stale evidence is replaced", () => {
     const { rerender } = render(
       <RollbackConfirmDialog
         open
@@ -66,9 +65,6 @@ describe("RollbackConfirmDialog", () => {
         onCancel={() => undefined}
       />,
     );
-    const input = screen.getByTestId("rollback-typed-value") as HTMLInputElement;
-    fireEvent.change(input, { target: { value: "DELETE" } });
-
     rerender(
       <RollbackConfirmDialog
         open
@@ -82,10 +78,9 @@ describe("RollbackConfirmDialog", () => {
       />,
     );
 
-    expect(input.value).toBe("");
     expect(screen.getByTestId("rollback-confirm")).toHaveProperty(
       "disabled",
-      true,
+      false,
     );
   });
 });

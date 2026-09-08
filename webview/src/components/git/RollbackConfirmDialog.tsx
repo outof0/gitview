@@ -41,6 +41,7 @@ export function RollbackConfirmDialog({
           : "This discards the selected tracked changes from the working tree."
       }
       expectedTypedValue={confirmation.expectedTypedValue}
+      requireTypedValue={false}
       confirmationKey={confirmationKey}
       confirmLabel={deletesFiles ? "Delete and rollback" : "Rollback changes"}
       testId="rollback-confirm-dialog"
