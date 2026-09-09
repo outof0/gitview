@@ -1,12 +1,28 @@
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronDown, Plus, Settings, X } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  PanelLeftOpen,
+  Plus,
+  Settings,
+  X,
+} from "lucide-react";
 import type { LogQueryFilters } from "@gitview/shared/types/log";
 import type { GitWorkspaceController } from "./gitWorkspaceControllerTypes";
+import type { GitWorkspaceHistoryScope } from "../../stores/gitWorkspaceStoreTypes";
+import { createRootLogFilters } from "../../stores/gitWorkspaceLogDefaults";
 import { LogMenuPortal } from "../../components/git/workspaceLogPanel/logMenuPortal";
+import { Tooltip } from "../../components/ui/Tooltip";
 
-type LogChromeTab = { id: string; title: string; filters: LogQueryFilters };
+type LogChromeTab = {
+  id: string;
+  title: string;
+  filters: LogQueryFilters;
+  kind?: "log" | "history";
+  historyScope?: GitWorkspaceHistoryScope;
+};
 
 function nextLogTabId(): string {
   return `log-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
@@ -28,6 +44,25 @@ function filtersEqual(a: LogQueryFilters, b: LogQueryFilters): boolean {
   return true;
 }
 
+function historyFilters(
+  current: LogQueryFilters,
+  scope: GitWorkspaceHistoryScope,
+): LogQueryFilters {
+  // History is a new resource-scoped view. Carry over presentation settings,
+  // but never carry query filters from the Log tab (branch/author/date/grep)
+  // because they can make a file appear to have the wrong or empty history.
+  return {
+    range: "all",
+    limit: Math.min(current.limit ?? 100, 100),
+    path: scope.path,
+    isFolder: scope.isFolder,
+    collapseLinear: current.collapseLinear,
+    graphSort: current.graphSort,
+    highlightCurrentBranch: current.highlightCurrentBranch,
+    compactRows: current.compactRows,
+  };
+}
+
 export function GitBottomPanelHeader({ ctx }: { ctx: GitWorkspaceController }) {
   const {
     setWorkspaceTab,
@@ -36,6 +71,10 @@ export function GitBottomPanelHeader({ ctx }: { ctx: GitWorkspaceController }) {
     clientRef,
     activeRepo,
     runMutation,
+    historyOpenRequest,
+    setActiveHistoryScope,
+    logRootRequest,
+    resetLogView,
   } = ctx;
   const canAbort = Boolean(
     activeRepo?.operation &&
@@ -43,11 +82,13 @@ export function GitBottomPanelHeader({ ctx }: { ctx: GitWorkspaceController }) {
       activeRepo.operation.canAbort,
   );
   const [logTabs, setLogTabs] = useState<LogChromeTab[]>(() => [
-    { id: "log", title: "Log", filters: logFilters },
+    { id: "log", title: "Log", kind: "log", filters: logFilters },
   ]);
   const [activeLogTabId, setActiveLogTabId] = useState("log");
   const activeRef = useRef(activeLogTabId);
   activeRef.current = activeLogTabId;
+  const handledHistoryRequestRef = useRef<GitWorkspaceHistoryScope | null>(null);
+  const handledRootRequestRef = useRef(logRootRequest);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsAnchor, setSettingsAnchor] =
     useState<HTMLButtonElement | null>(null);
@@ -67,6 +108,81 @@ export function GitBottomPanelHeader({ ctx }: { ctx: GitWorkspaceController }) {
     );
   }, [logFilters]);
 
+  useEffect(() => {
+    if (handledRootRequestRef.current === logRootRequest) {
+      return;
+    }
+    handledRootRequestRef.current = logRootRequest;
+    const rootFilters = createRootLogFilters();
+    setLogTabs((tabs) =>
+      tabs.map((tab, index) =>
+        index === 0
+          ? { ...tab, id: "log", title: "Log", kind: "log", filters: rootFilters }
+          : tab,
+      ),
+    );
+    setActiveLogTabId("log");
+    activeRef.current = "log";
+    setSettingsOpen(false);
+    setWorkspaceTab("log");
+    setActiveHistoryScope(null);
+    if (!filtersEqual(rootFilters, logFilters)) {
+      setLogFilters(rootFilters);
+    }
+  }, [
+    logFilters,
+    logRootRequest,
+    setActiveHistoryScope,
+    setLogFilters,
+    setWorkspaceTab,
+  ]);
+
+  useEffect(() => {
+    if (!historyOpenRequest) {
+      return;
+    }
+    if (handledHistoryRequestRef.current === historyOpenRequest) {
+      return;
+    }
+    handledHistoryRequestRef.current = historyOpenRequest;
+    const existing = logTabs.find(
+      (tab) =>
+        tab.historyScope?.repoId === historyOpenRequest.repoId &&
+        tab.historyScope.path === historyOpenRequest.path &&
+        tab.historyScope.isFolder === historyOpenRequest.isFolder &&
+        tab.historyScope.showDiff === historyOpenRequest.showDiff,
+    );
+    const filters = historyFilters(logFilters, historyOpenRequest);
+    const id = existing?.id ?? nextLogTabId();
+    if (!existing) {
+      const name = historyOpenRequest.path.split("/").filter(Boolean).pop() ?? ".";
+      setLogTabs((tabs) => [
+        ...tabs,
+        {
+          id,
+          title: `History · ${name}${historyOpenRequest.isFolder ? "/" : ""}`,
+          kind: "history",
+          filters,
+          historyScope: historyOpenRequest,
+        },
+      ]);
+    }
+    setActiveLogTabId(id);
+    activeRef.current = id;
+    setWorkspaceTab("log");
+    setActiveHistoryScope(historyOpenRequest);
+    if (!filtersEqual(filters, logFilters)) {
+      setLogFilters(filters);
+    }
+  }, [
+    historyOpenRequest,
+    logFilters,
+    logTabs,
+    setActiveHistoryScope,
+    setLogFilters,
+    setWorkspaceTab,
+  ]);
+
   const tabClass = (selected: boolean) =>
     `shrink-0 h-7 px-2.5 inline-flex items-center gap-1 text-ui-base rounded-vscode ${
       selected
@@ -81,7 +197,13 @@ export function GitBottomPanelHeader({ ctx }: { ctx: GitWorkspaceController }) {
     const tab = logTabs.find((t) => t.id === id);
     setActiveLogTabId(id);
     activeRef.current = id;
-    setWorkspaceTab("log");
+    if (tab?.kind === "history" || tab?.historyScope) {
+      setWorkspaceTab("log");
+      setActiveHistoryScope(tab.historyScope ?? null);
+    } else {
+      setWorkspaceTab("log");
+      setActiveHistoryScope(null);
+    }
     if (tab && !filtersEqual(tab.filters, logFilters)) {
       setLogFilters(tab.filters);
     }
@@ -90,14 +212,13 @@ export function GitBottomPanelHeader({ ctx }: { ctx: GitWorkspaceController }) {
   const addLogTab = () => {
     const title = "Log";
     const id = nextLogTabId();
-    const newFilters: LogQueryFilters = { ...logFilters };
-    setLogTabs((tabs) => [...tabs, { id, title, filters: newFilters }]);
+    const newFilters: LogQueryFilters = createRootLogFilters();
+    setLogTabs((tabs) => [...tabs, { id, title, kind: "log", filters: newFilters }]);
     setActiveLogTabId(id);
     activeRef.current = id;
     setWorkspaceTab("log");
-    if (!filtersEqual(newFilters, logFilters)) {
-      setLogFilters(newFilters);
-    }
+    setActiveHistoryScope(null);
+    resetLogView();
   };
 
   const closeLogTab = (id: string) => {
@@ -110,7 +231,13 @@ export function GitBottomPanelHeader({ ctx }: { ctx: GitWorkspaceController }) {
       const next = remaining[remaining.length - 1]!;
       setActiveLogTabId(next.id);
       activeRef.current = next.id;
-      setWorkspaceTab("log");
+      if (next.kind === "history" || next.historyScope) {
+        setWorkspaceTab("log");
+        setActiveHistoryScope(next.historyScope ?? null);
+      } else {
+        setWorkspaceTab("log");
+        setActiveHistoryScope(null);
+      }
       if (!filtersEqual(next.filters, logFilters)) {
         setLogFilters(next.filters);
       }
@@ -172,6 +299,20 @@ export function GitBottomPanelHeader({ ctx }: { ctx: GitWorkspaceController }) {
       >
         <Plus size={16} aria-hidden />
       </Button>
+
+      <Tooltip label="Toggle Commit sidebar">
+        <Button
+          variant="ghost"
+          size="content"
+          type="button"
+          className={iconBtn}
+          aria-label="Toggle Commit sidebar"
+          data-testid="git-panel-toggle-commit-sidebar"
+          onClick={() => void clientRef.current.toggleSidebar()}
+        >
+          <PanelLeftOpen size={16} aria-hidden />
+        </Button>
+      </Tooltip>
 
       <div className="min-w-0 flex-1" />
 

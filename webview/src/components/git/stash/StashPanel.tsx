@@ -3,13 +3,6 @@ import { Archive, RefreshCw, Undo2 } from "lucide-react";
 import type { StashListSnapshot } from "@gitview/shared/types/stash";
 import { StashList } from "./StashList";
 
-export type StashPushOptions = {
-  message?: string;
-  paths?: string[];
-  includeUntracked?: boolean;
-  keepIndex?: boolean;
-};
-
 type StashPanelProps = {
   snapshot: StashListSnapshot | null;
   busy?: boolean;

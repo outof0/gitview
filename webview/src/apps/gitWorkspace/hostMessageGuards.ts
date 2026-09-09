@@ -3,7 +3,6 @@ import {
   isGitPanelSurface,
   type GitPanelSurface,
 } from "@gitview/shared/protocol";
-import type { BlameSnapshot } from "@gitview/shared/types/blame";
 import type {
   BranchCompareSnapshot,
   BranchListSnapshot,
@@ -67,6 +66,100 @@ export function isGitSettings(
   );
 }
 
+export function isOpenHistoryRequest(value: unknown): value is {
+  type: "git.openHistory";
+  payload: { repoId: string; path: string; isFolder: boolean; showDiff?: boolean };
+} {
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    (value as { type?: string }).type !== "git.openHistory" ||
+    (value as { protocolVersion?: number }).protocolVersion !== PROTOCOL_VERSION
+  ) {
+    return false;
+  }
+  const payload = (value as { payload?: unknown }).payload;
+  const showDiff = (payload as { showDiff?: unknown } | null)?.showDiff;
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    typeof (payload as { repoId?: unknown }).repoId === "string" &&
+    typeof (payload as { path?: unknown }).path === "string" &&
+    typeof (payload as { isFolder?: unknown }).isFolder === "boolean" &&
+    (showDiff === undefined || typeof showDiff === "boolean")
+  );
+}
+
+export function isSelectCommitRequest(value: unknown): value is {
+  type: "git.selectCommit";
+  payload: { repoId: string; sha: string };
+} {
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    (value as { type?: string }).type !== "git.selectCommit" ||
+    (value as { protocolVersion?: number }).protocolVersion !== PROTOCOL_VERSION
+  ) {
+    return false;
+  }
+  const payload = (value as { payload?: unknown }).payload;
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    typeof (payload as { repoId?: unknown }).repoId === "string" &&
+    typeof (payload as { sha?: unknown }).sha === "string"
+  );
+}
+
+export function isRollbackRequest(value: unknown): value is {
+  type: "git.requestRollback";
+  payload: { repoId: string; path: string; selectedPaths?: string[] };
+} {
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    (value as { type?: string }).type !== "git.requestRollback" ||
+    (value as { protocolVersion?: number }).protocolVersion !== PROTOCOL_VERSION
+  ) {
+    return false;
+  }
+  const payload = (value as { payload?: unknown }).payload;
+  const selectedPaths = (payload as { selectedPaths?: unknown } | null)
+    ?.selectedPaths;
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    typeof (payload as { repoId?: unknown }).repoId === "string" &&
+    (payload as { repoId: string }).repoId.length > 0 &&
+    typeof (payload as { path?: unknown }).path === "string" &&
+    (payload as { path: string }).path.length > 0 &&
+    (selectedPaths === undefined ||
+      (Array.isArray(selectedPaths) &&
+        selectedPaths.every((path) => typeof path === "string" && path.length > 0)))
+  );
+}
+
+export function isFocusRootRequest(value: unknown): value is {
+  type: "git.focusRoot";
+  payload: Record<string, never>;
+} {
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    (value as { type?: string }).type !== "git.focusRoot" ||
+    (value as { protocolVersion?: number }).protocolVersion !== PROTOCOL_VERSION
+  ) {
+    return false;
+  }
+  const payload = (value as { payload?: unknown }).payload;
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    !Array.isArray(payload) &&
+    Object.keys(payload).length === 0
+  );
+}
+
 export function isBranchCompareSnapshot(
   value: unknown,
 ): value is { type: "branch.compare.snapshot"; payload: BranchCompareSnapshot } {
@@ -92,15 +185,6 @@ export function isLogSnapshot(value: unknown): value is { type: "log.snapshot"; 
     typeof value === "object" &&
     value !== null &&
     (value as { type?: string }).type === "log.snapshot" &&
-    (value as { protocolVersion?: number }).protocolVersion === PROTOCOL_VERSION
-  );
-}
-
-export function isBlameSnapshot(value: unknown): value is { type: "blame.snapshot"; payload: BlameSnapshot } {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    (value as { type?: string }).type === "blame.snapshot" &&
     (value as { protocolVersion?: number }).protocolVersion === PROTOCOL_VERSION
   );
 }
@@ -192,9 +276,14 @@ export function isOpenDialogRequest(
   value: unknown,
 ): value is {
   type: "git.openDialog";
-  payload: { dialog: GitPanelSurface; relativePath?: string };
+  payload: {
+    dialog: GitPanelSurface;
+    relativePath?: string;
+    index?: number | null;
+    repoId?: string;
+  };
 } {
-  return (
+  if (
     typeof value === "object" &&
     value !== null &&
     (value as { type?: string }).type === "git.openDialog" &&
@@ -203,5 +292,16 @@ export function isOpenDialogRequest(
     isGitPanelSurface(
       (value as { payload?: { dialog?: unknown } }).payload?.dialog,
     )
-  );
+  ) {
+    const payload = (value as { payload?: Record<string, unknown> }).payload;
+    const index = payload?.index;
+    const repoId = payload?.repoId;
+    return (
+      (index === undefined ||
+        index === null ||
+        (typeof index === "number" && Number.isInteger(index) && index >= 0)) &&
+      (repoId === undefined || (typeof repoId === "string" && repoId.length > 0))
+    );
+  }
+  return false;
 }

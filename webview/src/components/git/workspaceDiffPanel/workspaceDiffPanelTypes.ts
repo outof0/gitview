@@ -21,8 +21,6 @@ export type DiffHunkPanelProps = {
   onShelveHunk?: (hunkIndex: number) => void;
   showLogActions?: boolean;
   canDropSelected?: boolean;
-  onCherryPickHunk?: (hunkIndex: number) => void;
-  onRevertHunk?: (hunkIndex: number) => void;
   onDropHunk?: (hunkIndex: number) => void;
   onCherryPickLines?: (lines: DiffLineSelection[]) => void;
   onRevertLines?: (lines: DiffLineSelection[]) => void;

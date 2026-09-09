@@ -120,8 +120,6 @@ export function HunkActionBar({
   onStage,
   onUnstage,
   onShelve,
-  onCherryPick,
-  onRevert,
   onDrop,
 }: {
   hunkId: number;
@@ -133,8 +131,6 @@ export function HunkActionBar({
   onStage?: (hunkId: number) => void;
   onUnstage?: (hunkId: number) => void;
   onShelve?: (hunkId: number) => void;
-  onCherryPick?: (hunkId: number) => void;
-  onRevert?: (hunkId: number) => void;
   onDrop?: (hunkId: number) => void;
 }) {
   return (
@@ -176,30 +172,6 @@ export function HunkActionBar({
         >
           <Archive size={12} aria-hidden />
           Shelve hunk
-        </Button>
-      )}
-      {showLogActions && onCherryPick && (
-        <Button variant="ghost" size="content"
-          type="button"
-          className="h-6 px-2 flex items-center gap-1 text-section rounded-vscode hover:bg-list-hover disabled:opacity-40"
-          disabled={busy}
-          onClick={() => onCherryPick(hunkId)}
-          data-testid={`cherry-pick-hunk-${hunkId}`}
-        >
-          <Cherry size={12} aria-hidden />
-          Cherry-pick hunk
-        </Button>
-      )}
-      {showLogActions && onRevert && (
-        <Button variant="ghost" size="content"
-          type="button"
-          className="h-6 px-2 flex items-center gap-1 text-section rounded-vscode hover:bg-list-hover disabled:opacity-40"
-          disabled={busy}
-          onClick={() => onRevert(hunkId)}
-          data-testid={`revert-hunk-${hunkId}`}
-        >
-          <Undo2 size={12} aria-hidden />
-          Revert hunk
         </Button>
       )}
       {showLogActions && canDropSelected && onDrop && (

@@ -1,8 +1,9 @@
+import { memo } from "react";
 import type { DiffLineHighlight } from "../buildDiffDisplayRows";
 import { HighlightedCodeLine } from "../HighlightedCodeLine";
 import { highlightClass } from "./workspaceDiffPanelUtils";
 
-export function CodeLine({
+export const CodeLine = memo(function CodeLine({
   lineNum,
   text,
   highlight,
@@ -43,9 +44,9 @@ export function CodeLine({
       </span>
     </div>
   );
-}
+});
 
-export function UnifiedCodeLine({
+export const UnifiedCodeLine = memo(function UnifiedCodeLine({
   prefix,
   lineNum,
   text,
@@ -91,4 +92,4 @@ export function UnifiedCodeLine({
       </span>
     </div>
   );
-}
+});

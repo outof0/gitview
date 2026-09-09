@@ -56,6 +56,48 @@ describe("WorkspaceChangesPanel", () => {
     expect(screen.getByTestId("change-status-both.ts").textContent).toBe("!");
   });
 
+  it("can hide the Local Changes header when a parent toolbar owns it", () => {
+    render(
+      <WorkspaceChangesPanel
+        files={[file("src/app.ts", "modified")]}
+        selectedPath={null}
+        commitScope={new Set()}
+        hideHeader
+        onSelectFile={vi.fn()}
+        onToggleCommitScope={vi.fn()}
+        onStage={vi.fn()}
+        onUnstage={vi.fn()}
+        onRollback={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText("Local Changes")).toBeNull();
+    expect(screen.getByTestId("change-row-src/app.ts")).toBeTruthy();
+  });
+
+  it("selects a whole Changes section from the tree chrome", () => {
+    const onSetCommitScope = vi.fn();
+    render(
+      <WorkspaceChangesPanel
+        files={[file("src/app.ts", "modified"), file("src/b.ts", "modified")]}
+        selectedPath={null}
+        commitScope={new Set()}
+        hideHeader
+        onSelectFile={vi.fn()}
+        onToggleCommitScope={vi.fn()}
+        onSetCommitScope={onSetCommitScope}
+        onStage={vi.fn()}
+        onUnstage={vi.fn()}
+        onRollback={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("changes-tracked-select"));
+    expect(onSetCommitScope).toHaveBeenCalledWith(
+      new Set(["src/app.ts", "src/b.ts"]),
+    );
+  });
+
   it("shows the compare target from the current upstream", () => {
     render(
       <WorkspaceChangesPanel
@@ -100,6 +142,7 @@ describe("WorkspaceChangesPanel", () => {
 
   it("selects a file when clicked", () => {
     const onSelect = vi.fn();
+    const onOpenInEditor = vi.fn();
 
     render(
       <WorkspaceChangesPanel
@@ -107,6 +150,7 @@ describe("WorkspaceChangesPanel", () => {
         selectedPath={null}
         commitScope={new Set()}
         onSelectFile={onSelect}
+        onOpenInEditor={onOpenInEditor}
         onToggleCommitScope={vi.fn()}
         onStage={vi.fn()}
         onUnstage={vi.fn()}
@@ -116,5 +160,33 @@ describe("WorkspaceChangesPanel", () => {
 
     fireEvent.click(screen.getByTestId("change-row-src/app.ts").querySelector("button")!);
     expect(onSelect).toHaveBeenCalledWith("src/app.ts");
+    expect(onOpenInEditor).not.toHaveBeenCalled();
+  });
+
+  it("opens a file in the editor only on double-click", () => {
+    const onSelect = vi.fn();
+    const onOpenInEditor = vi.fn();
+
+    render(
+      <WorkspaceChangesPanel
+        files={[file("src/app.ts", "modified")]}
+        selectedPath={null}
+        commitScope={new Set()}
+        onSelectFile={onSelect}
+        onOpenInEditor={onOpenInEditor}
+        onToggleCommitScope={vi.fn()}
+        onStage={vi.fn()}
+        onUnstage={vi.fn()}
+        onRollback={vi.fn()}
+      />,
+    );
+
+    const fileButton = screen
+      .getByTestId("change-row-src/app.ts")
+      .querySelector("button")!;
+    fireEvent.doubleClick(fileButton);
+
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(onOpenInEditor).toHaveBeenCalledWith("src/app.ts");
   });
 });

@@ -109,4 +109,39 @@ describe("WorkspaceDiffPanel unified view", () => {
 
     expect(right.scrollTop).toBe(180);
   });
+
+  it("does not expose unsupported history hunk actions", () => {
+    render(
+      <WorkspaceDiffPanel
+        document={document}
+        filePath="src/app.ts"
+        showLogActions
+      />,
+    );
+
+    expect(screen.queryByText("Cherry-pick hunk")).toBeNull();
+    expect(screen.queryByText("Revert hunk")).toBeNull();
+    expect(screen.queryByTestId("hunk-actions-0")).toBeNull();
+  });
+
+  it("renders only the visible window for a large unified diff", () => {
+    useGitWorkspaceStore.setState({ diffViewMode: "unified" });
+    const text = Array.from(
+      { length: 6_000 },
+      (_, index) => `const value${index} = ${index};`,
+    ).join("\n");
+    const { container } = render(
+      <WorkspaceDiffPanel
+        document={{
+          ...document,
+          filePath: "large.ts",
+          left: { label: "parent", text },
+          right: { label: "commit", text },
+        }}
+        filePath="large.ts"
+      />,
+    );
+
+    expect(container.querySelectorAll('[data-testid="code-line"]').length).toBeLessThan(200);
+  });
 });

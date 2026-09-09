@@ -3,6 +3,8 @@ import { PROTOCOL_VERSION } from "@gitview/shared/protocol";
 import {
   isRepoSnapshot,
   isSyncOperationMessage,
+  isFocusRootRequest,
+  isSelectCommitRequest,
 } from "../hostMessageGuards";
 
 const repository = {
@@ -107,6 +109,71 @@ describe("isSyncOperationMessage", () => {
         protocolVersion: PROTOCOL_VERSION + 1,
         type: "sync.operation",
         payload,
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("isFocusRootRequest", () => {
+  it("accepts the empty root-focus event", () => {
+    expect(
+      isFocusRootRequest({
+        protocolVersion: PROTOCOL_VERSION,
+        type: "git.focusRoot",
+        payload: {},
+      }),
+    ).toBe(true);
+  });
+
+  it("rejects unexpected payload fields and stale protocol versions", () => {
+    expect(
+      isFocusRootRequest({
+        protocolVersion: PROTOCOL_VERSION,
+        type: "git.focusRoot",
+        payload: { path: "src/old.ts" },
+      }),
+    ).toBe(false);
+    expect(
+      isFocusRootRequest({
+        protocolVersion: PROTOCOL_VERSION + 1,
+        type: "git.focusRoot",
+        payload: {},
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("isSelectCommitRequest", () => {
+  it("accepts valid selectCommit payloads", () => {
+    expect(
+      isSelectCommitRequest({
+        protocolVersion: PROTOCOL_VERSION,
+        type: "git.selectCommit",
+        payload: { repoId: "repo-1", sha: "abc1234" },
+      }),
+    ).toBe(true);
+  });
+
+  it("rejects invalid payloads, wrong types, and stale protocol versions", () => {
+    expect(
+      isSelectCommitRequest({
+        protocolVersion: PROTOCOL_VERSION,
+        type: "git.selectCommit",
+        payload: { repoId: "repo-1" },
+      }),
+    ).toBe(false);
+    expect(
+      isSelectCommitRequest({
+        protocolVersion: PROTOCOL_VERSION,
+        type: "git.other",
+        payload: { repoId: "repo-1", sha: "abc1234" },
+      }),
+    ).toBe(false);
+    expect(
+      isSelectCommitRequest({
+        protocolVersion: PROTOCOL_VERSION + 1,
+        type: "git.selectCommit",
+        payload: { repoId: "repo-1", sha: "abc1234" },
       }),
     ).toBe(false);
   });

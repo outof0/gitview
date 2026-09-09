@@ -17,6 +17,8 @@ export type DiffDisplayRow = {
   rightHighlight: DiffLineHighlight;
 };
 
+const UI_DIFF_MAX_WORK = 500_000;
+
 export function buildDiffDisplayRows(
   left: string,
   right: string,
@@ -33,7 +35,7 @@ export function buildDiffDisplayRows(
     policy === "doNotIgnore"
       ? b
       : b.map((line) => normalizeLineForCompare(line, policy));
-  const ops = diffLines(aCompare, bCompare);
+  const ops = diffLines(aCompare, bCompare, { maxWork: UI_DIFF_MAX_WORK });
   const rows: DiffDisplayRow[] = [];
   let leftNum = 1;
   let rightNum = 1;
@@ -89,8 +91,8 @@ export function buildDiffDisplayRows(
             rightNum: hasRight ? rightNum++ : null,
             leftText: hasLeft ? (a[op.aStart + k] ?? "") : "",
             rightText: hasRight ? (b[op.bStart + k] ?? "") : "",
-            leftHighlight: hasLeft ? "changed" : "none",
-            rightHighlight: hasRight ? "changed" : "none",
+            leftHighlight: hasLeft ? "removed" : "none",
+            rightHighlight: hasRight ? "added" : "none",
           });
         }
         break;

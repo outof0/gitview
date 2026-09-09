@@ -182,4 +182,25 @@ describe("GitWorkspaceChangesTab callback stability", () => {
     // than no memo at all, because it silently serves stale file lists.
     expect(first.files).not.toBe(second.files);
   });
+
+  it("passes remote availability even when the branch has no upstream", () => {
+    const repoWithUntrackedRemote: Repository = {
+      ...repository,
+      upstream: null,
+      ahead: null,
+      behind: null,
+      remoteState: {
+        kind: "available",
+        remotes: ["origin"],
+        upstream: null,
+      },
+    };
+    render(
+      <GitWorkspaceChangesTab
+        ctx={makeCtx({ activeRepo: repoWithUntrackedRemote })}
+      />,
+    );
+
+    expect(panelSpy.calls[0]?.hasRemote).toBe(true);
+  });
 });

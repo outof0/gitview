@@ -84,4 +84,25 @@ describe("WorkspaceDiffPanel line actions", () => {
       expect(adHocScrollOwners(pane)).toEqual([]);
     }
   });
+
+  it("renders only the visible window for large files", () => {
+    const text = Array.from(
+      { length: 6_000 },
+      (_, index) => `const value${index} = ${index};`,
+    ).join("\n");
+    const { container } = render(
+      <WorkspaceDiffPanel
+        document={{
+          ...document,
+          filePath: "large.ts",
+          left: { label: "parent", text },
+          right: { label: "commit", text },
+        }}
+        filePath="large.ts"
+        showHunkActions
+      />,
+    );
+
+    expect(container.querySelectorAll('[data-testid="code-line"]').length).toBeLessThan(300);
+  });
 });

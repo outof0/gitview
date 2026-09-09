@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildDiffNavigationHunks } from "../diffNavigation";
+import { buildDiffNavigationHunks, monacoDiffWashClass } from "../diffNavigation";
 
 describe("buildDiffNavigationHunks", () => {
   it("coalesces adjacent replace operations into one navigable hunk", () => {
@@ -58,5 +58,25 @@ describe("buildDiffNavigationHunks", () => {
 
   it("returns no targets for identical content", () => {
     expect(buildDiffNavigationHunks("same", "same")).toEqual([]);
+  });
+});
+
+describe("monacoDiffWashClass", () => {
+  it("maps a replace to removed on the original and added on the modified", () => {
+    expect(monacoDiffWashClass("changed", "original")).toBe(
+      "monaco-diff-removed",
+    );
+    expect(monacoDiffWashClass("changed", "modified")).toBe(
+      "monaco-diff-added",
+    );
+  });
+
+  it("does not wash the opposite side of a pure insert or delete", () => {
+    expect(monacoDiffWashClass("added", "original")).toBeNull();
+    expect(monacoDiffWashClass("added", "modified")).toBe("monaco-diff-added");
+    expect(monacoDiffWashClass("removed", "original")).toBe(
+      "monaco-diff-removed",
+    );
+    expect(monacoDiffWashClass("removed", "modified")).toBeNull();
   });
 });

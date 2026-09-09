@@ -1,6 +1,19 @@
 import { diffLines } from "../../../../src/core/lcs";
 
+const NAVIGATION_DIFF_MAX_WORK = 500_000;
+
 export type DiffNavigationHunkKind = "added" | "removed" | "changed";
+
+/** Line wash for one side of a hunk. Replaces use a red original / green modified, matching the native VS Code diff — not a third gold color. */
+export function monacoDiffWashClass(
+  kind: DiffNavigationHunkKind,
+  side: "original" | "modified",
+): "monaco-diff-added" | "monaco-diff-removed" | null {
+  if (side === "original") {
+    return kind === "added" ? null : "monaco-diff-removed";
+  }
+  return kind === "removed" ? null : "monaco-diff-added";
+}
 
 export type DiffNavigationHunk = {
   kind: DiffNavigationHunkKind;
@@ -85,7 +98,9 @@ export function buildDiffNavigationHunks(
 
   try {
     const changes: MutableHunk[] = [];
-    for (const op of diffLines(originalLines, modifiedLines)) {
+    for (const op of diffLines(originalLines, modifiedLines, {
+      maxWork: NAVIGATION_DIFF_MAX_WORK,
+    })) {
       if (op.type === "equal") {
         continue;
       }

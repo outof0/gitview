@@ -16,13 +16,28 @@ export function GitWorkspaceTemporaryTab({ ctx }: { ctx: GitWorkspaceController 
     shelfSnapshot,
     patchPreview,
     setTemporarySubTab,
-    openDialog,
     setPatchPreview,
     activeRepo,
     runMutation,
     loadStashes,
     loadShelves,
   } = ctx;
+
+  const openContentDialog = (
+    dialog: "stash" | "unstash",
+    index?: number,
+  ): void => {
+    if (!activeRepo) {
+      return;
+    }
+    void clientRef.current
+      .openContentDialog(activeRepo.id, dialog, index ?? null)
+      .catch((error: unknown) => {
+        useGitWorkspaceStore.getState().setError(
+          error instanceof Error ? error.message : "Could not open the Git dialog",
+        );
+      });
+  };
 
   return (
     <WorkspaceTemporaryWorkPanel
@@ -39,9 +54,9 @@ export function GitWorkspaceTemporaryTab({ ctx }: { ctx: GitWorkspaceController 
           }
           onRefreshStash={() => void loadStashes()}
           onRefreshShelf={() => void loadShelves()}
-          onOpenStashDialog={() => openDialog("stash", {})}
+          onOpenStashDialog={() => openContentDialog("stash")}
           onOpenUnstashDialog={(index) =>
-            openDialog("unstash", { index: index ?? null })
+            openContentDialog("unstash", index)
           }
           onApplyStash={(index, opts) =>
             activeRepo &&

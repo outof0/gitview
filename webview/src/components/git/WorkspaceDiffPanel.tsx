@@ -33,8 +33,6 @@ type WorkspaceDiffPanelProps = {
   onShelveHunk?: (hunkIndex: number) => void;
   showLogActions?: boolean;
   canDropSelected?: boolean;
-  onCherryPickHunk?: (hunkIndex: number) => void;
-  onRevertHunk?: (hunkIndex: number) => void;
   onDropHunk?: (hunkIndex: number) => void;
   onCherryPickLines?: (lines: DiffLineSelection[]) => void;
   onRevertLines?: (lines: DiffLineSelection[]) => void;
@@ -66,8 +64,6 @@ export function WorkspaceDiffPanel({
   onShelveHunk,
   showLogActions = false,
   canDropSelected = false,
-  onCherryPickHunk,
-  onRevertHunk,
   onDropHunk,
   onCherryPickLines,
   onRevertLines,
@@ -80,6 +76,15 @@ export function WorkspaceDiffPanel({
   const setDiffViewMode = useGitWorkspaceStore((s) => s.setDiffViewMode);
   const setWhitespacePolicy = useGitWorkspaceStore((s) => s.setWhitespacePolicy);
   const diff = document ? toFileDiffView(document) : null;
+  const monacoOptions = useMemo(
+    () => ({
+      sideBySide: diffViewMode === "side_by_side",
+      trimWhitespace: whitespacePolicy !== "doNotIgnore",
+      collapseUnchanged: false,
+      softWrap: false,
+    }),
+    [diffViewMode, whitespacePolicy],
+  );
   const { postMessage } = useVsCodeApi();
   const client = useMemo(() => createProtocolClient(postMessage), [postMessage]);
   const handleOpenInEditor = useCallback(() => {
@@ -129,9 +134,14 @@ export function WorkspaceDiffPanel({
     }
   };
 
+  const hasHunkActions =
+    Boolean(showHunkActions) &&
+    Boolean(onStageHunk || onUnstageHunk || onShelveHunk) ||
+    Boolean(showLogActions && canDropSelected && onDropHunk);
+
   const hunkPanelProps = {
     whitespacePolicy,
-    showHunkActions: showHunkActions || showLogActions,
+    showHunkActions: hasHunkActions,
     showLineActions: showHunkActions || showLogActions,
     stagedView,
     busy,
@@ -156,8 +166,6 @@ export function WorkspaceDiffPanel({
     onShelveHunk,
     showLogActions,
     canDropSelected,
-    onCherryPickHunk,
-    onRevertHunk,
     onDropHunk,
     onCherryPickLines: onCherryPickLines
       ? (lines: DiffLineSelection[]) => {
@@ -278,26 +286,31 @@ export function WorkspaceDiffPanel({
         )}
         {!loading && !error && diff && !diff.binary && diff.left && diff.right && (
           <div className="h-full min-h-0 flex flex-col" data-testid="git-diff-preview">
-            {diff.layout === "split" && diffViewMode === "unified" ? (
+            {diff.layout === "split" && diffViewMode === "unified" && !showLogActions ? (
               <UnifiedWithHunks
                 left={diff.left}
                 right={diff.right}
                 {...hunkPanelProps}
               />
-            ) : diff.layout === "split" && (showHunkActions || showLogActions) ? (
+            ) : diff.layout === "split" && showHunkActions ? (
               <SplitWithHunks
                 left={diff.left}
                 right={diff.right}
                 {...hunkPanelProps}
               />
             ) : (
-              // Compare / branch-compare / added or deleted file: full Monaco (syntax + native scroll sync)
+              // History/compare views share the same Monaco renderer as the
+              // standalone content tab, so fonts, syntax tokens and diff
+              // highlighting stay identical. The hunk renderer remains only
+              // where staging actions need line-level controls.
               <MonacoDiffViewer
                 leftText={diff.left.text}
                 rightText={diff.right.text}
                 leftLabel={diff.left.label}
                 rightLabel={diff.right.label}
                 filePath={filePath}
+                options={monacoOptions}
+                revealFirstChange={showLogActions}
               />
             )}
           </div>
@@ -310,6 +323,7 @@ export function WorkspaceDiffPanel({
               leftLabel={diff.left?.label ?? "Empty"}
               rightLabel={diff.right?.label ?? "Deleted"}
               filePath={filePath}
+              options={monacoOptions}
             />
           </div>
         )}

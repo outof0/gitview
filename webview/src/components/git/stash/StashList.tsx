@@ -73,6 +73,9 @@ export function StashList({
         {stashes.map((entry) => {
           const selected = entry.index === selectedIndex;
           const fileCount = selected ? selectedFileCount : entry.fileCount;
+          const stashIconClass = entry.hasUntracked
+            ? "text-status-untracked"
+            : "text-status-modified";
           return (
             <li key={entry.ref} className="list-none">
               <Button variant="ghost" size="content"
@@ -94,11 +97,15 @@ export function StashList({
                 )}
                 data-testid={`stash-entry-${entry.index}`}
               >
-                <Package size={14} className="shrink-0 opacity-70" aria-hidden />
+                <Package
+                  size={14}
+                  className={cn("shrink-0", stashIconClass)}
+                  aria-hidden
+                />
                 <span className="flex-1 min-w-0 truncate">{entry.message}</span>
                 {entry.branch ? (
                   <span
-                    className="shrink-0 inline-flex items-center gap-1 text-ui-sm opacity-75"
+                    className="shrink-0 inline-flex items-center gap-1 text-ui-sm text-vscode-link"
                     data-testid={`stash-branch-${entry.index}`}
                   >
                     <GitBranch size={12} aria-hidden />
