@@ -156,6 +156,16 @@ export function createProtocolClientLogMethods(request: ProtocolRequestFn) {
         "git.menuAction",
         { repoId, ...payload },
       ),
+    openRollbackPanel: (
+      repoId: string,
+      path: string,
+      selectedPaths?: string[],
+    ) =>
+      request("rollback.openPanel", {
+        repoId,
+        path,
+        ...(selectedPaths && selectedPaths.length > 0 ? { selectedPaths } : {}),
+      }),
     openHistoryPanel: (repoId: string, path: string, isFolder: boolean) =>
       request(
         "history.openPanel",

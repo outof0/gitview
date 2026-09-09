@@ -1,4 +1,5 @@
 import { useCallback, useRef } from "react";
+import type { WorkspaceDiffDocument } from "@gitview/shared/types/diff";
 import { useGitWorkspaceStore } from "../../stores/gitWorkspaceStore";
 import type { GitWorkspaceLoaderApi } from "../../apps/gitWorkspace/gitWorkspaceControllerTypes";
 import type { GitWorkspaceDeps } from "./gitWorkspaceDeps";
@@ -15,9 +16,6 @@ export function useGitWorkspaceLoaders(deps: GitWorkspaceDeps): GitWorkspaceLoad
     setDiffDocument,
     setDiffLoading,
     setDiffError,
-    selectedFilePath,
-    setBlameLoading,
-    setBlameError,
     setLogLoading,
     setLogError,
     selectFile,
@@ -57,6 +55,7 @@ export function useGitWorkspaceLoaders(deps: GitWorkspaceDeps): GitWorkspaceLoad
   }, [loadBranches, setBranchesOpen]);
 
   const diffRequestRef = useRef(0);
+  const logDiffCacheRef = useRef(new Map<string, WorkspaceDiffDocument>());
 
   const loadDiff = useCallback(
     async (path: string, staged = diffStagedView) => {
@@ -101,27 +100,6 @@ export function useGitWorkspaceLoaders(deps: GitWorkspaceDeps): GitWorkspaceLoad
     [activeRepo, diffStagedView, setDiffDocument, setDiffError, setDiffLoading],
   );
 
-  const loadBlame = useCallback(async () => {
-    if (!activeRepo || !selectedFilePath) {
-      return;
-    }
-    const token = begin(activeRepo.id, "blame");
-    setBlameLoading(true);
-    setBlameError(null);
-    try {
-      await clientRef.current.queryBlame(activeRepo.id, selectedFilePath);
-    } catch (err) {
-      if (!isCurrent(token)) {
-        return;
-      }
-      setBlameError(err instanceof Error ? err.message : "Failed to load blame");
-    } finally {
-      if (isCurrent(token)) {
-        setBlameLoading(false);
-      }
-    }
-  }, [activeRepo, begin, isCurrent, selectedFilePath, setBlameError, setBlameLoading]);
-
   const loadLog = useCallback(async () => {
     if (!activeRepo) {
       return;
@@ -153,8 +131,18 @@ export function useGitWorkspaceLoaders(deps: GitWorkspaceDeps): GitWorkspaceLoad
       const isRequestRepoActive = () => isRepoTokenCurrent(requestToken);
       const generation = diffRequestRef.current + 1;
       diffRequestRef.current = generation;
-      setDiffLoading(true);
       setDiffError(null);
+      setDiffDocument(null);
+      const cacheKey = `${activeRepo.id}\u0000${sha}\u0000${status}\u0000${path}`;
+      const cached = logDiffCacheRef.current.get(cacheKey);
+      if (cached) {
+        logDiffCacheRef.current.delete(cacheKey);
+        logDiffCacheRef.current.set(cacheKey, cached);
+        setDiffDocument(cached);
+        setDiffLoading(false);
+        return;
+      }
+      setDiffLoading(true);
       try {
         const document = await clientRef.current.logFileDiff(
           activeRepo.id,
@@ -166,6 +154,13 @@ export function useGitWorkspaceLoaders(deps: GitWorkspaceDeps): GitWorkspaceLoad
           return;
         }
         if (document) {
+          logDiffCacheRef.current.set(cacheKey, document);
+          if (logDiffCacheRef.current.size > 64) {
+            const oldest = logDiffCacheRef.current.keys().next().value;
+            if (oldest !== undefined) {
+              logDiffCacheRef.current.delete(oldest);
+            }
+          }
           setDiffDocument(document);
         }
       } catch (err) {
@@ -190,10 +185,11 @@ export function useGitWorkspaceLoaders(deps: GitWorkspaceDeps): GitWorkspaceLoad
 
   const handleSelectFile = useCallback(
     (path: string) => {
+      diffRequestRef.current += 1;
       selectFile(path);
-      void loadDiff(path);
+      setDiffDocument(null);
     },
-    [loadDiff, selectFile],
+    [selectFile, setDiffDocument],
   );
-  return { loadBranches, openBranches, loadDiff, loadBlame, loadLog, loadLogFileDiff, handleSelectFile };
+  return { loadBranches, openBranches, loadDiff, loadLog, loadLogFileDiff, handleSelectFile };
 }

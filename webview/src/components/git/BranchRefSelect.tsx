@@ -14,10 +14,10 @@ type BranchRefSelectProps = {
   testId?: string;
 };
 
-export const branchSelectClasses = gitDialogInput;
+const branchSelectClasses = gitDialogInput;
 
 /** The ref git needs for a branch: remotes must keep their `origin/` prefix. */
-export function branchRefOf(branch: BranchEntry): string {
+function branchRefOf(branch: BranchEntry): string {
   return branch.remote ? branch.fullName : branch.name;
 }
 

@@ -11,7 +11,7 @@ import { Button } from "../ui/Button";
 import { Checkbox } from "../ui/Checkbox";
 import { BranchRefSelect } from "./BranchRefSelect";
 
-export type RebaseChoice = {
+type RebaseChoice = {
   interactive?: boolean;
   from?: string;
   rebaseMerges?: boolean;

@@ -1,8 +1,9 @@
 import { create } from "zustand";
 import { createGitWorkspaceStoreSlice } from "./gitWorkspaceStoreSlice";
+import { createRootLogFilters } from "./gitWorkspaceLogDefaults";
 import type { GitWorkspaceActions, GitWorkspaceState } from "./gitWorkspaceStoreTypes";
 
-export type { GitDiffViewMode, GitWorkspaceState } from "./gitWorkspaceStoreTypes";
+export type { GitWorkspaceState } from "./gitWorkspaceStoreTypes";
 
 export const useGitWorkspaceStore = create<GitWorkspaceState & GitWorkspaceActions>(
   (set, get) => ({
@@ -29,6 +30,7 @@ export const useGitWorkspaceStore = create<GitWorkspaceState & GitWorkspaceActio
     gpgSign: false,
     author: "",
     runChecks: true,
+    runHooks: true,
     pullStrategy: "merge",
     synchronousBranchControl: true,
     branchesOpen: false,
@@ -44,9 +46,6 @@ export const useGitWorkspaceStore = create<GitWorkspaceState & GitWorkspaceActio
     worktreesLoading: false,
     worktreeSnapshot: null,
     patchPreview: null,
-    blameSnapshot: null,
-    blameLoading: false,
-    blameError: null,
     workspaceNotification: null,
     logSnapshot: null,
     logLoading: false,
@@ -54,7 +53,11 @@ export const useGitWorkspaceStore = create<GitWorkspaceState & GitWorkspaceActio
     logSelectedSha: null,
     logSelectedShas: [],
     logSelectedFilePath: null,
-    logFilters: { range: "all", limit: 200 },
+    logFilters: createRootLogFilters(),
+    logRootRequest: 0,
+    historyOpenRequest: null,
+    activeHistoryScope: null,
+    pendingRollback: null,
     issueTrackerBaseUrl: null,
     diffStagedView: false,
     diffViewMode: "side_by_side",

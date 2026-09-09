@@ -8,7 +8,6 @@ import {
   isBranchCompareSnapshot,
   isBranchSnapshot,
   isLogSnapshot,
-  isBlameSnapshot,
   isNotification,
   isReviewSnapshot,
   isReviewDetails,
@@ -20,6 +19,10 @@ import {
   isGitSettings,
   isOpenDialogRequest,
   isSyncOperationMessage,
+  isOpenHistoryRequest,
+  isSelectCommitRequest,
+  isRollbackRequest,
+  isFocusRootRequest,
 } from "../../apps/gitWorkspace/hostMessageGuards";
 import type { GitWorkspaceDeps } from "./gitWorkspaceDeps";
 
@@ -37,7 +40,6 @@ export function useGitWorkspaceHostSubscription(
     applySyncOperation,
     applyBranchSnapshot,
     applyLogSnapshot,
-    applyBlameSnapshot,
     applyStashSnapshot,
     applyShelfSnapshot,
     applyTagSnapshot,
@@ -56,6 +58,12 @@ export function useGitWorkspaceHostSubscription(
     closeAllDialogs,
     openExclusiveDialog,
     setNativeFocusSurface,
+    setWorkspaceTab,
+    requestHistoryOpen,
+    selectLogCommit,
+    setPendingRollback,
+    clearPendingRollback,
+    focusLogRoot,
   } = deps.store;
   const refreshRef = useRef(refresh);
   refreshRef.current = refresh;
@@ -107,10 +115,6 @@ export function useGitWorkspaceHostSubscription(
         if (isCurrent("log.snapshot", event.data)) {
           applyLogSnapshot(event.data.payload);
         }
-      } else if (isBlameSnapshot(event.data)) {
-        if (isCurrent("blame.snapshot", event.data)) {
-          applyBlameSnapshot(event.data.payload);
-        }
       } else if (isStashSnapshot(event.data)) {
         if (isCurrent("stash.snapshot", event.data)) {
           applyStashSnapshot(event.data.payload);
@@ -148,14 +152,110 @@ export function useGitWorkspaceHostSubscription(
       } else if (isGitSettings(event.data)) {
         applySettings(event.data.payload);
       } else if (isOpenDialogRequest(event.data)) {
-        const surface = event.data.payload.dialog;
+        const { dialog: surface, index, repoId } = event.data.payload;
         if (surface === "branches") {
           closeAllDialogs();
           openBranchesRef.current();
         } else {
-          openExclusiveDialog(surface, PANEL_DIALOG_PAYLOADS[surface]);
+          openExclusiveDialog(
+            surface,
+            surface === "unstash"
+              ? { index: index ?? null }
+              : PANEL_DIALOG_PAYLOADS[surface],
+          );
         }
         setNativeFocusSurface(surface);
+        if (repoId) {
+          const activeRepoId =
+            useGitWorkspaceStore.getState().repoSnapshot?.activeRepoId;
+          if (activeRepoId !== repoId) {
+            void client.refreshRepos(repoId).catch((error: unknown) => {
+              setWorkspaceNotification({
+                level: "error",
+                message:
+                  error instanceof Error
+                    ? error.message
+                    : "Could not open the Git dialog.",
+              });
+            });
+          }
+        }
+      } else if (isOpenHistoryRequest(event.data)) {
+        const scope = event.data.payload;
+        // Open the tab immediately. A full repo refresh is only needed when
+        // the clicked resource belongs to another workspace repository; doing
+        // it for every file makes Show History wait for a status scan before
+        // the already-known path can be queried.
+        requestHistoryOpen(scope);
+        const activeRepoId =
+          useGitWorkspaceStore.getState().repoSnapshot?.activeRepoId;
+        if (activeRepoId === scope.repoId) {
+          return;
+        }
+        void client.refreshRepos(scope.repoId).catch((error: unknown) => {
+          setWorkspaceNotification({
+            level: "error",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Could not open file history.",
+          });
+        });
+      } else if (isSelectCommitRequest(event.data)) {
+        const { repoId, sha } = event.data.payload;
+        setWorkspaceTab("log");
+        const activeRepoId =
+          useGitWorkspaceStore.getState().repoSnapshot?.activeRepoId;
+        if (activeRepoId === repoId) {
+          selectLogCommit(sha);
+          return;
+        }
+        if (typeof client.refreshRepos !== "function") {
+          setWorkspaceNotification({
+            level: "error",
+            message: "Could not switch to the selected repository.",
+          });
+          return;
+        }
+        // A commit selected from a native history/blame surface may belong to
+        // another root in a multi-root workspace. Load that root before
+        // applying the SHA so its log cannot be paired with the old repo.
+        void client.refreshRepos(repoId)
+          .then(() => {
+            selectLogCommit(sha);
+          })
+          .catch((error: unknown) => {
+            setWorkspaceNotification({
+              level: "error",
+              message:
+                error instanceof Error
+                  ? error.message
+                  : "Could not open the selected commit.",
+            });
+          });
+      } else if (isRollbackRequest(event.data)) {
+        const scope = event.data.payload;
+        closeAllDialogs();
+        setNativeFocusSurface(null);
+        setWorkspaceTab("changes");
+        setPendingRollback(scope);
+        const activeRepoId =
+          useGitWorkspaceStore.getState().repoSnapshot?.activeRepoId;
+        if (activeRepoId === scope.repoId) {
+          return;
+        }
+        void client.refreshRepos(scope.repoId).catch((error: unknown) => {
+          clearPendingRollback();
+          setWorkspaceNotification({
+            level: "error",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Could not open the rollback confirmation.",
+          });
+        });
+      } else if (isFocusRootRequest(event.data)) {
+        focusLogRoot();
       } else {
         client.handleHostMessage(event.data);
       }
@@ -166,6 +266,17 @@ export function useGitWorkspaceHostSubscription(
       .ready("gitWorkspace")
       .then((response) => {
         applySettings(response.settings);
+        const bootstrapRepoIdValue = (
+          window.__GITVIEW_BOOTSTRAP__ as { repoId?: unknown } | undefined
+        )?.repoId;
+        const bootstrapRepoId =
+          typeof bootstrapRepoIdValue === "string" &&
+          bootstrapRepoIdValue.length > 0
+            ? bootstrapRepoIdValue
+            : undefined;
+        if (bootstrapRepoId) {
+          return client.refreshRepos(bootstrapRepoId).then(() => undefined);
+        }
         return refreshRef.current();
       })
       .catch((error: unknown) => {
@@ -183,7 +294,6 @@ export function useGitWorkspaceHostSubscription(
 
     return () => window.removeEventListener("message", onMessage);
   }, [
-    applyBlameSnapshot,
     applyBranchSnapshot,
     applyBranchCompareSnapshot,
     applyLogSnapshot,
@@ -204,6 +314,12 @@ export function useGitWorkspaceHostSubscription(
     setIssueTrackerBaseUrl,
     setLogFilters,
     setNativeFocusSurface,
+    setWorkspaceTab,
+    setPendingRollback,
+    clearPendingRollback,
+    requestHistoryOpen,
+    selectLogCommit,
+    focusLogRoot,
     setPullStrategy,
     setSynchronousBranchControl,
     setWhitespacePolicy,

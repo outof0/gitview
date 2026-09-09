@@ -1,11 +1,11 @@
 import type { LogCommitEntry } from "@gitview/shared/types/log";
 
 export const GIT_LOG_GRAPH_ROW_HEIGHT = 24;
-export const GIT_LOG_GRAPH_LANE_WIDTH = 14;
-export const GIT_LOG_GRAPH_LANE_PAD = 10;
+const GIT_LOG_GRAPH_LANE_WIDTH = 14;
+const GIT_LOG_GRAPH_LANE_PAD = 10;
 export const GIT_LOG_GRAPH_DOT_RADIUS = 4.5;
 
-export const GIT_LOG_LANE_COLORS = [
+const GIT_LOG_LANE_COLORS = [
   "var(--gitview-graph-purple)",
   "var(--gitview-graph-green)",
   "var(--gitview-graph-pink)",
@@ -140,11 +140,6 @@ export type GitLogGraphEdge = {
   parentSha: string;
 };
 
-export type GitLogGraphPassThrough = {
-  row: number;
-  lane: number;
-};
-
 export type GitLogGraphLayoutOptions = {
   /** Visible list row for each commit. Collapsed placeholders occupy rows too. */
   rowBySha?: ReadonlyMap<string, number>;
@@ -185,16 +180,6 @@ export function buildParentEdgePath(
     `L ${xParent} ${yDiagEnd}`,
     `L ${xParent} ${yEnd}`,
   ].join(" ");
-}
-
-/**
- * @deprecated Pass-through painting was removed (double-drew verticals).
- * Kept for API compatibility; always returns [].
- */
-export function buildGitLogGraphPassThrough(
-  _commits: readonly LogCommitEntry[],
-): GitLogGraphPassThrough[] {
-  return [];
 }
 
 /**
@@ -287,7 +272,6 @@ export function buildGitLogGraphLayout(
     height: rowCount * GIT_LOG_GRAPH_ROW_HEIGHT,
     rowBySha,
     edges: buildGitLogGraphEdges(commits, laneBySha, rowBySha),
-    passThrough: buildGitLogGraphPassThrough(commits),
   };
 }
 

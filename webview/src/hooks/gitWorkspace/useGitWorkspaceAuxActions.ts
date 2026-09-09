@@ -185,6 +185,40 @@ export function useGitWorkspaceAuxActions(deps: GitWorkspaceDeps): GitWorkspaceA
           (isErrorCode(err, "CONFIRMATION_REQUIRED") ||
             isErrorCode(err, "CONFIRMATION_STALE"))
         ) {
+          if (!confirmation && isErrorCode(err, "CONFIRMATION_REQUIRED")) {
+            // The preflight dialog already collected the user's explicit
+            // choice. Keep the host-side evidence/fingerprint check, but
+            // satisfy the legacy typed-value field internally so users do not
+            // have to type "ROLLBACK" or "DELETE" for a second confirmation.
+            try {
+              await clientRef.current.rollbackFiles(activeRepo.id, paths, {
+                evidence: nextConfirmation,
+                typedValue: nextConfirmation.expectedTypedValue,
+              });
+              return;
+            } catch (retryError) {
+              if (!isRepoTokenCurrent(requestToken)) {
+                return;
+              }
+              const retryMessage =
+                retryError instanceof Error
+                  ? retryError.message
+                  : "Rollback failed";
+              if (
+                isErrorCode(retryError, "CONFIRMATION_REQUIRED") ||
+                isErrorCode(retryError, "CONFIRMATION_STALE")
+              ) {
+                useGitWorkspaceStore.getState().setWorkspaceNotification({
+                  level: "warning",
+                  message:
+                    "Repository changes detected before rollback. Review the file and try again.",
+                });
+              } else {
+                useGitWorkspaceStore.getState().setError(retryMessage);
+              }
+              return;
+            }
+          }
           openDialog("rollbackConfirm", { confirmation: nextConfirmation });
           if (isErrorCode(err, "CONFIRMATION_STALE")) {
             useGitWorkspaceStore.getState().setError(message);

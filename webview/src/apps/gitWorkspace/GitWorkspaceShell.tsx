@@ -2,6 +2,7 @@ import { SelectField } from "../../components/ui/SelectField";
 import { Button } from "../../components/ui/Button";
 import type { GitWorkspaceController } from "./gitWorkspaceControllerTypes";
 import { GitBottomPanelHeader } from "./GitBottomPanelHeader";
+import { GitCommitSidebarHeader } from "./GitCommitSidebarHeader";
 
 type ShellStateBannerProps = {
   testId: string;
@@ -80,7 +81,15 @@ function ShellStateBanner({
   );
 }
 
-export function GitWorkspaceShell({ ctx }: { ctx: GitWorkspaceController }) {
+export function GitWorkspaceShell({
+  ctx,
+  surface = "workspace",
+  onHideSidebar,
+}: {
+  ctx: GitWorkspaceController;
+  surface?: "workspace" | "commit" | "branches" | "sidebar" | "content";
+  onHideSidebar?: () => void;
+}) {
   const {
     clientRef,
     repoSnapshot,
@@ -151,9 +160,15 @@ export function GitWorkspaceShell({ ctx }: { ctx: GitWorkspaceController }) {
     );
   }
 
+  const sidebar = surface === "sidebar";
+
   return (
     <>
-      <GitBottomPanelHeader ctx={ctx} />
+      {sidebar ? (
+        <GitCommitSidebarHeader ctx={ctx} onHideSidebar={onHideSidebar} />
+      ) : (
+        <GitBottomPanelHeader ctx={ctx} />
+      )}
 
       {loading && (
         <div className="px-pad-x py-1 text-ui-sm text-vscode-description">
@@ -193,7 +208,11 @@ export function GitWorkspaceShell({ ctx }: { ctx: GitWorkspaceController }) {
         </div>
       )}
 
-      <div className="hidden h-toolbar shrink-0 items-center border-b border-border px-2 max-pane-xs:flex">
+      <div
+        className={`hidden h-toolbar shrink-0 items-center border-b border-border px-2 ${
+          sidebar ? "" : "max-pane-xs:flex"
+        }`}
+      >
         <label className="sr-only" htmlFor="workspace-section-select">
           Workspace section
         </label>
@@ -208,7 +227,6 @@ export function GitWorkspaceShell({ ctx }: { ctx: GitWorkspaceController }) {
         >
           <option value="changes">Changes</option>
           <option value="log">Log</option>
-          <option value="blame">Blame</option>
           <option value="temporary">Temporary Work</option>
           <option value="review">Review</option>
         </SelectField>

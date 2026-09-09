@@ -1,6 +1,6 @@
 import { Button } from "../ui/Button";
 import { memo, useCallback, useMemo, useState } from "react";
-import { AlertCircle, Copy, Eye, GitCompare, Search } from "lucide-react";
+import { AlertCircle, Copy, GitCompare, Search } from "lucide-react";
 import { ContextMenu } from "../ui/ContextMenu";
 import { MenuItem } from "../ui/MenuItem";
 import type { LogCommitEntry } from "@gitview/shared/types/log";
@@ -35,6 +35,7 @@ export const WorkspaceLogPanel = memo(function WorkspaceLogPanel({
   diffDocument,
   diffLoading = false,
   diffError = null,
+  historyScope = null,
   onSelectCommit,
   onSelectFile,
   onOpenFileDiff,
@@ -64,8 +65,6 @@ export const WorkspaceLogPanel = memo(function WorkspaceLogPanel({
   onExtractChanges,
   canDropSelected = false,
   protectedBranchForDrop = false,
-  onCherryPickHunk,
-  onRevertHunk,
   onDropHunk,
   onCherryPickLines,
   onRevertLines,
@@ -74,7 +73,6 @@ export const WorkspaceLogPanel = memo(function WorkspaceLogPanel({
   const [expandedLinear, setExpandedLinear] = useState<LogCommitEntry[] | null>(
     null,
   );
-  const [diffPaneOpen, setDiffPaneOpen] = useState(false);
   const [filesQuery, setFilesQuery] = useState("");
   const [filesQueryOpen, setFilesQueryOpen] = useState(false);
   const [commitMenu, setCommitMenu] = useState<{
@@ -83,6 +81,10 @@ export const WorkspaceLogPanel = memo(function WorkspaceLogPanel({
     sha: string;
     subject: string;
   } | null>(null);
+
+  const folderHistory = historyScope?.isFolder === true;
+  const fileHistory =
+    historyScope?.isFolder === false && historyScope.showDiff !== false;
 
   const rawCommits = snapshot?.commits ?? [];
   const commits = useMemo(() => {
@@ -149,11 +151,11 @@ export const WorkspaceLogPanel = memo(function WorkspaceLogPanel({
         return;
       }
       onSelectFile(path, file.status);
-      if (activate) {
+      if (activate || folderHistory) {
         onOpenFileDiff?.(path, file.status);
       }
     },
-    [changedFiles, onSelectFile, onOpenFileDiff],
+    [changedFiles, folderHistory, onSelectFile, onOpenFileDiff],
   );
 
   const handleSelectFile = useCallback(
@@ -237,27 +239,18 @@ export const WorkspaceLogPanel = memo(function WorkspaceLogPanel({
             : "No commit selected"}
         </span>
         <div className="flex items-center gap-0.5">
-          <Button variant="ghost" size="content"
-            type="button"
-            className={paneIconBtn}
-            title="Compare / show diff"
-            disabled={!selectedFilePath}
-            onClick={() => selectedFilePath && openFile(selectedFilePath, true)}
-            data-testid="workspace-log-open-diff"
-          >
-            <GitCompare size={14} aria-hidden />
-          </Button>
-          <Button variant="ghost" size="content"
-            type="button"
-            className={paneIconBtn}
-            title="Toggle inline diff"
-            aria-pressed={diffPaneOpen}
-            disabled={!selectedFilePath}
-            onClick={() => setDiffPaneOpen((open) => !open)}
-            data-testid="workspace-log-toggle-diff"
-          >
-            <Eye size={14} aria-hidden />
-          </Button>
+          {!folderHistory ? (
+            <Button variant="ghost" size="content"
+              type="button"
+              className={paneIconBtn}
+              title="Compare / show diff"
+              disabled={!selectedFilePath}
+              onClick={() => selectedFilePath && openFile(selectedFilePath, true)}
+              data-testid="workspace-log-open-diff"
+            >
+              <GitCompare size={14} aria-hidden />
+            </Button>
+          ) : null}
           <Button variant="ghost" size="content"
             type="button"
             className={`${paneIconBtn} ${filesQueryOpen ? "text-foreground bg-list-hover" : ""}`}
@@ -313,18 +306,6 @@ export const WorkspaceLogPanel = memo(function WorkspaceLogPanel({
               ) : null}
               <span>{formatRelativeTime(selected.authorTime)}</span>
             </span>
-            {(selected.refs ?? []).length > 0 && (
-              <span className="flex items-center gap-1.5 flex-wrap">
-                {(selected.refs ?? []).map((ref) => (
-                  <span
-                    key={ref}
-                    className="inline-flex items-center h-icon-md px-1.5 rounded-full border border-border text-section leading-none text-vscode-description"
-                  >
-                    {ref}
-                  </span>
-                ))}
-              </span>
-            )}
           </>
         ) : (
           <span className="text-ui-sm text-vscode-description">
@@ -344,32 +325,28 @@ export const WorkspaceLogPanel = memo(function WorkspaceLogPanel({
       storageKey="gitView.workspaceLog.columnsSplit"
       className="flex-1 min-h-0 w-full"
       first={commitColumn}
-      second={filesColumn}
+      second={fileHistory ? (
+        <div
+          className="h-full min-h-0 min-w-0 overflow-hidden flex flex-col"
+          data-testid="workspace-log-diff-pane"
+          data-layout="file-history"
+        >
+          <WorkspaceDiffPanel
+            document={diffDocument}
+            filePath={selectedFilePath}
+            loading={diffLoading}
+            error={diffError}
+            showLogActions={Boolean(selectedSha && selectedFilePath)}
+            canDropSelected={canDropSelected && !protectedBranchForDrop}
+            onDropHunk={onDropHunk}
+            onCherryPickLines={onCherryPickLines}
+            onRevertLines={onRevertLines}
+            onDropLines={onDropLines}
+          />
+        </div>
+      ) : filesColumn}
     />
   );
-
-  const diffPane =
-    diffPaneOpen && selectedFilePath ? (
-      <div
-        className="h-full min-h-0 overflow-hidden border-t border-border"
-        data-testid="workspace-log-diff-pane"
-      >
-        <WorkspaceDiffPanel
-          document={diffDocument}
-          filePath={selectedFilePath}
-          loading={diffLoading}
-          error={diffError}
-          showLogActions={Boolean(selectedSha && selectedFilePath)}
-          canDropSelected={canDropSelected && !protectedBranchForDrop}
-          onCherryPickHunk={onCherryPickHunk}
-          onRevertHunk={onRevertHunk}
-          onDropHunk={onDropHunk}
-          onCherryPickLines={onCherryPickLines}
-          onRevertLines={onRevertLines}
-          onDropLines={onDropLines}
-        />
-      </div>
-    ) : null;
 
   return (
     <div
@@ -395,20 +372,7 @@ export const WorkspaceLogPanel = memo(function WorkspaceLogPanel({
           </Button>
         </div>
       )}
-      {diffPane ? (
-        <ResizableSplit
-          direction="vertical"
-          initialPercent={52}
-          minFirstPercent={28}
-          minSecondPercent={28}
-          storageKey="gitView.workspaceLog.diffSplit"
-          className="flex-1 min-h-0 w-full"
-          first={columns}
-          second={diffPane}
-        />
-      ) : (
-        columns
-      )}
+      {columns}
       <ContextMenu
         menu={
           commitMenu

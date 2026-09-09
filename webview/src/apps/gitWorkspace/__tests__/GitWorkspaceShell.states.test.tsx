@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Repository } from "@gitview/shared/types/repository";
 import { GitWorkspaceShell } from "../GitWorkspaceShell";
@@ -27,9 +27,15 @@ const baseRepository: Repository = {
   lastRefreshAt: 0,
 };
 
-function context(activeRepo: Repository | null, loading = false) {
+function context(
+  activeRepo: Repository | null,
+  loading = false,
+  extra: Record<string, unknown> = {},
+) {
   return {
-    clientRef: { current: { collapsePanel: vi.fn() } },
+    clientRef: {
+      current: { collapsePanel: vi.fn(), toggleSidebar: vi.fn() },
+    },
     logFilters: { range: "all", limit: 200 },
     setLogFilters: vi.fn(),
     refreshing: false,
@@ -53,6 +59,7 @@ function context(activeRepo: Repository | null, loading = false) {
     refresh: vi.fn(),
     handlePush: vi.fn(),
     handleUpdateAllRoots: vi.fn(),
+    ...extra,
   } as never;
 }
 
@@ -95,6 +102,34 @@ describe("GitWorkspaceShell repository states", () => {
     expect(screen.getByTestId("workspace-section-select")).toBeTruthy();
     expect(screen.getByRole("option", { name: "Temporary Work" })).toBeTruthy();
     expect(screen.getByRole("option", { name: "Review" })).toBeTruthy();
+  });
+
+  it("shows Commit/Stash chrome on the activity-bar sidebar", () => {
+    const setWorkspaceTab = vi.fn();
+    const setTemporarySubTab = vi.fn();
+    const toggleSidebar = vi.fn();
+    render(
+      <GitWorkspaceShell
+        ctx={context(baseRepository, false, {
+          clientRef: { current: { toggleSidebar } },
+          setWorkspaceTab,
+          setTemporarySubTab,
+        })}
+        surface="sidebar"
+      />,
+    );
+
+    expect(screen.getByTestId("commit-sidebar-header")).toBeTruthy();
+    expect(screen.getByTestId("commit-sidebar-tab-commit")).toBeTruthy();
+    expect(screen.getByTestId("commit-sidebar-tab-stash")).toBeTruthy();
+    expect(screen.queryByTestId("workspace-tab-bar")).toBeNull();
+
+    fireEvent.click(screen.getByTestId("commit-sidebar-tab-stash"));
+    expect(setTemporarySubTab).toHaveBeenCalledWith("stash");
+    expect(setWorkspaceTab).toHaveBeenCalledWith("temporary");
+
+    fireEvent.click(screen.getByTestId("commit-sidebar-hide"));
+    expect(toggleSidebar).toHaveBeenCalledTimes(1);
   });
 
   it("blocks repository content in restricted mode", () => {

@@ -4,6 +4,16 @@ import type { StashFileOrigin } from "@gitview/shared/types/stash";
 
 export function createProtocolClientAuxMethods(request: ProtocolRequestFn) {
   return {
+    openContentDialog: (
+      repoId: string,
+      dialog: "stash" | "unstash",
+      index?: number | null,
+    ) =>
+      request("git.openContentDialog", {
+        repoId,
+        dialog,
+        ...(index !== undefined ? { index } : {}),
+      }),
     listStashes: (repoId: string) =>
       request("stash.list", { repoId }),
     pushStash: (

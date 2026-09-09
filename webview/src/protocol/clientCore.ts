@@ -66,7 +66,6 @@ const sharedPending = new Map<string, PendingRequest>();
  */
 const REQUEST_EVENT_KEYS: Record<string, string[]> = {
   "log.query": ["log.snapshot"],
-  "log.fileDiff": ["diff.result"],
   "diff.open": ["diff.result"],
   "branch.list": ["branch.snapshot"],
   "branch.compareCurrent": ["branch.compare.snapshot", "diff.result"],
@@ -134,7 +133,7 @@ function recordEventRequest(type: string, requestId: string): void {
  * overwrite the newest error and display results for obsolete filters. A
  * retry records a newer id and reopens the key.
  */
-export function isCurrentEvent(
+function isCurrentEvent(
   eventType: string,
   requestId: string | undefined,
 ): boolean {

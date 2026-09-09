@@ -119,7 +119,7 @@ export const useGitHistoryStore = create<GitHistoryStore>((set, get) => ({
       // File/folder history opens with branch pane closed; user expands on demand.
       branchTreeOpen: false,
       // Always enable inline diff so click on a changed file loads preview.
-      // Annotate mode overwrites this after init via GitBlameApp.
+      // Annotate callers overwrite this after initialization.
       showDiffPreview: true,
       showDetails: true,
       loading: true,

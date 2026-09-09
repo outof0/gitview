@@ -1,4 +1,5 @@
 import type { ResetMode } from "@gitview/shared/types/log";
+import type { GitWorkspaceHistoryScope } from "../../../stores/gitWorkspaceStoreTypes";
 import type { DiffLineSelection, WorkspaceDiffDocument } from "@gitview/shared/types/diff";
 import type { LogCommitEntry, LogQueryFilters, LogSnapshot } from "@gitview/shared/types/log";
 
@@ -12,6 +13,7 @@ export type WorkspaceLogPanelProps = {
   diffDocument: WorkspaceDiffDocument | null;
   diffLoading?: boolean;
   diffError?: string | null;
+  historyScope?: GitWorkspaceHistoryScope | null;
   onSelectCommit: (sha: string, multi?: boolean) => void;
   onSelectFile: (path: string, status: string) => void;
   onOpenFileDiff?: (path: string, status: string) => void;
@@ -41,8 +43,6 @@ export type WorkspaceLogPanelProps = {
   onExtractChanges?: (sha: string) => void;
   canDropSelected?: boolean;
   protectedBranchForDrop?: boolean;
-  onCherryPickHunk?: (hunkIndex: number) => void;
-  onRevertHunk?: (hunkIndex: number) => void;
   onDropHunk?: (hunkIndex: number) => void;
   onCherryPickLines?: (lines: DiffLineSelection[]) => void;
   onRevertLines?: (lines: DiffLineSelection[]) => void;

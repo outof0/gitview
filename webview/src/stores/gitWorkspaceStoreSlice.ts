@@ -1,10 +1,13 @@
-import type { BlameSnapshot } from "@gitview/shared/types/blame";
 import type {
   BranchCompareSnapshot,
   BranchListSnapshot,
 } from "@gitview/shared/types/branch";
 import type { WorkspaceDiffDocument } from "@gitview/shared/types/diff";
-import type { LogQueryFilters, LogSnapshot } from "@gitview/shared/types/log";
+import type {
+  LogCommitEntry,
+  LogQueryFilters,
+  LogSnapshot,
+} from "@gitview/shared/types/log";
 import type { RepositorySnapshot } from "@gitview/shared/types/repository";
 import type { ShelfListSnapshot } from "@gitview/shared/types/shelf";
 import type { StashListSnapshot } from "@gitview/shared/types/stash";
@@ -27,6 +30,7 @@ import type {
   GitWorkspaceDialogId,
   GitWorkspaceDialogPayloads,
 } from "./gitWorkspaceDialogs";
+import { createRootLogFilters } from "./gitWorkspaceLogDefaults";
 import type { GitWorkspaceActions, GitWorkspaceState } from "./gitWorkspaceStoreTypes";
 
 type SetState = StoreApi<GitWorkspaceState & GitWorkspaceActions>["setState"];
@@ -70,6 +74,25 @@ export function createGitWorkspaceStoreSlice(set: SetState, get: GetState) {
     const activeRepoId = get().repoSnapshot?.activeRepoId;
     return Boolean(activeRepoId) && repoId !== activeRepoId;
   }
+
+  function rootLogViewState() {
+    return {
+      workspaceTab: "log" as const,
+      historyOpenRequest: null,
+      activeHistoryScope: null,
+      logFilters: createRootLogFilters(),
+      logSelectedSha: null,
+      logSelectedShas: [],
+      logSelectedFilePath: null,
+      logError: null,
+      logSnapshot: null,
+      logLoading: false,
+      diffDocument: null,
+      diffLoading: false,
+      diffError: null,
+    };
+  }
+
   return {
     setLoading: (loading: boolean) => set({ loading }),
     openDialog: <K extends GitWorkspaceDialogId>(
@@ -98,6 +121,9 @@ export function createGitWorkspaceStoreSlice(set: SetState, get: GetState) {
     },
     setNativeFocusSurface: (surface: GitWorkspaceState["nativeFocusSurface"]) =>
       set({ nativeFocusSurface: surface }),
+    setPendingRollback: (request: GitWorkspaceState["pendingRollback"]) =>
+      set({ pendingRollback: request }),
+    clearPendingRollback: () => set({ pendingRollback: null }),
     setError: (error: string | null) => set({ error }),
     applyRepoSnapshot: (snapshot: RepositorySnapshot) => {
       const previousActiveRepoId = get().repoSnapshot?.activeRepoId;
@@ -128,6 +154,8 @@ export function createGitWorkspaceStoreSlice(set: SetState, get: GetState) {
                     signoff: false,
                     gpgSign: false,
                     author: "",
+                    runChecks: true,
+                    runHooks: true,
                     commitAfterChecksConfirmed: false,
                   }
                 : {}),
@@ -139,8 +167,6 @@ export function createGitWorkspaceStoreSlice(set: SetState, get: GetState) {
               branchesLoading: false,
               logLoading: false,
               logError: null,
-              blameLoading: false,
-              blameError: null,
               diffLoading: false,
               tagsLoading: false,
               worktreesLoading: false,
@@ -150,7 +176,6 @@ export function createGitWorkspaceStoreSlice(set: SetState, get: GetState) {
               branchCompareSnapshot: null,
               branchCompareOpen: false,
               branchCompareSelectedFile: null,
-              blameSnapshot: null,
               logSnapshot: null,
               logSelectedSha: null,
               logSelectedShas: [],
@@ -310,6 +335,7 @@ export function createGitWorkspaceStoreSlice(set: SetState, get: GetState) {
     setGpgSign: (gpgSign: boolean) => set({ gpgSign }),
     setAuthor: (author: string) => set({ author }),
     setRunChecks: (runChecks: boolean) => set({ runChecks }),
+    setRunHooks: (runHooks: boolean) => set({ runHooks }),
     setPullStrategy: (pullStrategy: GitWorkspaceState["pullStrategy"]) =>
       set({ pullStrategy }),
     setSynchronousBranchControl: (enabled: boolean) =>
@@ -347,15 +373,6 @@ export function createGitWorkspaceStoreSlice(set: SetState, get: GetState) {
       set({ worktreeSnapshot: snapshot, worktreesLoading: false });
     },
     setPatchPreview: (patch: string | null) => set({ patchPreview: patch }),
-    applyBlameSnapshot: (snapshot: BlameSnapshot) => {
-      if (isStaleSnapshot(snapshot.repoId)) {
-        return;
-      }
-      set({ blameSnapshot: snapshot, blameLoading: false, blameError: null });
-    },
-    setBlameLoading: (loading: boolean) => set({ blameLoading: loading }),
-    setBlameError: (error: string | null) =>
-      set({ blameError: error, blameLoading: false }),
     setWorkspaceNotification: (
       notification: GitWorkspaceState["workspaceNotification"],
     ) => set({ workspaceNotification: notification }),
@@ -365,6 +382,25 @@ export function createGitWorkspaceStoreSlice(set: SetState, get: GetState) {
         return;
       }
       set({ logSnapshot: snapshot, logLoading: false, logError: null });
+    },
+    applyLogCommitDetail: (repoId: string, commit: LogCommitEntry) => {
+      const snapshot = get().logSnapshot;
+      if (!snapshot || snapshot.repoId !== repoId || isStaleSnapshot(repoId)) {
+        return;
+      }
+      const index = snapshot.commits.findIndex((entry) => entry.sha === commit.sha);
+      if (index < 0) {
+        return;
+      }
+      const current = snapshot.commits[index]!;
+      const commits = [...snapshot.commits];
+      commits[index] = {
+        ...current,
+        ...commit,
+        refs: commit.refs ?? current.refs,
+        parentShas: commit.parentShas ?? current.parentShas,
+      };
+      set({ logSnapshot: { ...snapshot, commits } });
     },
     setLogLoading: (loading: boolean) => set({ logLoading: loading }),
     setLogError: (error: string | null) =>
@@ -403,6 +439,23 @@ export function createGitWorkspaceStoreSlice(set: SetState, get: GetState) {
     selectLogFile: (path: string | null) => set({ logSelectedFilePath: path }),
     setLogFilters: (filters: LogQueryFilters) =>
       set({ logFilters: filters }),
+    resetLogView: () => set(rootLogViewState()),
+    focusLogRoot: () =>
+      set((state) => ({
+        ...rootLogViewState(),
+        logRootRequest: state.logRootRequest + 1,
+        dialogs: {},
+        branchesOpen: false,
+        nativeFocusSurface: null,
+      })),
+    requestHistoryOpen: (scope) =>
+      set({
+        historyOpenRequest: { ...scope },
+        activeHistoryScope: { ...scope },
+        workspaceTab: "log",
+      }),
+    setActiveHistoryScope: (activeHistoryScope) =>
+      set({ activeHistoryScope }),
     setIssueTrackerBaseUrl: (url: string | null) => set({ issueTrackerBaseUrl: url }),
     setDiffStagedView: (staged: boolean) => set({ diffStagedView: staged }),
     setDiffViewMode: (mode: GitWorkspaceState["diffViewMode"]) =>

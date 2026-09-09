@@ -180,6 +180,29 @@ describe("repository-scoped async completions", () => {
     expect(state.logLoading).toBe(false);
   });
 
+  it("reuses immutable historical file diffs within the workspace", async () => {
+    const document = {
+      repoId: repoA.id,
+      filePath: "src/app.ts",
+      layout: "split" as const,
+      status: "M" as const,
+      staged: false,
+      binary: false,
+      left: { label: "parent", text: "old\n" },
+      right: { label: "commit", text: "new\n" },
+    };
+    const client = { logFileDiff: vi.fn().mockResolvedValue(document) };
+    const hook = renderLoaders(repoA, client);
+
+    await act(async () => {
+      await hook.result.current.loadLogFileDiff("abc1234", "src/app.ts", "M");
+      await hook.result.current.loadLogFileDiff("abc1234", "src/app.ts", "M");
+    });
+
+    expect(client.logFileDiff).toHaveBeenCalledTimes(1);
+    expect(useGitWorkspaceStore.getState().diffDocument).toEqual(document);
+  });
+
   it("does not erase the new repository draft when the old commit lands", async () => {
     const gate = deferred<{ [key: string]: unknown }>();
     const client = {
@@ -360,6 +383,100 @@ describe("repository-scoped async completions", () => {
     // Spontaneous push without an id (refresh/watchers): always applied.
     dispatch(snapshot("spontaneous"));
     expect(subjectOf()).toBe("spontaneous");
+  });
+
+  it("returns the workspace to the unfiltered root after a host focus request", () => {
+    const client = {
+      ready: () => new Promise<never>(() => {}),
+      handleHostMessage: vi.fn(),
+    };
+    const store = useGitWorkspaceStore.getState();
+    store.setLogFilters({
+      range: "incoming",
+      limit: 10,
+      branch: "feature/old",
+      path: "packages/old",
+      isFolder: true,
+      compactRows: true,
+    });
+    store.requestHistoryOpen({
+      repoId: repoA.id,
+      path: "packages/old",
+      isFolder: true,
+    });
+
+    renderHook(() =>
+      useGitWorkspaceHostSubscription({
+        core: {
+          clientRef: { current: client },
+          refresh: vi.fn(),
+        },
+        store,
+        openBranches: vi.fn(),
+      } as never),
+    );
+
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: {
+            protocolVersion: PROTOCOL_VERSION,
+            type: "git.focusRoot",
+            payload: {},
+          },
+        }),
+      );
+    });
+
+    const state = useGitWorkspaceStore.getState();
+    expect(state.logFilters).toEqual({ range: "all", limit: 200 });
+    expect(state.activeHistoryScope).toBeNull();
+    expect(state.logSelectedFilePath).toBeNull();
+    expect(state.logSnapshot).toBeNull();
+  });
+
+  it("switches repositories before selecting a native commit", async () => {
+    const refreshRepos = vi.fn(async (repoId: string) => {
+      expect(repoId).toBe(repoB.id);
+      useGitWorkspaceStore.getState().applyRepoSnapshot(snapshot(repoB));
+      return undefined;
+    });
+    const client = {
+      ready: () => new Promise<never>(() => {}),
+      refreshRepos,
+      handleHostMessage: vi.fn(),
+    };
+    renderHook(() =>
+      useGitWorkspaceHostSubscription({
+        core: {
+          clientRef: { current: client },
+          refresh: vi.fn(),
+        },
+        store: useGitWorkspaceStore.getState(),
+        openBranches: vi.fn(),
+      } as never),
+    );
+
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: {
+            protocolVersion: PROTOCOL_VERSION,
+            type: "git.selectCommit",
+            payload: { repoId: repoB.id, sha: "deadbeef" },
+          },
+        }),
+      );
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(refreshRepos).toHaveBeenCalledWith(repoB.id);
+    expect(useGitWorkspaceStore.getState().repoSnapshot?.activeRepoId).toBe(
+      repoB.id,
+    );
+    expect(useGitWorkspaceStore.getState().logSelectedSha).toBe("deadbeef");
   });
 
   it("does not report a mutation failure for a detached repository", async () => {

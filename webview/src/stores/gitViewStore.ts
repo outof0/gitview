@@ -8,7 +8,6 @@ export type {
   HighlightingMode,
   CompareMode,
 } from "./gitViewStoreTypes";
-export { canApplyResolutionAction, getResolveContextMenuMode } from "./mergeResolveMenu";
 
 export const useGitViewStore = create<GitViewState>((set, get) => ({
   screen: "conflictList",

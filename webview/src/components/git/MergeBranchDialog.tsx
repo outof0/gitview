@@ -12,7 +12,7 @@ import { Checkbox } from "../ui/Checkbox";
 import { TextField } from "../ui/TextField";
 import { BranchRefSelect } from "./BranchRefSelect";
 
-export type MergeBranchChoice = {
+type MergeBranchChoice = {
   noFf?: boolean;
   squash?: boolean;
   message?: string;

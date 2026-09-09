@@ -11,10 +11,10 @@ type GitCommitRowProps = {
   current: boolean;
   highlighted: boolean;
   issueTrackerBaseUrl?: string | null;
-  blameDensity: boolean;
   compact?: boolean;
   /** Non-null only in graph mode; drives the leading gutter width. */
   graphWidth: number | null;
+  graphColor?: string;
   selectedRef: RefObject<HTMLButtonElement>;
   onSelect: (sha: string, multi?: boolean) => void;
   onContextMenu?: (e: React.MouseEvent, commit: LogCommitEntry) => void;
@@ -63,9 +63,9 @@ export const GitCommitRow = memo(function GitCommitRow({
   current,
   highlighted,
   issueTrackerBaseUrl,
-  blameDensity,
   compact = false,
   graphWidth,
+  graphColor,
   selectedRef,
   onSelect,
   onContextMenu,
@@ -117,7 +117,29 @@ export const GitCommitRow = memo(function GitCommitRow({
               current && "font-bold",
             )}
           >
-            <span className="truncate min-w-0" data-testid="git-commit-subject">
+            {(commit.refs?.length ?? 0) > 0 && (
+              <span
+                className="flex min-w-0 max-w-[36%] flex-[0_1_auto] items-center gap-1 overflow-hidden text-status-modified"
+                style={graphColor ? { color: graphColor } : undefined}
+                data-testid="commit-refs"
+              >
+                {commit.refs!.slice(0, 3).map((ref) => (
+                  <span
+                    key={ref}
+                    className="inline-flex min-w-0 max-w-[8rem] flex-[0_1_auto] items-center gap-1 text-section leading-ref font-medium"
+                    title={ref}
+                    data-testid={`commit-ref-${ref}`}
+                  >
+                    <span className="git-log-ref-icon" aria-hidden />
+                    <span className="min-w-0 truncate">{ref}</span>
+                  </span>
+                ))}
+              </span>
+            )}
+            <span
+              className="min-w-[4rem] flex-1 truncate"
+              data-testid="git-commit-subject"
+            >
               {commit.subject}
             </span>
             <IssueLinks
@@ -125,25 +147,6 @@ export const GitCommitRow = memo(function GitCommitRow({
               issueTrackerBaseUrl={issueTrackerBaseUrl}
               className="shrink-0"
             />
-            {(commit.refs?.length ?? 0) > 0 && (
-              <span className="flex items-center gap-1 shrink-0 max-w-[40%] overflow-hidden">
-                {commit.refs!.slice(0, 3).map((ref) => (
-                  <span
-                    key={ref}
-                    className={cn(
-                      "inline-flex items-center max-w-[7rem] truncate px-1 rounded-vscode text-section leading-ref font-medium",
-                      "border border-status-modified",
-                      "text-status-modified",
-                      "bg-[color-mix(in_srgb,var(--nx-status-modified)_12%,transparent)]",
-                    )}
-                    title={ref}
-                    data-testid={`commit-ref-${ref}`}
-                  >
-                    {ref}
-                  </span>
-                ))}
-              </span>
-            )}
           </span>
           <span
             className={cn(
@@ -162,44 +165,6 @@ export const GitCommitRow = memo(function GitCommitRow({
             )}
           >
             {dateLabel}
-          </span>
-        </Button>
-      </li>
-    );
-  }
-
-  if (blameDensity) {
-    return (
-      <li>
-        <Button variant="ghost" size="content"
-          type="button"
-          className={cn(
-            "w-full text-left border-none cursor-pointer grid grid-cols-[62px_minmax(0,1fr)_minmax(0,0.9fr)] gap-2 items-center min-h-5 py-px px-2 text-ui-sm leading-code text-foreground bg-transparent",
-            selected
-              ? "bg-list-active text-list-activeForeground"
-              : "hover:bg-list-hover",
-          )}
-          ref={selected ? selectedRef : undefined}
-          onClick={handleClick}
-          data-testid={`git-commit-${commit.shortSha}`}
-        >
-          <span
-            className={cn(
-              "font-editor text-vscode-link",
-              selected && "text-inherit",
-            )}
-          >
-            {commit.shortSha}
-          </span>
-          <span className="font-medium truncate">{commit.subject}</span>
-          <span
-            className={cn(
-              "text-section text-vscode-description truncate",
-              selected &&
-                "text-[color-mix(in_srgb,currentColor_78%,transparent)]",
-            )}
-          >
-            {commit.author} · {formatRelativeTime(commit.authorTime)}
           </span>
         </Button>
       </li>

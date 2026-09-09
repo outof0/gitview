@@ -65,6 +65,11 @@ describe("GitWorkspaceLogTab file activation", () => {
   afterEach(() => {
     cleanup();
     useDiffPreviewStore.getState().closeDiffPreview();
+    useGitWorkspaceStore.setState({
+      logSelectedSha: null,
+      logSelectedFilePath: null,
+      diffDocument: null,
+    });
   });
 
   it("opens the compare editor tab instead of a modal overlay", async () => {
@@ -92,9 +97,6 @@ describe("GitWorkspaceLogTab file activation", () => {
           logSelectedFilePath: null,
           logFilters: { range: "all", limit: 200 },
           issueTrackerBaseUrl: null,
-          blameSnapshot: null,
-          blameLoading: false,
-          blameError: null,
           setLogFilters: vi.fn(),
           openDialog: vi.fn(),
           selectLogCommit: vi.fn(),
@@ -126,5 +128,187 @@ describe("GitWorkspaceLogTab file activation", () => {
       );
     });
     expect(useDiffPreviewStore.getState().open).toBe(false);
+  });
+
+  it("does not load an unused inline diff from the root log", () => {
+    const loadLogFileDiff = vi.fn();
+    const selectLogFile = vi.fn();
+    useGitWorkspaceStore.setState({ logSelectedSha: sha });
+
+    render(
+      <GitWorkspaceLogTab
+        ctx={{
+          workspaceTab: "log",
+          clientRef: { current: {} },
+          syncing: false,
+          diffDocument: null,
+          diffLoading: false,
+          diffError: null,
+          selectedFilePath: null,
+          logSnapshot: snapshot,
+          logLoading: false,
+          logError: null,
+          logSelectedSha: sha,
+          logSelectedShas: [],
+          logSelectedFilePath: null,
+          logFilters: { range: "all", limit: 200 },
+          issueTrackerBaseUrl: null,
+          setLogFilters: vi.fn(),
+          openDialog: vi.fn(),
+          selectLogCommit: vi.fn(),
+          toggleLogCommitSelection: vi.fn(),
+          selectLogFile,
+          activeRepo: repository,
+          runMutation: vi.fn(),
+          loadLog: vi.fn(),
+          loadLogFileDiff,
+          handleRewriteHistory: vi.fn(),
+          handleDropSelected: vi.fn(),
+          handleReset: vi.fn(),
+          handleCopyHash: vi.fn(),
+          branchSnapshot: null,
+          loadBranches: vi.fn(),
+        } as never}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("changed-files-file-src/Input.tsx"));
+
+    expect(selectLogFile).toHaveBeenCalledWith("src/Input.tsx");
+    expect(screen.getByTestId("workspace-log-files-pane")).toBeTruthy();
+    expect(screen.queryByTestId("workspace-log-diff-pane")).toBeNull();
+  });
+
+  it("Ctrl+D opens the compare editor tab for the selected changed file", async () => {
+    const openDiffInEditor = vi.fn().mockResolvedValue({ ok: true });
+    const loadLogFileDiff = vi.fn().mockImplementation(async () => {
+      useGitWorkspaceStore.getState().setDiffDocument(document);
+    });
+    useGitWorkspaceStore.setState({
+      logSelectedSha: sha,
+      logSelectedFilePath: "src/Input.tsx",
+    });
+
+    render(
+      <GitWorkspaceLogTab
+        ctx={{
+          workspaceTab: "log",
+          clientRef: { current: { openDiffInEditor } },
+          syncing: false,
+          diffDocument: null,
+          diffLoading: false,
+          diffError: null,
+          selectedFilePath: null,
+          logSnapshot: snapshot,
+          logLoading: false,
+          logError: null,
+          logSelectedSha: sha,
+          logSelectedShas: [],
+          logSelectedFilePath: "src/Input.tsx",
+          logFilters: { range: "all", limit: 200 },
+          issueTrackerBaseUrl: null,
+          setLogFilters: vi.fn(),
+          openDialog: vi.fn(),
+          selectLogCommit: vi.fn(),
+          toggleLogCommitSelection: vi.fn(),
+          selectLogFile: vi.fn(),
+          activeRepo: repository,
+          runMutation: vi.fn(),
+          loadLog: vi.fn(),
+          loadLogFileDiff,
+          handleRewriteHistory: vi.fn(),
+          handleDropSelected: vi.fn(),
+          handleReset: vi.fn(),
+          handleCopyHash: vi.fn(),
+          branchSnapshot: null,
+          loadBranches: vi.fn(),
+        } as never}
+      />,
+    );
+
+    fireEvent.keyDown(window, { key: "d", ctrlKey: true });
+
+    await waitFor(() => {
+      expect(openDiffInEditor).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Input.tsx",
+          relativePath: "src/Input.tsx",
+          repoId: "repo-1",
+        }),
+      );
+    });
+  });
+
+  it("loads files lazily for a merge with an empty first-parent diff", async () => {
+    const mergeSnapshot: LogSnapshot = {
+      ...snapshot,
+      commits: [
+        {
+          ...snapshot.commits[0]!,
+          subject: "Merge feature",
+          isMerge: true,
+          parentShas: ["parent-1", "parent-2"],
+          changedFiles: [],
+        },
+      ],
+    };
+    const commitDetail = vi.fn().mockResolvedValue({
+      commit: {
+        ...mergeSnapshot.commits[0],
+        changedFiles: [{ path: "src/feature.ts", status: "A" }],
+      },
+    });
+    const applyLogCommitDetail = vi.fn();
+    useGitWorkspaceStore.setState({ logSnapshot: mergeSnapshot });
+
+    render(
+      <GitWorkspaceLogTab
+        ctx={{
+          workspaceTab: "log",
+          clientRef: { current: { commitDetail } },
+          syncing: false,
+          diffDocument: null,
+          diffLoading: false,
+          diffError: null,
+          selectedFilePath: null,
+          logSnapshot: mergeSnapshot,
+          logLoading: false,
+          logError: null,
+          logSelectedSha: null,
+          logSelectedShas: [],
+          logSelectedFilePath: null,
+          logFilters: { range: "all", limit: 200 },
+          issueTrackerBaseUrl: null,
+          setLogFilters: vi.fn(),
+          openDialog: vi.fn(),
+          selectLogCommit: vi.fn(),
+          applyLogCommitDetail,
+          toggleLogCommitSelection: vi.fn(),
+          selectLogFile: vi.fn(),
+          activeRepo: repository,
+          runMutation: vi.fn(),
+          loadLog: vi.fn(),
+          loadLogFileDiff: vi.fn(),
+          handleRewriteHistory: vi.fn(),
+          handleDropSelected: vi.fn(),
+          handleReset: vi.fn(),
+          handleCopyHash: vi.fn(),
+          branchSnapshot: null,
+          loadBranches: vi.fn(),
+        } as never}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("git-commit-abc1234"));
+
+    await waitFor(() => {
+      expect(commitDetail).toHaveBeenCalledWith("repo-1", sha);
+      expect(applyLogCommitDetail).toHaveBeenCalledWith(
+        "repo-1",
+        expect.objectContaining({
+          changedFiles: [{ path: "src/feature.ts", status: "A" }],
+        }),
+      );
+    });
   });
 });

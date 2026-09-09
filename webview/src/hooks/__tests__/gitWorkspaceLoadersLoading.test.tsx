@@ -55,7 +55,6 @@ const client = {
   }),
   listTags: vi.fn(() => Promise.resolve(null)),
   openDiff: vi.fn(() => Promise.resolve(null)),
-  queryBlame: vi.fn(() => Promise.resolve(null)),
   queryLog: vi.fn(() => Promise.resolve(null)),
   logFileDiff: vi.fn(() => Promise.resolve(null)),
 };
@@ -73,7 +72,6 @@ beforeEach(() => {
     branchesLoading: false,
     tagsLoading: false,
     diffLoading: false,
-    blameLoading: false,
     logLoading: false,
   });
   (
@@ -132,14 +130,6 @@ describe("workspace loaders release their loading flag", () => {
       await result.current.loadLog();
     });
     expect(useGitWorkspaceStore.getState().logLoading).toBe(false);
-  });
-
-  it("clears blameLoading after queryBlame settles", async () => {
-    const { result } = renderLoaders();
-    await act(async () => {
-      await result.current.loadBlame();
-    });
-    expect(useGitWorkspaceStore.getState().blameLoading).toBe(false);
   });
 
   it("clears diffLoading after openDiff settles", async () => {

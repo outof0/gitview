@@ -2,7 +2,7 @@ import { Button } from "../ui/Button";
 import { useEffect, useMemo, useRef } from "react";
 import type { LogCommitEntry } from "@gitview/shared/types/log";
 import type { CollapsedLogCommit } from "../../lib/collapseLinearCommits";
-import { buildGitLogGraphLayout } from "../../lib/gitLogGraph";
+import { buildGitLogGraphLayout, gitLogLaneColor } from "../../lib/gitLogGraph";
 import { GitCommitRow } from "./GitCommitRow";
 import { GitLogGraphOverlay } from "./GitLogGraphOverlay";
 
@@ -16,9 +16,7 @@ type GitCommitListProps = {
   onExpandCollapsed?: (commits: LogCommitEntry[]) => void;
   issueTrackerBaseUrl?: string | null;
   compactRows?: boolean;
-  /** Single-line rows for blame file-history drawer. */
-  blameDensity?: boolean;
-  /** Git Log rows shown below Annotate. */
+  /** Graph rows used by embedded compare annotation. */
   graphDensity?: boolean;
   /** Current / HEAD revision in annotate mode. */
   currentSha?: string | null;
@@ -37,7 +35,6 @@ export function GitCommitList({
   onContextMenu,
   onExpandCollapsed,
   issueTrackerBaseUrl,
-  blameDensity = false,
   graphDensity = false,
   currentSha = null,
   highlightCurrentBranch = false,
@@ -161,6 +158,7 @@ export function GitCommitList({
         const selected =
           selectedShas.includes(commit.sha) || commit.sha === selectedSha;
         const current = currentSha === commit.sha;
+        const graphLane = graphLayout?.laneBySha.get(commit.sha);
         return (
           <GitCommitRow
             key={commit.sha}
@@ -172,9 +170,11 @@ export function GitCommitList({
               (highlightCurrentBranch && currentBranchHeadSha === commit.sha)
             }
             issueTrackerBaseUrl={issueTrackerBaseUrl}
-            blameDensity={blameDensity}
             compact={compactRows}
             graphWidth={graphDensity && graphLayout ? graphLayout.width : null}
+            graphColor={
+              graphLane === undefined ? undefined : gitLogLaneColor(graphLane)
+            }
             selectedRef={selectedRef}
             onSelect={onSelect}
             onContextMenu={onContextMenu}

@@ -14,6 +14,7 @@ import { RebaseOntoDialog } from "../../components/git/RebaseOntoDialog";
 import { RenameBranchDialog } from "../../components/git/RenameBranchDialog";
 import { ResetConfirmDialog } from "../../components/git/ResetConfirmDialog";
 import { RewriteHistoryConfirmDialog } from "../../components/git/RewriteHistoryConfirmDialog";
+import { RollbackChangesDialog } from "../../components/git/RollbackChangesDialog";
 import { RollbackConfirmDialog } from "../../components/git/RollbackConfirmDialog";
 import { SyncBranchConfirmDialog } from "../../components/git/SyncBranchConfirmDialog";
 import { UpdateAllRootsDialog } from "../../components/git/UpdateAllRootsDialog";
@@ -22,6 +23,7 @@ import type {
   GitWorkspaceDialogId,
   GitWorkspaceDialogPayloads,
 } from "../../stores/gitWorkspaceDialogs";
+import type { GitFileStatus } from "@gitview/shared/types/status";
 import type { GitWorkspaceController } from "./gitWorkspaceControllerTypes";
 import { StashDialog, UnstashDialog } from "./GitWorkspaceStashDialogs";
 
@@ -33,6 +35,7 @@ import { StashDialog, UnstashDialog } from "./GitWorkspaceStashDialogs";
 export type GitWorkspaceDialogRenderer<K extends GitWorkspaceDialogId> = (
   payload: GitWorkspaceDialogPayloads[K],
   ctx: GitWorkspaceController,
+  visibleFiles?: GitFileStatus[],
 ) => ReactNode;
 
 export const GIT_WORKSPACE_DIALOG_RENDERERS: {
@@ -63,6 +66,7 @@ export const GIT_WORKSPACE_DIALOG_RENDERERS: {
         gpgSign={ctx.gpgSign}
         author={ctx.author}
         runChecks={ctx.runChecks}
+        runHooks={ctx.runHooks}
         busy={ctx.syncing}
         currentBranch={ctx.activeRepo?.currentBranch}
         protectedBranch={ctx.activeRepo?.protectedBranch}
@@ -72,6 +76,7 @@ export const GIT_WORKSPACE_DIALOG_RENDERERS: {
         onGpgSignChange={ctx.setGpgSign}
         onAuthorChange={ctx.setAuthor}
         onRunChecksChange={ctx.setRunChecks}
+        onRunHooksChange={ctx.setRunHooks}
         onCommit={() => void runCommit(false)}
         onCommitAndPush={() => void runCommit(true)}
         onCancel={() => ctx.closeDialog("commit")}
@@ -202,6 +207,21 @@ export const GIT_WORKSPACE_DIALOG_RENDERERS: {
             reviewId,
           ),
         );
+      }}
+    />
+  ),
+
+  rollbackChanges: (payload, ctx, visibleFiles) => (
+    <RollbackChangesDialog
+      open
+      paths={payload.paths}
+      selectedPaths={payload.selectedPaths}
+      files={visibleFiles ?? ctx.visibleFiles()}
+      busy={ctx.syncing}
+      onCancel={() => ctx.closeDialog("rollbackChanges")}
+      onConfirm={(paths) => {
+        ctx.closeDialog("rollbackChanges");
+        void ctx.handleRollback(paths);
       }}
     />
   ),

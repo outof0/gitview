@@ -228,6 +228,7 @@ describe("gitWorkspaceStore slice", () => {
     store.setSignoff(true);
     store.setGpgSign(true);
     store.setAuthor("A U Thor <a@example.com>");
+    store.setRunChecks(false);
     store.selectLogCommit("abc123");
 
     store.applyRepoSnapshot(repoSnapshot);
@@ -238,6 +239,7 @@ describe("gitWorkspaceStore slice", () => {
     expect(state.signoff).toBe(false);
     expect(state.gpgSign).toBe(false);
     expect(state.author).toBe("");
+    expect(state.runChecks).toBe(true);
     expect(state.logSelectedSha).toBeNull();
     expect(state.logSelectedShas).toEqual([]);
   });
@@ -427,6 +429,43 @@ describe("gitWorkspaceStore slice", () => {
     expect(state.logSelectedSha).toBeNull();
   });
 
+  it("focuses the repository-root log and clears scoped view state", () => {
+    const store = useGitWorkspaceStore.getState();
+    store.setLogFilters({
+      range: "incoming",
+      limit: 10,
+      branch: "feature/old",
+      path: "packages/old",
+      isFolder: true,
+    });
+    store.requestHistoryOpen({
+      repoId: "r1",
+      path: "packages/old",
+      isFolder: true,
+    });
+    store.selectLogCommit("abc123");
+    store.selectLogFile("packages/old/file.ts");
+    store.openDialog("stash", {});
+    store.setBranchesOpen(true);
+
+    const requestBefore = useGitWorkspaceStore.getState().logRootRequest;
+    store.focusLogRoot();
+
+    const state = useGitWorkspaceStore.getState();
+    expect(state.logRootRequest).toBe(requestBefore + 1);
+    expect(state.workspaceTab).toBe("log");
+    expect(state.logFilters).toEqual({ range: "all", limit: 200 });
+    expect(state.historyOpenRequest).toBeNull();
+    expect(state.activeHistoryScope).toBeNull();
+    expect(state.logSelectedSha).toBeNull();
+    expect(state.logSelectedShas).toEqual([]);
+    expect(state.logSelectedFilePath).toBeNull();
+    expect(state.logSnapshot).toBeNull();
+    expect(state.diffDocument).toBeNull();
+    expect(state.dialogs).toEqual({});
+    expect(state.branchesOpen).toBe(false);
+  });
+
   it("opens the branch compare view with the first file preselected and clears it", () => {
     const store = useGitWorkspaceStore.getState();
     store.applyBranchCompareSnapshot({
@@ -474,8 +513,6 @@ describe("gitWorkspaceStore slice", () => {
     ["setWorktreesLoading", [true], { worktreesLoading: true }],
     ["applyWorktreeSnapshot", [{ worktrees: [] }], { worktreesLoading: false }],
     ["setPatchPreview", ["diff"], { patchPreview: "diff" }],
-    ["setBlameLoading", [true], { blameLoading: true }],
-    ["setBlameError", ["boom"], { blameError: "boom", blameLoading: false }],
     ["clearWorkspaceNotification", [], { workspaceNotification: null }],
     ["setLogLoading", [true], { logLoading: true }],
     ["setLogError", ["boom"], { logError: "boom", logLoading: false }],
@@ -507,8 +544,6 @@ describe("gitWorkspaceStore slice", () => {
 
   it("stores the snapshots the host pushes", () => {
     const store = useGitWorkspaceStore.getState();
-    store.setBlameLoading(true);
-    store.applyBlameSnapshot({ lines: [] } as never);
     store.setLogLoading(true);
     store.applyLogSnapshot({ commits: [] } as never);
     store.applyStashSnapshot({ entries: [] } as never);
@@ -520,8 +555,6 @@ describe("gitWorkspaceStore slice", () => {
     store.selectLogCommit("aaa");
 
     const state = useGitWorkspaceStore.getState();
-    expect(state.blameLoading).toBe(false);
-    expect(state.blameError).toBeNull();
     expect(state.logLoading).toBe(false);
     expect(state.logError).toBeNull();
     expect(state.stashSnapshot).toEqual({ entries: [] });
@@ -530,6 +563,45 @@ describe("gitWorkspaceStore slice", () => {
     expect(state.reviewDetails).toEqual({ id: "7" });
     expect(state.workspaceNotification).toEqual({ kind: "info", message: "hi" });
     expect(state.logSelectedShas).toEqual(["aaa"]);
+  });
+
+  it("fills an existing merge node from lazy commit detail", () => {
+    const store = useGitWorkspaceStore.getState();
+    store.applyRepoSnapshot({ ...repoSnapshot, activeRepoId: "r1" });
+    store.applyLogSnapshot({
+      repoId: "r1",
+      branch: "main",
+      refreshedAt: 1,
+      commits: [
+        {
+          sha: "merge-sha",
+          shortSha: "merge",
+          author: "Jane",
+          authorEmail: "jane@example.com",
+          authorTime: 1,
+          subject: "Merge feature",
+          isMerge: true,
+          refs: ["main"],
+          changedFiles: [],
+        },
+      ],
+    });
+
+    store.applyLogCommitDetail("r1", {
+      sha: "merge-sha",
+      shortSha: "merge",
+      author: "Jane",
+      authorEmail: "jane@example.com",
+      authorTime: 1,
+      subject: "Merge feature",
+      isMerge: true,
+      changedFiles: [{ path: "src/feature.ts", status: "A" }],
+    });
+
+    expect(useGitWorkspaceStore.getState().logSnapshot?.commits[0]).toMatchObject({
+      refs: ["main"],
+      changedFiles: [{ path: "src/feature.ts", status: "A" }],
+    });
   });
 
   it("clears diff loading and error when a document arrives", () => {

@@ -12,6 +12,7 @@ import { cn } from "../../lib/cn";
 import { resolveThemeColor } from "../../lib/webviewTheme";
 import {
   buildDiffNavigationHunks,
+  monacoDiffWashClass,
   type DiffNavigationHunk,
 } from "./diffNavigation";
 
@@ -59,6 +60,8 @@ export type MonacoDiffViewerProps = {
   /** When set, replaces Monaco's default context menu (e.g. Annotate). */
   onEditorContextMenu?: (event: DiffEditorContextMenuEvent) => void;
   options?: DiffViewerOptions;
+  /** Center the first changed block when the viewer opens. */
+  revealFirstChange?: boolean;
   /** Number of difference blocks, recomputed whenever Monaco finishes a diff. */
   onDiffCountChange?: (count: number) => void;
   handleRef?: Ref<MonacoDiffViewerHandle>;
@@ -86,9 +89,9 @@ function toDiffEditorOptions(
     ignoreTrimWhitespace: options.trimWhitespace,
     diffWordWrap: options.softWrap ? "on" : "off",
     hideUnchangedRegions: { enabled: options.collapseUnchanged },
-    // `advanced` needs a real web worker (editorWorker) — our vscode-webview
-    // uses a noop blob worker to avoid CSP, so `getLineChanges()` stays null
-    // and the diff never paints. `legacy` runs on the main thread.
+    // The webview deliberately keeps Monaco's worker lightweight. Legacy
+    // computes the line map on the main thread, which guarantees that the
+    // diff editor paints change markers even when an editor worker is absent.
     diffAlgorithm: "legacy",
   } as Monaco.editor.IDiffEditorOptions;
 }
@@ -122,6 +125,27 @@ function readMirroredGutter(
   };
 }
 
+type DiffOverviewColors = {
+  active: string;
+  added: string;
+  removed: string;
+};
+
+function readDiffOverviewColors(element: Element): DiffOverviewColors {
+  const modified =
+    resolveThemeColor(element, "--nx-modified-bar") || "transparent";
+  return {
+    active: resolveThemeColor(element, "--ring") || modified,
+    added: resolveThemeColor(element, "--nx-added-bar") || modified,
+    removed: resolveThemeColor(element, "--nx-deleted-bar") || modified,
+  };
+}
+
+/**
+ * Monaco's diff worker is intentionally disabled in the webview. Paint the
+ * same line washes and overview markers from our deterministic LCS map so a
+ * diff is still visible while the worker is unavailable or recalculating.
+ */
 function applyDiffDecorations(
   monaco: typeof import("monaco-editor/editor"),
   originalCollection: import("monaco-editor/editor").editor.IEditorDecorationsCollection | null,
@@ -129,7 +153,7 @@ function applyDiffDecorations(
   hunks: readonly DiffNavigationHunk[],
   activeHunkIndex: number,
   colors: DiffOverviewColors,
-): number {
+): void {
   const originalDecorations: import("monaco-editor/editor").editor.IModelDeltaDecoration[] = [];
   const modifiedDecorations: import("monaco-editor/editor").editor.IModelDeltaDecoration[] = [];
 
@@ -139,17 +163,21 @@ function applyDiffDecorations(
     endLine: number,
     hunk: DiffNavigationHunk,
     hunkIndex: number,
+    side: "original" | "modified",
   ) => {
-    const tone = `monaco-diff-${hunk.kind}`;
-    const active = hunkIndex === activeHunkIndex ? "monaco-diff-active" : "";
-    const classes = [tone, active].filter(Boolean).join(" ");
+    const tone = monacoDiffWashClass(hunk.kind, side);
+    if (!tone) {
+      return;
+    }
+    const active = hunkIndex === activeHunkIndex;
+    const classes = [tone, active ? "monaco-diff-active" : ""]
+      .filter(Boolean)
+      .join(" ");
     const overviewColor = active
       ? colors.active
-      : hunk.kind === "added"
+      : tone === "monaco-diff-added"
         ? colors.added
-        : hunk.kind === "removed"
-          ? colors.removed
-          : colors.modified;
+        : colors.removed;
     for (let line = startLine; line <= endLine; line += 1) {
       decorations.push({
         range: new monaco.Range(line, 1, line, 1),
@@ -159,8 +187,8 @@ function applyDiffDecorations(
           marginClassName: tone,
           overviewRuler: {
             color: overviewColor,
-            // Monaco's public enum is not present in the lightweight editor
-            // entry used by the webview; Full is the documented 1|2|4 lane.
+            // Full is the documented 1|2|4 lane value. The lightweight
+            // editor entry used by the webview does not export the enum.
             position: 7,
           },
           linesDecorationsClassName: [
@@ -181,6 +209,7 @@ function applyDiffDecorations(
       hunk.originalEndLine,
       hunk,
       index,
+      "original",
     );
     add(
       modifiedDecorations,
@@ -188,36 +217,20 @@ function applyDiffDecorations(
       hunk.modifiedEndLine,
       hunk,
       index,
+      "modified",
     );
   }
 
   originalCollection?.set(originalDecorations);
   modifiedCollection?.set(modifiedDecorations);
-  return hunks.length;
-}
-
-type DiffOverviewColors = {
-  active: string;
-  added: string;
-  removed: string;
-  modified: string;
-};
-
-function readDiffOverviewColors(element: Element): DiffOverviewColors {
-  const modified =
-    resolveThemeColor(element, "--nx-modified-bar") || "transparent";
-  return {
-    active: resolveThemeColor(element, "--ring") || modified,
-    added: resolveThemeColor(element, "--nx-added-bar") || modified,
-    removed: resolveThemeColor(element, "--nx-deleted-bar") || modified,
-    modified,
-  };
 }
 
 /** The strip owns the pane's right edge, so Monaco's gutter and slider stand down. */
 function originalPaneOptions(sideBySide: boolean): Monaco.editor.IEditorOptions {
   return {
     lineNumbers: sideBySide ? "off" : "on",
+    overviewRulerLanes: 0,
+    hideCursorInOverviewRuler: true,
     scrollbar: {
       vertical: sideBySide ? "hidden" : "auto",
       verticalScrollbarSize: 8,
@@ -239,6 +252,7 @@ export function MonacoDiffViewer({
   options = DEFAULT_DIFF_VIEWER_OPTIONS,
   onDiffCountChange,
   handleRef,
+  revealFirstChange = false,
 }: MonacoDiffViewerProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<Monaco.editor.IStandaloneDiffEditor | null>(null);
@@ -255,29 +269,37 @@ export function MonacoDiffViewer({
   onDiffCountChangeRef.current = onDiffCountChange;
   const optionsRef = useRef(options);
   optionsRef.current = options;
-  const [monacoApi, setMonacoApi] = useState<typeof Monaco | null>(
-    getMonacoIfLoaded(),
+  const language = filePath ? detectLanguage(filePath) : "plaintext";
+  const initialMonaco = getMonacoIfLoaded();
+  const [monacoApi, setMonacoApi] = useState<typeof Monaco | null>(initialMonaco);
+  // Monaco can already be booted while this file's tokenizer is still a lazy
+  // contribution. Keep the editor gated until `loadMonaco(language)` has
+  // registered that contribution; otherwise the model is created as plain
+  // text and never gets recolored when the first file opens from a dialog.
+  const [loadedLanguage, setLoadedLanguage] = useState<string | null>(
+    initialMonaco &&
+      typeof (initialMonaco as { languages?: unknown }).languages === "undefined"
+      ? language
+      : null,
   );
   const [loadError, setLoadError] = useState<string | null>(null);
   const [gutter, setGutter] = useState<MirroredGutter | null>(null);
   const themeKind = useTheme();
-  const language = filePath ? detectLanguage(filePath) : "plaintext";
 
   useEffect(() => {
-    if (monacoApi) {
-      applyGitViewMonacoTheme(monacoApi, themeKind);
-      return;
-    }
     // Monaco resolves long after a short-lived mount (tests, fast tab switches);
     // settling state then would touch a torn-down tree.
     let cancelled = false;
-    void loadMonaco()
+    void loadMonaco(language)
       .then((api) => {
         if (cancelled) {
           return;
         }
         applyGitViewMonacoTheme(api, themeKind);
-        setMonacoApi(api);
+        if (monacoApi !== api) {
+          setMonacoApi(api);
+        }
+        setLoadedLanguage(language);
       })
       .catch((err: unknown) => {
         if (cancelled) {
@@ -288,10 +310,10 @@ export function MonacoDiffViewer({
     return () => {
       cancelled = true;
     };
-  }, [monacoApi, themeKind]);
+  }, [language, monacoApi, themeKind]);
 
   useEffect(() => {
-    if (!monacoApi || !hostRef.current) {
+    if (!monacoApi || loadedLanguage !== language || !hostRef.current) {
       return;
     }
 
@@ -329,10 +351,12 @@ export function MonacoDiffViewer({
       originalEditable: false,
       enableSplitViewResizing: true,
       renderOverviewRuler: true,
-      overviewRulerLanes: 3,
+      // Two half-width lanes: deletions left, insertions right — like the
+      // native VS Code diff editor's overview ruler.
+      overviewRulerLanes: 2,
       overviewRulerBorder: false,
       hideCursorInOverviewRuler: true,
-      renderIndicators: true,
+      renderIndicators: false,
       renderMarginRevertIcon: false,
       automaticLayout: true,
       scrollBeyondLastLine: false,
@@ -443,7 +467,7 @@ export function MonacoDiffViewer({
       if (activeHunkIndexRef.current >= hunks.length) {
         activeHunkIndexRef.current = -1;
       }
-      const count = applyDiffDecorations(
+      applyDiffDecorations(
         monaco,
         originalDecorationsRef.current,
         modifiedDecorationsRef.current,
@@ -451,8 +475,8 @@ export function MonacoDiffViewer({
         activeHunkIndexRef.current,
         readDiffOverviewColors(hostRef.current!),
       );
-      onDiffCountChangeRef.current?.(count);
-      return count;
+      onDiffCountChangeRef.current?.(hunks.length);
+      return hunks.length;
     };
     repaintDiffRef.current = () => {
       applyDiffDecorations(
@@ -492,7 +516,7 @@ export function MonacoDiffViewer({
       } | null;
       return Boolean(
         candidate?.closest?.(
-          ".monaco-diff-added-gutter, .monaco-diff-removed-gutter, .monaco-diff-changed-gutter",
+          ".monaco-diff-added-gutter, .monaco-diff-removed-gutter",
         ),
       );
     };
@@ -517,8 +541,8 @@ export function MonacoDiffViewer({
     const notifyDiffCount = () => {
       const changes = editor.getLineChanges();
       if (changes !== null && changes !== undefined) {
-        // Prefer Monaco's count when available, but keep our decorations as
-        // fallback — they are already applied via applyOwnDiff.
+        // Prefer Monaco's count when available; the local hunk map covers the
+        // short window before Monaco finishes calculating the diff.
         onDiffCountChangeRef.current?.(changes.length);
         return true;
       }
@@ -532,9 +556,19 @@ export function MonacoDiffViewer({
 
     editor.setModel({ original, modified });
     editorRef.current = editor;
-    // Apply our diff immediately so highlight and count appear even if Monaco's
-    // worker never responds. This also fixes the "1 difference" but no color.
+    // Build the local hunk map immediately so navigation and the counter do not
+    // wait for Monaco's asynchronous diff update.
     applyOwnDiff(leftText, rightText);
+    let initialRevealId: number | null = null;
+    if (revealFirstChange) {
+      const firstHunk = navigationHunksRef.current[0];
+      if (firstHunk) {
+        initialRevealId = window.requestAnimationFrame(() => {
+          editor.getModifiedEditor().revealLineInCenter(firstHunk.modifiedStartLine);
+          editor.getOriginalEditor().revealLineInCenter(firstHunk.originalStartLine);
+        });
+      }
+    }
     // Still poll Monaco's native diff to keep count in sync if it later reports.
     let pollId: number | null = null;
     let rafId: number | null = null;
@@ -611,6 +645,9 @@ export function MonacoDiffViewer({
 
     return () => {
       resizeObserver?.disconnect();
+      if (initialRevealId !== null) {
+        window.cancelAnimationFrame(initialRevealId);
+      }
       for (const d of disposables) {
         d.dispose();
       }
@@ -632,7 +669,7 @@ export function MonacoDiffViewer({
     // changes; text and theme are synced by the effect below.
     // `Boolean(onEditorContextMenu)` stands in for the callback itself, whose
     // identity changes on every render and would rebuild the editor each time.
-  }, [monacoApi, language, readOnly, Boolean(onEditorContextMenu)]);
+  }, [loadedLanguage, monacoApi, language, readOnly, Boolean(onEditorContextMenu), revealFirstChange]);
 
   // Sync text + theme without full recreate
   useEffect(() => {
@@ -659,6 +696,10 @@ export function MonacoDiffViewer({
       monacoApi.editor.setModelLanguage(modified, lang);
     }
     monacoApi.editor.setTheme(applyGitViewMonacoTheme(monacoApi, themeKind));
+    // Theme tokens can change without the models changing. Repaint our local
+    // diff decorations as well so the line wash and overview markers keep the
+    // same contrast as the active VS Code theme after a theme switch.
+    repaintDiffRef.current();
     editor.layout();
     if (textChanged) {
       const hunks = buildDiffNavigationHunks(leftText, rightText);
@@ -667,15 +708,19 @@ export function MonacoDiffViewer({
         activeHunkIndexRef.current = -1;
       }
       onDiffCountChangeRef.current?.(hunks.length);
+      applyDiffDecorations(
+        monacoApi,
+        originalDecorationsRef.current,
+        modifiedDecorationsRef.current,
+        hunks,
+        activeHunkIndexRef.current,
+        readDiffOverviewColors(hostRef.current!),
+      );
+      if (revealFirstChange && hunks[0]) {
+        editor.getModifiedEditor().revealLineInCenter(hunks[0].modifiedStartLine);
+        editor.getOriginalEditor().revealLineInCenter(hunks[0].originalStartLine);
+      }
     }
-    applyDiffDecorations(
-      monacoApi,
-      originalDecorationsRef.current,
-      modifiedDecorationsRef.current,
-      navigationHunksRef.current,
-      activeHunkIndexRef.current,
-      readDiffOverviewColors(hostRef.current!),
-    );
     // Text changed → Monaco recomputes diff async. getLineChanges() is null
     // until then, so poll until onDidUpdateDiff fires, otherwise toolbar
     // stays "Comparing…" when clicking rapidly between files (same language).
@@ -735,7 +780,7 @@ export function MonacoDiffViewer({
       };
     }
     return undefined;
-  }, [leftText, rightText, language, monacoApi, themeKind]);
+  }, [leftText, rightText, language, monacoApi, themeKind, revealFirstChange]);
 
   const { sideBySide, trimWhitespace, collapseUnchanged, softWrap } = options;
   useEffect(() => {

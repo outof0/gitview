@@ -13,7 +13,7 @@ import { ForceCheckoutDialog } from "./ForceCheckoutDialog";
 import type { BranchOverlayRequest } from "../../apps/branchOverlayGuards";
 
 /** Protocol surface the overlay needs: branch list, create, checkout. */
-export type BranchOverlayClient = {
+type BranchOverlayClient = {
   listBranches: (repoId: string) => Promise<BranchListSnapshot>;
   createBranch: (
     repoId: string,

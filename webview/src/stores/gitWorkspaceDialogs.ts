@@ -36,6 +36,8 @@ export type GitWorkspaceDialogPayloads = {
   renameBranch: { oldName: string };
   deleteBranch: { name: string; forceRequired?: boolean };
   deleteReviewSourceBranch: { branchName: string };
+  /** Local preflight shown before the host-side rollback mutation. */
+  rollbackChanges: { paths: string[]; selectedPaths?: string[] };
   rollbackConfirm: { confirmation: RollbackConfirmationEvidence };
   reset: {
     sha: string;

@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { ResetMode } from "@gitview/shared/types/log";
 import type { DiffLineSelection } from "@gitview/shared/types/diff";
 import { orderShasOldestFirst } from "@gitview/shared/lib/commitBatchOrder";
 import type { GitWorkspaceController } from "./gitWorkspaceControllerTypes";
-import { WorkspaceBlamePanel } from "../../components/git/WorkspaceBlamePanel";
 import { WorkspaceLogPanel } from "../../components/git/WorkspaceLogPanel";
+import type { WorkspaceLogPanelProps } from "../../components/git/workspaceLogPanel/workspaceLogPanelTypes";
 import { useGitWorkspaceStore } from "../../stores/gitWorkspaceStore";
 import { reportDiffOpenError } from "../../lib/userError";
+import { isModDShortcut } from "../../lib/isModDShortcut";
 import { workspaceDiffToFileDiffView } from "../historyBlameAdapters";
 
 export function GitWorkspaceLogTab({ ctx }: { ctx: GitWorkspaceController }) {
@@ -17,7 +18,6 @@ export function GitWorkspaceLogTab({ ctx }: { ctx: GitWorkspaceController }) {
     diffLoading,
     diffError,
 
-    selectedFilePath,
     workspaceTab,
     logSnapshot,
     logLoading,
@@ -26,13 +26,12 @@ export function GitWorkspaceLogTab({ ctx }: { ctx: GitWorkspaceController }) {
     logSelectedShas,
     logSelectedFilePath,
     logFilters,
+    activeHistoryScope,
     issueTrackerBaseUrl,
-    blameSnapshot,
-    blameLoading,
-    blameError,
     setLogFilters,
     openDialog,
     selectLogCommit,
+    applyLogCommitDetail,
     toggleLogCommitSelection,
     selectLogFile,
     activeRepo,
@@ -46,6 +45,35 @@ export function GitWorkspaceLogTab({ ctx }: { ctx: GitWorkspaceController }) {
     branchSnapshot,
     loadBranches,
   } = ctx;
+  const requestedMergeDetails = useRef(new Set<string>());
+  const autoSelectedHistoryKey = useRef<string | null>(null);
+
+  const selectHistoryFile = useCallback(
+    (sha: string): void => {
+      const scope = activeHistoryScope;
+      if (!scope || scope.isFolder || !scope.path) {
+        return;
+      }
+      const targetPath = scope.path;
+      const commit = useGitWorkspaceStore
+        .getState()
+        .logSnapshot?.commits.find((entry) => entry.sha === sha);
+      if (!commit) {
+        return;
+      }
+      const file = commit.changedFiles.find(
+        (entry) => entry.path === targetPath,
+      ) ?? commit.changedFiles[0];
+      if (!file) {
+        return;
+      }
+      selectLogFile(file.path);
+      if (scope.showDiff !== false) {
+        void loadLogFileDiff(sha, file.path, file.status);
+      }
+    },
+    [activeHistoryScope, loadLogFileDiff, selectLogFile],
+  );
 
   useEffect(() => {
     if (activeRepo) {
@@ -90,19 +118,101 @@ export function GitWorkspaceLogTab({ ctx }: { ctx: GitWorkspaceController }) {
         return;
       }
       selectLogCommit(sha);
+      selectHistoryFile(sha);
+      if (!activeRepo) {
+        return;
+      }
+      const commit = useGitWorkspaceStore
+        .getState()
+        .logSnapshot?.commits.find((entry) => entry.sha === sha);
+      if (!commit?.isMerge || commit.changedFiles.length > 0) {
+        return;
+      }
+      const requestKey = `${activeRepo.id}:${sha}`;
+      if (requestedMergeDetails.current.has(requestKey)) {
+        return;
+      }
+      requestedMergeDetails.current.add(requestKey);
+      void clientRef.current
+        .commitDetail(activeRepo.id, sha)
+        .then((result) => {
+          if (!result.commit) {
+            requestedMergeDetails.current.delete(requestKey);
+            return;
+          }
+          applyLogCommitDetail(activeRepo.id, result.commit);
+        })
+        .catch((err: unknown) => {
+          requestedMergeDetails.current.delete(requestKey);
+          useGitWorkspaceStore
+            .getState()
+            .setLogError(
+              err instanceof Error ? err.message : "Failed to load merge files",
+            );
+        });
     },
-    [selectLogCommit, toggleLogCommitSelection],
+    [
+      activeRepo,
+      applyLogCommitDetail,
+      clientRef,
+      selectLogCommit,
+      toggleLogCommitSelection,
+      selectHistoryFile,
+    ],
   );
+
+  useEffect(() => {
+    if (!activeHistoryScope || !logSnapshot?.commits[0]) {
+      autoSelectedHistoryKey.current = null;
+      return;
+    }
+    const currentSelected = useGitWorkspaceStore.getState().logSelectedSha;
+    if (currentSelected) {
+      return;
+    }
+    const firstSha = logSnapshot.commits[0].sha;
+    const key = `${activeHistoryScope.repoId}:${activeHistoryScope.path}:${firstSha}`;
+    if (autoSelectedHistoryKey.current === key) {
+      return;
+    }
+    autoSelectedHistoryKey.current = key;
+    selectLogCommit(firstSha);
+    if (!activeHistoryScope.isFolder) {
+      selectHistoryFile(firstSha);
+    }
+  }, [
+    activeHistoryScope,
+    logSnapshot,
+    selectHistoryFile,
+    selectLogCommit,
+  ]);
+
+  useEffect(() => {
+    if (!logSelectedSha || !activeHistoryScope || activeHistoryScope.isFolder || !logSnapshot) {
+      return;
+    }
+    selectHistoryFile(logSelectedSha);
+  }, [logSelectedSha, activeHistoryScope, logSnapshot, selectHistoryFile]);
 
   const handleSelectFile = useCallback(
     (path: string, status: string) => {
       selectLogFile(path);
+      // The root log has no inline diff surface anymore. Only file history
+      // renders a diff in the right column; folder history opens a standalone
+      // diff tab when a file is selected.
+    if (
+      !activeHistoryScope ||
+      activeHistoryScope.isFolder ||
+      activeHistoryScope.showDiff === false
+    ) {
+      return;
+    }
       const sha = useGitWorkspaceStore.getState().logSelectedSha;
       if (sha) {
         void loadLogFileDiff(sha, path, status);
       }
     },
-    [loadLogFileDiff, selectLogFile],
+    [activeHistoryScope, loadLogFileDiff, selectLogFile],
   );
 
   const handleBranchMenuOpen = useCallback(() => {
@@ -134,6 +244,31 @@ export function GitWorkspaceLogTab({ ctx }: { ctx: GitWorkspaceController }) {
     },
     [clientRef, loadLogFileDiff, selectLogFile],
   );
+
+  useEffect(() => {
+    if (workspaceTab !== "log") {
+      return;
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!isModDShortcut(event)) {
+        return;
+      }
+      const path = useGitWorkspaceStore.getState().logSelectedFilePath;
+      const sha = useGitWorkspaceStore.getState().logSelectedSha;
+      if (!path || !sha) {
+        return;
+      }
+      event.preventDefault();
+      const status =
+        useGitWorkspaceStore
+          .getState()
+          .logSnapshot?.commits.find((commit) => commit.sha === sha)
+          ?.changedFiles.find((file) => file.path === path)?.status ?? "M";
+      handleOpenFileDiff(path, status);
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [handleOpenFileDiff, workspaceTab]);
 
   const handleRefresh = useCallback(() => {
     void loadLog();
@@ -278,40 +413,6 @@ export function GitWorkspaceLogTab({ ctx }: { ctx: GitWorkspaceController }) {
     [activeRepo, clientRef, loadLog, runMutation],
   );
 
-  const handleCherryPickHunk = useCallback(
-    (hunkIndex: number) => {
-      if (!activeRepo || !logSelectedSha || !logSelectedFilePath) {
-        return;
-      }
-      void runMutation(async () => {
-        await clientRef.current.cherryPickSelected(
-          activeRepo.id,
-          logSelectedSha,
-          logSelectedFilePath,
-          { hunkIndexes: [hunkIndex] },
-        );
-      });
-    },
-    [activeRepo, clientRef, logSelectedFilePath, logSelectedSha, runMutation],
-  );
-
-  const handleRevertHunk = useCallback(
-    (hunkIndex: number) => {
-      if (!activeRepo || !logSelectedSha || !logSelectedFilePath) {
-        return;
-      }
-      void runMutation(async () => {
-        await clientRef.current.revertSelected(
-          activeRepo.id,
-          logSelectedSha,
-          logSelectedFilePath,
-          { hunkIndexes: [hunkIndex] },
-        );
-      });
-    },
-    [activeRepo, clientRef, logSelectedFilePath, logSelectedSha, runMutation],
-  );
-
   const handleDropHunk = useCallback(
     (hunkIndex: number) => {
       if (!logSelectedSha || !logSelectedFilePath) {
@@ -368,67 +469,104 @@ export function GitWorkspaceLogTab({ ctx }: { ctx: GitWorkspaceController }) {
     [handleDropSelected, logSelectedFilePath, logSelectedSha],
   );
 
-  if (workspaceTab !== "log" && workspaceTab !== "blame") {
-    return null;
-  }
-
-  return workspaceTab === "log" ? (
-    <WorkspaceLogPanel
-      snapshot={logSnapshot}
-      loading={logLoading}
-      error={logError}
-      selectedSha={logSelectedSha}
-      selectedShas={logSelectedShas}
-      selectedFilePath={logSelectedFilePath}
-      diffDocument={diffDocument}
-      diffLoading={diffLoading}
-      diffError={diffError}
-      onSelectCommit={handleSelectCommit}
-      issueTrackerBaseUrl={issueTrackerBaseUrl}
-      currentBranchHeadSha={activeRepo?.headSha ?? null}
-      onSelectFile={handleSelectFile}
-      filters={logFilters}
-      onFiltersChange={setLogFilters}
-      branches={branches}
-      authors={authors}
-      pathOptions={pathOptions}
-      onBranchMenuOpen={handleBranchMenuOpen}
-      onOpenFileDiff={handleOpenFileDiff}
-      onRefresh={handleRefresh}
-      busy={syncing}
-      protectedBranch={activeRepo?.protectedBranch}
-      hasUpstream={Boolean(activeRepo?.upstream)}
-      onCherryPick={handleCherryPick}
-      onCherryPickMultiple={handleCherryPickMultiple}
-      onRevert={handleRevert}
-      onRevertMultiple={handleRevertMultiple}
-      onCopyHash={handleCopyHashClick}
-      onCreateBranchFromCommit={handleCreateBranchFromCommit}
-      onResetToCommit={handleResetToCommit}
-      onUndoLastCommit={handleUndoLastCommit}
-      onEditMessage={handleEditMessage}
-      onDropCommit={handleDropCommit}
-      onRewriteCommit={handleRewriteCommit}
-      onExtractChanges={handleExtractChanges}
-      canDropSelected={Boolean(
+  const logProps = useMemo<WorkspaceLogPanelProps>(
+    () => ({
+      snapshot: logSnapshot,
+      loading: logLoading,
+      error: logError,
+      selectedSha: logSelectedSha,
+      selectedShas: logSelectedShas,
+      selectedFilePath: logSelectedFilePath,
+      diffDocument,
+      diffLoading,
+      diffError,
+      historyScope: activeHistoryScope,
+      onSelectCommit: handleSelectCommit,
+      issueTrackerBaseUrl,
+      currentBranchHeadSha: activeRepo?.headSha ?? null,
+      onSelectFile: handleSelectFile,
+      filters: logFilters,
+      onFiltersChange: setLogFilters,
+      branches,
+      authors,
+      pathOptions,
+      onBranchMenuOpen: handleBranchMenuOpen,
+      onOpenFileDiff: handleOpenFileDiff,
+      onRefresh: handleRefresh,
+      busy: syncing,
+      protectedBranch: activeRepo?.protectedBranch,
+      hasUpstream: Boolean(activeRepo?.upstream),
+      onCherryPick: handleCherryPick,
+      onCherryPickMultiple: handleCherryPickMultiple,
+      onRevert: handleRevert,
+      onRevertMultiple: handleRevertMultiple,
+      onCopyHash: handleCopyHashClick,
+      onCreateBranchFromCommit: handleCreateBranchFromCommit,
+      onResetToCommit: handleResetToCommit,
+      onUndoLastCommit: handleUndoLastCommit,
+      onEditMessage: handleEditMessage,
+      onDropCommit: handleDropCommit,
+      onRewriteCommit: handleRewriteCommit,
+      onExtractChanges: handleExtractChanges,
+      canDropSelected: Boolean(
         logSelectedSha &&
           activeRepo?.headSha &&
           logSelectedSha === activeRepo.headSha,
-      )}
-      protectedBranchForDrop={activeRepo?.protectedBranch}
-      onCherryPickHunk={handleCherryPickHunk}
-      onRevertHunk={handleRevertHunk}
-      onDropHunk={handleDropHunk}
-      onCherryPickLines={handleCherryPickLines}
-      onRevertLines={handleRevertLines}
-      onDropLines={handleDropLines}
-    />
-  ) : (
-    <WorkspaceBlamePanel
-      snapshot={blameSnapshot}
-      filePath={selectedFilePath}
-      loading={blameLoading}
-      error={blameError}
-    />
+      ),
+      protectedBranchForDrop: activeRepo?.protectedBranch,
+      onDropHunk: handleDropHunk,
+      onCherryPickLines: handleCherryPickLines,
+      onRevertLines: handleRevertLines,
+      onDropLines: handleDropLines,
+    }),
+    [
+      logSnapshot,
+      logLoading,
+      logError,
+      logSelectedSha,
+      logSelectedShas,
+      logSelectedFilePath,
+      diffDocument,
+      diffLoading,
+      diffError,
+      activeHistoryScope,
+      handleSelectCommit,
+      issueTrackerBaseUrl,
+      activeRepo?.headSha,
+      handleSelectFile,
+      logFilters,
+      setLogFilters,
+      branches,
+      authors,
+      pathOptions,
+      handleBranchMenuOpen,
+      handleOpenFileDiff,
+      handleRefresh,
+      syncing,
+      activeRepo?.protectedBranch,
+      activeRepo?.upstream,
+      handleCherryPick,
+      handleCherryPickMultiple,
+      handleRevert,
+      handleRevertMultiple,
+      handleCopyHashClick,
+      handleCreateBranchFromCommit,
+      handleResetToCommit,
+      handleUndoLastCommit,
+      handleEditMessage,
+      handleDropCommit,
+      handleRewriteCommit,
+      handleExtractChanges,
+      handleDropHunk,
+      handleCherryPickLines,
+      handleRevertLines,
+      handleDropLines,
+    ],
   );
+
+  if (workspaceTab !== "log") {
+    return null;
+  }
+
+  return <WorkspaceLogPanel {...logProps} />;
 }

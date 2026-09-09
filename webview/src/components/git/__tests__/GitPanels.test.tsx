@@ -85,7 +85,13 @@ describe("Git panels", () => {
     );
     expect(screen.queryByTestId("log-branch-tree")).toBeNull();
     expect(screen.getByTestId("git-commit-list")).toBeTruthy();
-    expect(screen.getByTestId("commit-ref-main")).toBeTruthy();
+    const mainRef = screen.getByTestId("commit-ref-main");
+    const subject = screen.getByTestId("git-commit-subject");
+    expect(mainRef.compareDocumentPosition(subject) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(screen.getByTestId("commit-refs").className).toContain("max-w-[36%]");
+    expect(mainRef.className).toContain("flex-[0_1_auto]");
     expect(screen.getByTestId("git-changed-files-tree")).toBeTruthy();
     expect(screen.getByTestId("git-log-details-pane")).toBeTruthy();
     expect(screen.getByTestId("git-history-branch-filter")).toBeTruthy();

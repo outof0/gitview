@@ -1,4 +1,5 @@
-import { Fragment, useEffect } from "react";
+import { Fragment, useEffect, useMemo } from "react";
+import type { GitFileStatus } from "@gitview/shared/types/status";
 import type {
   GitWorkspaceDialogId,
   GitWorkspaceDialogPayloads,
@@ -17,16 +18,25 @@ function DialogSlot<K extends GitWorkspaceDialogId>({
   id,
   payload,
   ctx,
+  visibleFiles,
 }: {
   id: K;
   payload: GitWorkspaceDialogPayloads[K];
   ctx: GitWorkspaceController;
+  visibleFiles: GitFileStatus[];
 }) {
-  return <>{GIT_WORKSPACE_DIALOG_RENDERERS[id](payload, ctx)}</>;
+  return <>{GIT_WORKSPACE_DIALOG_RENDERERS[id](payload, ctx, visibleFiles)}</>;
 }
 
 export function GitWorkspaceDialogs({ ctx }: { ctx: GitWorkspaceController }) {
   const { dialogs, loadBranches } = ctx;
+  const visibleFiles = useMemo(
+    () =>
+      typeof ctx.visibleFiles === "function"
+        ? ctx.visibleFiles()
+        : (ctx.statusSnapshot?.files ?? []),
+    [ctx.visibleFiles, ctx.statusSnapshot],
+  );
   // Also covers the popup: the native menu can open it before the repo snapshot
   // has landed, and `loadBranches` is a no-op until there is an active repo.
   const needsBranches =
@@ -53,6 +63,7 @@ export function GitWorkspaceDialogs({ ctx }: { ctx: GitWorkspaceController }) {
               id={id}
               payload={payload as GitWorkspaceDialogPayloads[typeof id]}
               ctx={ctx}
+              visibleFiles={visibleFiles}
             />
           </Fragment>
         );

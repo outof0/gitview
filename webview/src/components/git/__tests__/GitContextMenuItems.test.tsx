@@ -132,6 +132,7 @@ describe("GitContextMenuItems", () => {
     const fetch = screen.getByTestId("git-menu-fetch") as HTMLButtonElement;
     expect(unstash.disabled).toBe(false);
     expect(fetch.disabled).toBe(true);
+    expect(fetch.className).toContain("opacity-40");
     expect(fetch.getAttribute("title")?.toLowerCase()).toMatch(/remote/);
 
     fireEvent.click(fetch);
@@ -139,6 +140,51 @@ describe("GitContextMenuItems", () => {
 
     fireEvent.click(unstash);
     expect(onGitAction).toHaveBeenCalledWith("unstash");
+  });
+
+  it("keeps commit actions available for unstaged working-tree changes", () => {
+    render(
+      <GitContextMenuItems
+        isFolder={false}
+        onShowHistory={vi.fn()}
+        onGitAction={vi.fn()}
+        onClose={vi.fn()}
+        enablement={buildGitSubmenuEnablementContext({
+          repository: {
+            upstream: "origin/main",
+            ahead: 1,
+            behind: 0,
+            conflictCount: 0,
+            dirty: true,
+            trusted: true,
+            operation: { type: "none" },
+          },
+          files: [
+            {
+              repoId: "repo-1",
+              path: "src/app.ts",
+              kind: "modified",
+              indexStatus: " ",
+              workingTreeStatus: "M",
+              staged: false,
+              conflicted: false,
+              binary: false,
+            },
+          ],
+          relativePath: "src/app.ts",
+          hasRemote: true,
+        })}
+      />,
+    );
+
+    expect(screen.getByTestId("git-menu-commit")).toHaveProperty(
+      "disabled",
+      false,
+    );
+    expect(screen.getByTestId("git-menu-commit-and-push")).toHaveProperty(
+      "disabled",
+      false,
+    );
   });
 
   it("uses onAnnotateBlame when provided", () => {

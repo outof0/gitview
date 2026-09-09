@@ -11,6 +11,7 @@ export function createProtocolClientRepoMethods(request: ProtocolRequestFn) {
     cloneRepository: () => request("workspace.clone", {}),
     manageWorkspaceTrust: () => request("workspace.manageTrust", {}),
     collapsePanel: () => request("workspace.collapsePanel", {}),
+    toggleSidebar: () => request("workspace.toggleSidebar", {}),
     addRemote: (repoId: string) =>
       request("repository.addRemote", { repoId }),
     refreshRepos: (repoId?: string) =>

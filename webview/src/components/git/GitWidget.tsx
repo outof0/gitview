@@ -23,7 +23,7 @@ import {
 } from "@gitview/shared/types/sync";
 import { operationLabel } from "../../lib/operationLabel";
 
-export type PullStrategy = "merge" | "rebase" | "ff_only";
+type PullStrategy = "merge" | "rebase" | "ff_only";
 
 type GitWidgetProps = {
   snapshot: RepositorySnapshot | null;
