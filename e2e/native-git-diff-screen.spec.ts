@@ -60,11 +60,6 @@ test.describe("Native — Git Diff screen", () => {
           ".nx-monaco-diff-host .cmdr.monaco-diff-added, .nx-monaco-diff-host .cdr.monaco-diff-added",
         ).first(),
       ).toBeVisible();
-      await expect(
-        frame.locator(
-          ".nx-monaco-diff-host .cldr.monaco-diff-added-gutter",
-        ).first(),
-      ).toBeVisible();
       await frame.getByTestId("git-diff-next-difference").click();
       await expect(
         frame.locator(

@@ -16,6 +16,7 @@ import {
   TEST_WORKSPACE,
   waitForNativeGitMenuItemDisabled,
   waitForNativeGitMenuItemEnabled,
+  waitForNoWebview,
   waitForWebviewFrame,
 } from "./helpers/native-vscode";
 test.describe.configure({ mode: "serial" });
@@ -30,7 +31,11 @@ test.describe("VS Code native Explorer Git submenu", () => {
     const session = await launchNativeVsCode();
     try {
       await clickNativeGitMenu(session, "README.md", "Rollback");
-      await session.page
+      const rollbackFrame = await waitForWebviewFrame(
+        session.app,
+        "rollback-changes-dialog",
+      );
+      await rollbackFrame
         .getByRole("button", { name: /^Rollback$/ })
         .click({ timeout: 10_000 });
       await expect
@@ -323,10 +328,7 @@ test.describe("VS Code native Explorer Git submenu", () => {
         .getByTestId("stash-changes-message")
         .fill("native stash message");
       await stashFrame.getByTestId("stash-changes-confirm").click();
-      await expect(stashFrame.getByTestId("stash-changes-dialog")).toHaveCount(
-        0,
-        { timeout: 15_000 },
-      );
+      await waitForNoWebview(session.app, "stash-changes-dialog");
       await expect
         .poll(
           async () => {

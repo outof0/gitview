@@ -1,5 +1,5 @@
 /**
- * GitView Git screen coverage — annotate editor + Git Log tool window.
+ * GitView Git screen coverage — annotate editor + workspace Git Log tool window.
  */
 import {
   expect,
@@ -88,10 +88,8 @@ export async function expectGitViewBlameScreen(
     timeout: 15_000,
   });
   await expectUiSurfaceLayout(surface, "git-blame-app");
-  await expect(surface.getByTestId("workspace-blame-panel")).toBeVisible();
+  await expect(surface.getByTestId("git-blame-editor-panel")).toBeVisible();
   await expect(surface.getByTestId("blame-editor")).toBeVisible();
-  await expect(surface.getByTestId("blame-git-log-pane")).toBeVisible();
-  await expect(surface.getByTestId("git-history-tool-window")).toBeVisible();
   if (opts.relativePath) {
     const fileName = opts.relativePath.split("/").pop() ?? opts.relativePath;
     await expect(surface.getByTestId("blame-editor-tab")).toContainText(
@@ -253,15 +251,6 @@ export async function expectBlameSingleScrollContainer(
   }
 }
 
-export async function expectBlameCommitHistoryPanel(
-  surface: ScreenSurface,
-): Promise<void> {
-  await expect(surface.getByTestId("git-history-tool-window")).toBeVisible({
-    timeout: 15_000,
-  });
-  await expect(surface.getByTestId("git-commit-list")).toBeVisible();
-}
-
 export async function expectGitLogGraphFitsCommitList(
   surface: ScreenSurface,
 ): Promise<void> {
@@ -311,6 +300,18 @@ export async function expectGitViewHistoryScreen(
   surface: ScreenSurface,
   targetPath: string,
 ): Promise<void> {
+  // Native Show History now opens the Git workspace Log tab. Keep the legacy
+  // assertion for standalone history fixtures, but prefer the workspace
+  // surface so Explorer audits exercise the shipped route.
+  if ((await surface.getByTestId("git-workspace-app").count()) > 0) {
+    await expect(surface.getByTestId("git-workspace-app")).toBeVisible({
+      timeout: 15_000,
+    });
+    await expectUiSurfaceLayout(surface, "workspace-log-panel");
+    await expect(surface.getByText(`History · ${targetPath}`)).toBeVisible();
+    await expect(surface.getByTestId("workspace-log-files-pane")).toBeVisible();
+    return;
+  }
   await expect(surface.getByTestId("git-history-app")).toBeVisible({
     timeout: 15_000,
   });
@@ -403,7 +404,6 @@ export async function waitForGitViewBlameFrame(
   app: ElectronApplication,
   timeout = 60_000,
 ): Promise<Frame> {
-  // Legacy webview blame surface (playground / fixtures). Native Annotate uses the real editor.
   return waitForWebviewFrame(app, "git-blame-app", timeout);
 }
 
@@ -419,7 +419,7 @@ export async function waitForGitViewHistoryFrame(
   app: ElectronApplication,
   timeout = 60_000,
 ): Promise<Frame> {
-  return waitForWebviewFrame(app, "git-history-app", timeout);
+  return waitForWebviewFrame(app, "git-workspace-app", timeout);
 }
 
 export async function openExplorerGitAction(

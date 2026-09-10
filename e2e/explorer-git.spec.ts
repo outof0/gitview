@@ -10,12 +10,10 @@ import { E2E_REPO_ROOT } from "./helpers/git-actions";
 import {
   loadBlameScreenBootstrap,
   loadDiffScreenBootstrap,
-  loadHistoryScreenBootstrap,
   openGitBlameScreen,
   openGitDiffScreen,
 } from "./helpers/git-screen-bootstrap";
 import {
-  expectBlameCommitHistoryPanel,
   expectBlameCompactBlockLayout,
   expectGitViewBlameScreen,
   expectGitViewScreen,
@@ -33,7 +31,7 @@ test.describe("Explorer Git — file actions", () => {
     }
   });
 
-  test("Annotate — editor gutter + Git Log below", async ({ page }) => {
+  test("Annotate — editor gutter and code surface", async ({ page }) => {
     const bootstrap = await loadBlameScreenBootstrap(TARGET);
     await openGitBlameScreen(page, bootstrap);
 
@@ -42,7 +40,6 @@ test.describe("Explorer Git — file actions", () => {
       contentSample: "class",
     });
     await expectBlameCompactBlockLayout(page, bootstrap.lines);
-    await expect(page.getByTestId("git-history-tool-window")).toBeVisible();
   });
 
   test("Show Diff — compare toolbar, split panes, highlighted delta", async ({
@@ -58,12 +55,33 @@ test.describe("Explorer Git — file actions", () => {
     });
   });
 
-  test("Annotate → commit — Git Log pane below", async ({ page }) => {
+  test("Annotate → commit — selects the commit in Git workspace", async ({ page }) => {
     const bootstrap = await loadBlameScreenBootstrap(TARGET);
-    const history = await loadHistoryScreenBootstrap(TARGET);
-    await openGitBlameScreen(page, bootstrap, history);
+    await openGitBlameScreen(page, bootstrap);
+    const expectedSha = bootstrap.lines[0]?.sha;
+    expect(expectedSha).toEqual(expect.any(String));
 
     await page.getByTestId(/^blame-sha-/).first().click();
-    await expectBlameCommitHistoryPanel(page);
+    await expect
+      .poll(async () => {
+        const posted = await page.evaluate((expected) => {
+          const api = (
+            window as unknown as {
+              __posted?: Array<{ type?: string; payload?: unknown }>;
+            }
+          ).__posted;
+          return (
+            api?.some(
+              (m) =>
+                m.type === "blame.selectCommit" &&
+                (m.payload as { repoId?: string; sha?: string })?.repoId ===
+                  expected.repoId &&
+                (m.payload as { sha?: string })?.sha === expected.sha,
+            ) ?? false
+          );
+        }, { repoId: bootstrap.repoId, sha: expectedSha });
+        return posted;
+      })
+      .toBe(true);
   });
 });

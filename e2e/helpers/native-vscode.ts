@@ -50,6 +50,12 @@ export type NativeVsCodeLaunchOptions = {
   height?: number;
   /** Written to User/settings.json before launch (gitView.* keys). */
   settings?: Record<string, unknown>;
+  /**
+   * Extension folders copied into the throwaway profile before launch. The
+   * profile gets a fresh `--extensions-dir`, so launch photography installs
+   * its color theme this way instead of hitting the Marketplace.
+   */
+  localExtensions?: string[];
 };
 
 type NativeWindowSize = { width: number; height: number };
@@ -358,6 +364,11 @@ async function launchNativeVsCodeOnce(
   await prepareSilentVsCodeApp(executablePath);
   const extensionsDir = path.join(userDataDir, "extensions");
   await fs.mkdir(extensionsDir, { recursive: true });
+  for (const source of options.localExtensions ?? []) {
+    await fs.cp(source, path.join(extensionsDir, path.basename(source)), {
+      recursive: true,
+    });
+  }
 
   const userSettingsDir = path.join(userDataDir, "User");
   await fs.mkdir(userSettingsDir, { recursive: true });
@@ -365,7 +376,13 @@ async function launchNativeVsCodeOnce(
     path.join(userSettingsDir, "settings.json"),
     JSON.stringify(
       {
-        "workbench.chat.enabled": false,
+        // Chat ships enabled in current VS Code. `workbench.chat.enabled` is
+        // not a real key and silently did nothing, so the Chat secondary side
+        // bar (default: visible in a workspace) stayed inside every native
+        // screenshot. Disable AI features and keep the secondary bar closed.
+        "chat.disableAIFeatures": true,
+        "chat.agentsControl.enabled": "hidden",
+        "workbench.secondarySideBar.defaultVisibility": "hidden",
         "window.restoreWindows": "none",
         "git.enabled": true,
         "git.autoRepositoryDetection": true,
@@ -889,6 +906,36 @@ export async function waitForWebviewFrame(
   return frame;
 }
 
+/** Wait until a webview test id is absent from every live VS Code webview. */
+export async function waitForNoWebview(
+  app: ElectronApplication,
+  testId: string,
+  timeout = 15_000,
+): Promise<void> {
+  await expect
+    .poll(
+      async () => {
+        for (const page of app.windows()) {
+          if (page.isClosed()) {
+            continue;
+          }
+          for (const frame of page.frames()) {
+            try {
+              if ((await frame.getByTestId(testId).count()) > 0) {
+                return false;
+              }
+            } catch {
+              // A transient webview detach means the old surface is gone.
+            }
+          }
+        }
+        return true;
+      },
+      { timeout },
+    )
+    .toBe(true);
+}
+
 export async function openConflictsDialog(
   session: NativeVsCodeSession,
 ): Promise<Frame> {
@@ -1117,6 +1164,16 @@ export async function acceptQuickPickStep(
     await page.waitForTimeout(500);
   }
   await page.keyboard.press("Enter");
+}
+
+export async function openGitViewActivityBar(page: Page): Promise<void> {
+  await page.bringToFront();
+  await dismissVsCodeOverlays(page);
+  const activityButton = page
+    .getByRole("button", { name: /^GitView$/i })
+    .or(page.getByRole("tab", { name: /^GitView$/i }));
+  await expect(activityButton.first()).toBeVisible({ timeout: 20_000 });
+  await activityButton.first().click();
 }
 
 export async function focusScmView(page: Page): Promise<void> {

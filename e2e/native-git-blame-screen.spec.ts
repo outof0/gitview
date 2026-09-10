@@ -10,13 +10,12 @@ import {
 } from "./helpers/native-vscode";
 import {
   countBlameAnnotations,
-  expectBlameCommitHistoryPanel,
   expectBlameCompactBlockLayout,
   expectGitLogGraphFitsCommitList,
-  expectBlameWebviewTab,
   expectGitViewBlameScreen,
   openExplorerGitAction,
   waitForGitViewBlameFrame,
+  waitForGitViewHistoryFrame,
 } from "./helpers/git-screen-parity";
 import { createGitService } from "../out/services/gitService";
 import { expectUiSurfaceAccessible } from "./helpers/ui-system-contracts";
@@ -28,14 +27,13 @@ const git = createGitService();
 test.describe.configure({ mode: "serial" });
 
 test.describe("Native — Git Blame screen", () => {
-  test("Annotate opens editor tab with Git Log below", async ({
+  test("Annotate opens editor tab with workspace Git Log", async ({
     browserName: _browserName,
   }, testInfo) => {
     await prepareCleanGitRepo();
     const session = await launchNativeVsCode();
     try {
       await openExplorerGitAction(session, TARGET, "Annotate with Git Blame");
-      await expectBlameWebviewTab(session.page, TARGET);
 
       const repoRoot = (await git.findRepoRoot(TEST_WORKSPACE))!;
       const blame = await git.blameFile(repoRoot, "HEAD", TARGET);
@@ -52,6 +50,9 @@ test.describe("Native — Git Blame screen", () => {
       await expect(frame.getByTestId(/^blame-sha-/)).toHaveCount(
         blame.lines.length,
       );
+      const workspace = await waitForGitViewHistoryFrame(session.app);
+      await expect(workspace.getByTestId("workspace-log-panel")).toBeVisible();
+      await expect(workspace.getByTestId("workspace-log-files-pane")).toBeVisible();
       const annotation = frame.getByTestId("blame-sha-1");
       await expect(annotation).toContainText(sample.author);
       await expect(annotation).not.toContainText(sample.summary);
@@ -59,8 +60,12 @@ test.describe("Native — Git Blame screen", () => {
       await expect(frame.getByTestId("blame-commit-hover-card")).toContainText(
         sample.summary,
       );
-      await expectGitLogGraphFitsCommitList(frame);
-      await frame.locator('[data-graph-row="true"]').first().hover();
+      await expectGitLogGraphFitsCommitList(workspace);
+      await workspace.locator('[data-graph-row="true"]').first().hover();
+      // Moving between native webview frames does not reliably dispatch the
+      // source frame's mouseleave event. Re-enter the blame frame to assert
+      // the hover card closes when the editor surface regains the pointer.
+      await frame.getByTestId("blame-editor-tab").hover();
       await expect(frame.getByTestId("blame-commit-hover-card")).toHaveCount(0);
       await session.page.screenshot({
         path: testInfo.outputPath("git-blame-native.png"),
@@ -97,7 +102,7 @@ test.describe("Native — Git Blame screen", () => {
     }
   });
 
-  test("Clicking blame annotation focuses Git Log commit list", async () => {
+  test("Clicking blame annotation focuses workspace Git Log commit list", async () => {
     await prepareCleanGitRepo();
     const session = await launchNativeVsCode();
     try {
@@ -107,7 +112,10 @@ test.describe("Native — Git Blame screen", () => {
         .getByTestId(/^blame-sha-/)
         .first()
         .click();
-      await expectBlameCommitHistoryPanel(frame);
+      const workspace = await waitForGitViewHistoryFrame(session.app);
+      await expect(workspace.getByTestId("workspace-log-panel")).toBeVisible();
+      await expect(workspace.getByTestId("workspace-log-files-pane")).toBeVisible();
+      await expect(workspace.getByTestId("git-commit-list")).toBeVisible();
     } finally {
       await closeNativeVsCode(session);
     }

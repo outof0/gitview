@@ -1,12 +1,10 @@
 import { expect, type Page } from "@playwright/test";
 import { createGitService } from "../../out/services/gitService";
-import type { BlameLine, FileDiffView, GitCommitEntry } from "../../src/types/blame";
+import type { BlameLine, FileDiffView } from "../../src/types/blame";
 import {
-  buildHistoryBootstrap,
   buildWorkingTreeDiff,
   E2E_REPO_ROOT,
 } from "./git-actions";
-import type { HistoryBootstrap } from "./git-actions";
 import { E2E_PROTOCOL_VERSION, E2E_REPO_ID, v1Event, v1Response } from "./v1Protocol";
 
 const git = createGitService();
@@ -103,8 +101,6 @@ async function wireVsCodeApi(
 export async function openGitBlameScreen(
   page: Page,
   bootstrap: BlameScreenBootstrap,
-  history?: HistoryBootstrap,
-  commitDetail?: GitCommitEntry,
 ): Promise<void> {
   const repoId = bootstrap.repoId ?? E2E_REPO_ID;
   const blameBootstrap = { ...bootstrap, repoId };
@@ -150,81 +146,6 @@ export async function openGitBlameScreen(
         },
       );
       return;
-    }
-    if (msg.type === "log.query" && msg.protocolVersion === E2E_PROTOCOL_VERSION && history) {
-      const snapshot = {
-        repoId,
-        branch: null,
-        commits: history.commits,
-        refreshedAt: Date.now(),
-        filters: {
-          path: (msg.payload as { path?: string }).path ?? history.path,
-          scope: "repo" as const,
-        },
-      };
-      await page.evaluate(
-        (args) => {
-          window.postMessage(args.response, "*");
-          window.postMessage(args.event, "*");
-        },
-        {
-          response: v1Response(String(msg.requestId), "log.query", snapshot),
-          event: v1Event("log.snapshot", snapshot),
-        },
-      );
-      return;
-    }
-    if (msg.type === "log.commitDetail" && msg.protocolVersion === E2E_PROTOCOL_VERSION && history) {
-      const sha = (msg.payload as { sha?: string })?.sha;
-      const fromHistory =
-        history.commits.find((c) => c.sha === sha) ?? history.commits[0];
-      const commit = commitDetail ?? fromHistory;
-      if (commit) {
-        await page.evaluate(
-          (payload) => {
-            window.postMessage(payload, "*");
-          },
-          v1Response(String(msg.requestId), "log.commitDetail", { commit }),
-        );
-      }
-      return;
-    }
-    if (msg.type === "log.fileDiff" && msg.protocolVersion === E2E_PROTOCOL_VERSION && history) {
-      const patchPayload = msg.payload as {
-        sha?: string;
-        path?: string;
-        status?: string;
-      };
-      const sha = patchPayload.sha ?? history.commits[0]!.sha;
-      const patchPath = patchPayload.path ?? bootstrap.relativePath;
-      const diff = await git.fileDiffAtCommit(
-        E2E_REPO_ROOT,
-        sha,
-        patchPath,
-        (patchPayload.status as "M") ?? "M",
-      );
-      if (diff.ok) {
-        const document = {
-          repoId,
-          filePath: patchPath,
-          layout: diff.diff.layout,
-          status: diff.diff.status,
-          left: diff.diff.left,
-          right: diff.diff.right,
-          binary: Boolean(diff.diff.binary),
-          staged: false,
-        };
-        await page.evaluate(
-          (args) => {
-            window.postMessage(args.response, "*");
-            window.postMessage(args.event, "*");
-          },
-          {
-            response: v1Response(String(msg.requestId), "log.fileDiff", document),
-            event: v1Event("diff.result", document),
-          },
-        );
-      }
     }
   });
 
@@ -280,10 +201,4 @@ export async function openGitDiffScreen(
   await expect(page.getByTestId("git-diff-app")).toBeVisible({
     timeout: 15_000,
   });
-}
-
-export async function loadHistoryScreenBootstrap(
-  relativePath: string,
-): Promise<HistoryBootstrap> {
-  return buildHistoryBootstrap(E2E_REPO_ROOT, relativePath, false);
 }
