@@ -1,7 +1,7 @@
 {
   "name": "gitview",
-  "displayName": "GitView",
-  "description": "See Git clearly. 3-way merge, history, branches, changes and diffs for VS Code.",
+  "displayName": "GitView — Git Tool Window",
+  "description": "All of Git in one window: commit, history graph, blame, branches, stash, rebase, PR review. Plus 3-way merge from real Git index stages. MIT, no account, no telemetry.",
   "version": "0.1.1",
   "publisher": "gitview",
   "license": "MIT",
@@ -21,7 +21,7 @@
     "onStartupFinished"
   ],
   "engines": {
-    "node": ">=18",
+    "node": ">=22.12.0",
     "vscode": "^1.85.0"
   },
   "extensionDependencies": [
@@ -39,21 +39,39 @@
     }
   },
   "categories": [
-    "Other",
+    "SCM Providers",
     "Visualization"
   ],
   "keywords": [
     "git",
-    "merge",
-    "conflict",
-    "3-way",
-    "diff",
+    "git gui",
+    "git client",
+    "git tool window",
+    "commit graph",
+    "git log",
+    "git history",
     "blame",
-    "history",
+    "branch",
+    "diff",
+    "stash",
+    "rebase",
+    "cherry-pick",
+    "pull request",
     "scm",
-    "monaco"
+    "merge",
+    "merge conflict",
+    "conflict resolution",
+    "3-way",
+    "three-way merge",
+    "merge editor",
+    "git workspace"
   ],
   "qna": "marketplace",
+  "pricing": "Free",
+  "galleryBanner": {
+    "color": "#0F1115",
+    "theme": "dark"
+  },
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -76,7 +94,7 @@
         {
           "type": "webview",
           "id": "gitView.launcher",
-          "name": "Git"
+          "name": "Commit"
         }
       ],
       "gitViewPanel": [
@@ -268,13 +286,13 @@
         "command": "gitView.open",
         "key": "alt+shift+m",
         "mac": "cmd+alt+shift+m",
-        "when": "git.mergeChangesCount != 0 && editorTextFocus && resourceScheme == file && git.activeResourceHasMergeConflicts"
+        "when": "git.mergeChangesCount != 0 && editorTextFocus && resourceScheme == file && git.activeResourceHasMergeConflicts && !(view == gitView.launcher || view == gitView.workspace)"
       },
       {
         "command": "gitView.gitShowDiff",
         "key": "ctrl+d",
         "mac": "cmd+d",
-        "when": "explorerViewletFocus && explorerResourceIsFolder == false && resourceScheme == file"
+        "when": "explorerViewletFocus && explorerResourceIsFolder == false && resourceScheme == file && !(view == gitView.launcher || view == gitView.workspace)"
       }
     ],
     "menus": {
@@ -877,7 +895,7 @@
       "fast-uri": "3.1.6",
       "qs": "6.16.0",
       "diff@7.0.0": "8.0.3",
-      "js-yaml": "4.3.1",
+      "js-yaml": "4.3.2",
       "nanoid": "3.3.18",
       "serialize-javascript@6.0.2": "7.0.5",
       "undici": "7.29.0"
@@ -893,11 +911,10 @@
     "@stylistic/eslint-plugin": "^5.10.0",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
-    "@types/glob": "8.1.0",
     "@types/mocha": "10.0.7",
     "@types/node": "^20.0.0",
     "@types/vscode": "1.85.0",
-    "@vitest/coverage-v8": "^3.2.6",
+    "@vitest/coverage-v8": "^4.1.11",
     "@vscode/test-electron": "2.4.1",
     "@vscode/vsce": "^3.9.2",
     "bumpp": "^11.1.0",
@@ -916,6 +933,6 @@
     "react-dom": "18.3.1",
     "rimraf": "^5.0.0",
     "typescript": "^5.4.0",
-    "vitest": "^3.2.6"
+    "vitest": "^4.1.11"
   }
 }

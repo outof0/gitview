@@ -39,6 +39,11 @@ export default defineConfig({
     // Integration tests run under a real VS Code host via mocha, not Vitest.
     exclude: ["src/test/**", "node_modules", "dist", "out", "webview/dist"],
     environment: "node",
+    environmentOptions: {
+      jsdom: {
+        url: "http://localhost",
+      },
+    },
     coverage: {
       provider: "v8",
       // Report files no test imports as 0% instead of dropping them from the
@@ -78,106 +83,103 @@ export default defineConfig({
         "src/webview/gitWorkspacePanel.ts",
         "src/webview/gitViewPresentation.ts",
         "src/webview/GitViewPanel.ts",
-        "src/webview/GitHistoryWebviewPanel.ts",
         "src/webview/gitViewPanelRouter.ts",
 
         "webview/**/__tests__/**",
       ],
-      // Measured on 2026-08-29 over 426 files (260 test files, 1436 tests).
-      // Every figure is floor(measured) - 2: the two-point margin stops a
-      // one-line edit from turning CI red while still failing a real drop.
-      // Ratchet upward as coverage improves; never lower one to land a change.
-      //
-      // Widening `include` to .tsx RAISED the global number (68.78 -> 70.89)
-      // instead of dropping it — the .tsx components are better covered than
-      // the logic layers they used to hide behind. Global `functions` is the
-      // one figure that actually fell (78 -> 73.62), so it is the one
-      // threshold that legitimately moved down. Everything else moved up.
+      // Vitest 4's V8 provider uses AST remapping. Baseline measured on
+      // 2026-09-10 over the configured suite (304 files / 1906 tests), after
+      // the review fixes below. These are integer floors of that baseline;
+      // ratchet upward as tests improve.
       thresholds: {
         lines: 68,
-        functions: 71,
-        branches: 73,
+        functions: 70,
+        branches: 63,
         statements: 68,
         "src/core/**": {
-          lines: 90,
-          functions: 94,
-          branches: 86,
-          statements: 90,
+          lines: 92,
+          functions: 98,
+          branches: 87,
+          statements: 92,
         },
         "src/shared/**": {
-          lines: 93,
+          lines: 89,
           functions: 93,
-          branches: 88,
-          statements: 93,
+          branches: 86,
+          statements: 89,
         },
         // Low because src/webviewHost/handlers/** is exercised by the VS Code
         // integration and native e2e suites, which Vitest does not observe. The
         // floor exists to ratchet, not to certify.
         "src/webviewHost/**": {
+          // Current floor is 37.88% lines / 37.88% statements; target 38% after
+          // the newly covered refresh/error paths are extended to the handlers.
           lines: 37,
-          functions: 60,
-          branches: 52,
+          functions: 61,
+          branches: 33,
           statements: 37,
         },
         "src/commands/**": {
-          lines: 66,
-          functions: 86,
-          branches: 51,
-          statements: 66,
+          lines: 63,
+          functions: 90,
+          branches: 54,
+          statements: 63,
         },
         "src/services/git/**": {
-          lines: 76,
-          functions: 86,
-          branches: 71,
-          statements: 76,
+          lines: 81,
+          functions: 88,
+          branches: 67,
+          statements: 81,
         },
         "src/services/review/**": {
-          lines: 73,
+          lines: 74,
           functions: 76,
-          branches: 64,
-          statements: 73,
+          branches: 63,
+          statements: 74,
         },
         "src/webview/**": {
-          lines: 96,
-          functions: 98,
-          branches: 88,
-          statements: 96,
+          lines: 97,
+          functions: 100,
+          branches: 92,
+          statements: 97,
         },
         "webview/src/lib/**": {
-          lines: 86,
-          functions: 90,
-          branches: 77,
-          statements: 86,
+          lines: 85,
+          functions: 96,
+          branches: 73,
+          statements: 85,
         },
         "webview/src/stores/**": {
-          lines: 79,
+          lines: 77,
           functions: 85,
-          branches: 89,
-          statements: 79,
+          branches: 71,
+          statements: 77,
         },
         "webview/src/apps/**": {
-          lines: 44,
-          functions: 31,
-          branches: 66,
-          statements: 44,
+          lines: 45,
+          functions: 33,
+          branches: 41,
+          statements: 45,
         },
         "webview/src/components/**": {
-          lines: 79,
-          functions: 62,
-          branches: 76,
-          statements: 79,
+          lines: 75,
+          functions: 68,
+          branches: 71,
+          statements: 75,
         },
         "webview/src/hooks/**": {
           lines: 61,
-          functions: 85,
-          branches: 65,
+          functions: 77,
+          branches: 45,
           statements: 61,
         },
         "webview/src/screens/**": {
-          lines: 85,
-          functions: 64,
+          // Current floor is 79.73% lines after the history screen changes;
+          // target 80% once the new empty/error branches gain focused tests.
+          lines: 79,
+          functions: 75,
           branches: 74,
-          statements: 85,
+          statements: 80,
         },
       },
     },

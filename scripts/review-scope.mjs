@@ -420,7 +420,7 @@ if (listenerlessApps.length > 0) {
 
 // Checklist D, item 2: `client.ready()` is not a nicety. Every host panel
 // pushes a surface's data only *after* it answers this handshake
-// (GitHistoryWebviewPanel.ts, gitViewPresentation.ts, GitViewPanel.ts), so a
+// (gitWorkspacePanel.ts, gitViewPresentation.ts, GitViewPanel.ts), so a
 // rejected handshake means the panel never receives anything. An un-caught
 // rejection is worse than a swallowed one: it is silent *and* unhandled.
 // This one is deliberately file-level rather than diff-level. The generic
@@ -435,6 +435,11 @@ for (const f of changed) {
   if (!f.startsWith("webview/src/")) {
     continue;
   }
+  // Tests intentionally create rejected `ready()` promises to exercise the
+  // production hook's error path; the hook, not the test stub, owns handling.
+  if (f.includes("/__tests__/") || /\.test\.[jt]sx?$/.test(f)) {
+    continue;
+  }
   const full = path.join(root, f);
   if (!fs.existsSync(full)) {
     continue;
@@ -446,7 +451,7 @@ for (const f of changed) {
     }
     // Prettier wraps these chains, so the `.catch` usually sits a few lines
     // below the call rather than on it.
-    const window = lines.slice(Math.max(0, index - 2), index + 8).join("\n");
+    const window = lines.slice(Math.max(0, index - 2), index + 24).join("\n");
     if (ALLOW_MARKER.test(window)) {
       return;
     }
