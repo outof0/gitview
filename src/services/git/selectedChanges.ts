@@ -98,7 +98,7 @@ export function createSelectedChangesApi(
       args.push(patchPath);
       await execGit(repoRoot, args, { env: opts?.env });
     } finally {
-      await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
+      await fs.rm(dir, { recursive: true, force: true }).catch(() => {}); // review-scope:allow silent-catch — temp-dir cleanup
     }
   }
 
@@ -291,7 +291,7 @@ export function createSelectedChangesApi(
     } finally {
       await fs
         .rm(temporaryIndexDir, { recursive: true, force: true })
-        .catch(() => {});
+        .catch(() => {}); // review-scope:allow silent-catch — temp-dir cleanup
     }
   }
 
