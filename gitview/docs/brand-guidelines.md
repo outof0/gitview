@@ -2,8 +2,8 @@
 
 **Domain:** gitview.dev
 **Brand idea:** Clarity in motion.
-**Tagline:** See Git clearly.
-**Descriptor:** History, branches, changes and diffs — finally in view.
+**Tagline:** All of Git, one window.
+**Descriptor:** Commit, history, blame, branches, stash, rebase, PR review — plus 3-way merge from real Git stages.
 
 ## 1. Positioning
 GitView should feel **clear, calm, precise, trustworthy**. The identity is designed for a developer product, not a generic SaaS template.

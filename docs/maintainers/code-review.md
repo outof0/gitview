@@ -203,7 +203,7 @@ Rules:
   spins on "Loading…" forever. Reference pattern: `GitDiffApp.tsx:228-238`.
 - **Handshake failure path.** Every `client.ready(...)` needs a `.catch`, and
   it must not be `.catch(() => {})`. The host pushes a surface's data only
-  *after* it answers this handshake — `GitHistoryWebviewPanel.ts`,
+  *after* it answers this handshake — `gitWorkspacePanel.ts`,
   `gitViewPresentation.ts`, `GitViewPanel.ts` — so a rejected handshake means
   the panel never receives anything and sits on its loading state with an empty
   screen. Two legal resolutions:

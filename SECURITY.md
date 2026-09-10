@@ -7,17 +7,15 @@ only. Please upgrade before reporting an issue against an older build.
 
 | Version | Supported |
 | ------- | --------- |
-| 0.1.1+ (once released) | Yes |
+| 0.1.1+ | Yes |
 | 0.1.0 | No — contains a known data-loss bug. See below. |
 | < 0.1 | No |
 
 ### Known issues in unsupported versions
 
 - **0.1.0 (Marketplace, 2026-08-08)** — silent data loss in `shelf`,
-  `drop-selected`, and `branch apply` operations. Fixed in commit `949f469` on
-  the `main` branch. The fix has **not shipped yet**: no published release
-  contains it, so 0.1.0 users should avoid those operations or run the
-  extension from source until the next release lands.
+  `drop-selected`, and `branch apply` operations. Fixed in commit `949f469` and
+  shipped in **0.1.1** (GitHub Releases). Upgrade before using those operations.
 
 ## Reporting a vulnerability
 

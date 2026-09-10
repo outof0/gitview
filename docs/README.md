@@ -14,7 +14,7 @@ Start here if you are installing or using the extension.
 | -------------------------------------------------------- | -------------------------------------- |
 | [Introduction](./guide/introduction.md)                  | What GitView is and when to use it     |
 | [Getting started](./guide/getting-started.md)            | First steps after install              |
-| [Installation](./guide/installation.md)                  | Marketplace, Open VSX, and local VSIX  |
+| [Installation](./guide/installation.md)                  | VSIX installation; store listings planned |
 | [Security & trust](./guide/security.md)                  | Workspace trust, Git mutations, tokens |
 | [Features overview](./guide/features/overview.md)        | All major surfaces at a glance         |
 | [Merge resolver](./guide/features/merge-resolver.md)     | 3-way conflict resolution              |

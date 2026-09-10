@@ -1493,7 +1493,7 @@ Cancellation:
 | Blame | `git blame --line-porcelain --` |
 | Stage | `git add -- <path>` |
 | Unstage | `git restore --staged -- <path>` |
-| Rollback | `git restore -- <path>` |
+| Rollback | `git restore --staged --worktree -- <path>` (or `git clean -f -- <path>` for untracked files) |
 | Commit | `git commit` |
 | Fetch | `git fetch` |
 | Pull | `git pull` |

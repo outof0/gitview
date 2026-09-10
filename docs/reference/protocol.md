@@ -32,7 +32,7 @@ release number. Message `type` uses **dots** (`merge.openFile`), never colons (`
 | --- | --- |
 | `gitWorkspace` | `GitWorkspaceViewProvider` / `gitWorkspacePanel` |
 | `merge` | `GitViewPanel` |
-| `gitHistory` | `GitHistoryWebviewPanel` |
+| `gitHistory` | `GitWorkspaceViewProvider` / `gitWorkspacePanel` |
 | `gitBlame` / `gitDiff` | `gitViewPresentation` |
 
 All request/response handling goes through `createMessageRouter`.

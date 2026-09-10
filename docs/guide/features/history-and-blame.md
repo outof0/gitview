@@ -12,9 +12,14 @@ Opens a history surface with:
 
 ## Annotate with Git Blame
 
-**Git** → **Annotate with Git Blame** on a file.
+Explorer or editor context menu → **Git** → **Annotate with Git Blame** on a file (or the Annotate action in a compare diff tab).
 
-Shows per-line authorship with navigation to related commits.
+Opens the file in the editor area with:
+
+- Monaco-based editor with color-coded per-line authorship gutter
+- Focus line positioning corresponding to the active editor cursor
+- Coordinated with the Git bottom panel: concurrently opens the file history (`History · {file}`)
+- Direct navigation: clicking a blame annotation in the editor selects and highlights that revision in the Git bottom panel log
 
 ## Diff & compare
 
