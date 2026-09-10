@@ -42,7 +42,7 @@ export function MenuItem({
         "min-h-menu-item px-menu-pad-x py-menu-pad-y",
         "focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset",
         disabled
-          ? "text-menu-fg/40 cursor-not-allowed"
+          ? "text-menu-fg opacity-40 cursor-not-allowed"
           : "text-menu-fg hover:bg-menu-selection hover:text-menu-selectionForeground cursor-pointer",
       )}
       onClick={() => {

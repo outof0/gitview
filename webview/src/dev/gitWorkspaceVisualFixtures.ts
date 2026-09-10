@@ -18,7 +18,7 @@ import { useGitWorkspaceStore } from "../stores/gitWorkspaceStore";
 const REPO_ID = "visual-repository";
 const FIXED_TIME = 1_725_000_000_000;
 
-export const GIT_WORKSPACE_VISUAL_STATE_IDS = [
+const GIT_WORKSPACE_VISUAL_STATE_IDS = [
   "loading",
   "no-repository",
   "repository-error",

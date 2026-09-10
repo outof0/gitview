@@ -41,7 +41,6 @@ function sendPreview() {
     }),
   );
 }
-
 function diffOptions(): Record<string, unknown> {
   const host = screen.getByTestId("monaco-diff-host");
   return JSON.parse(host.getAttribute("data-fake-diff-options") ?? "{}");
@@ -174,7 +173,8 @@ describe("GitDiffApp diff viewer toolbar", () => {
     await screen.findByTestId("git-diff-next-difference");
 
     const host = screen.getByTestId("monaco-diff-host");
-    expect(host.getAttribute("data-fake-decorations")).toBe("2");
+    expect(Number(host.getAttribute("data-fake-decorations-left") ?? "0")).toBeGreaterThan(0);
+    expect(Number(host.getAttribute("data-fake-decorations-right") ?? "0")).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByTestId("git-diff-next-difference"));
     expect(host.getAttribute("data-fake-reveal-line")).toBe("2");
@@ -183,14 +183,37 @@ describe("GitDiffApp diff viewer toolbar", () => {
     expect(host.getAttribute("data-fake-reveal-line")).toBe("4");
   });
 
-  it("navigates when a diff gutter marker is clicked", async () => {
+  it("paints native-style overview markers with theme-colored gutters", async () => {
     render(<GitDiffApp />);
     sendPreview();
     await screen.findByTestId("git-diff-next-difference");
 
     const host = screen.getByTestId("monaco-diff-host");
-    fakeMonaco.getLastDiffEditor()?.clickDiffMarker("right", 4);
-
-    expect(host.getAttribute("data-fake-reveal-line")).toBe("4");
+    type FakeDecoration = {
+      options?: {
+        linesDecorationsClassName?: string;
+        marginClassName?: string;
+        overviewRuler?: { color: string; position: number };
+      };
+    };
+    const decorations = JSON.parse(
+      host.getAttribute("data-fake-decorations-right-json") ?? "[]",
+    ) as FakeDecoration[];
+    expect(decorations.length).toBeGreaterThan(0);
+    expect(
+      decorations.some(
+        (decoration) =>
+          decoration.options?.linesDecorationsClassName ===
+            "monaco-diff-added-gutter" ||
+          decoration.options?.marginClassName === "monaco-diff-added",
+      ),
+    ).toBe(true);
+    const overview = decorations
+      .map((decoration) => decoration.options?.overviewRuler)
+      .filter(
+        (ruler): ruler is { color: string; position: number } =>
+          ruler !== undefined,
+      );
+    expect(overview.length).toBeGreaterThan(0);
   });
 });

@@ -43,7 +43,7 @@ function extractForceCheckoutConfirmation(
  * the request sitting in the pending map. This timer is the user-visible
  * backstop that clears `loading` and surfaces a real error.
  */
-export const BRANCHES_LOAD_TIMEOUT_MS = 12_000;
+const BRANCHES_LOAD_TIMEOUT_MS = 12_000;
 
 function readBootstrap(): Bootstrap {
   const value = window.__GITVIEW_BOOTSTRAP__ as Bootstrap | null | undefined;

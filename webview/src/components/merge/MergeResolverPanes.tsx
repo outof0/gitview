@@ -15,7 +15,7 @@ import { MergeContextMenu } from "./MergeContextMenu";
 import { loadMonaco } from "./monacoSetup";
 
 /** Progress a surface needs to label its toolbar and gate its Apply button. */
-export type MergeSurfaceState = {
+type MergeSurfaceState = {
   totalChanges: number;
   remaining: number;
   unresolvedNonConflicting: number;

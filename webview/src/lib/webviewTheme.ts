@@ -95,7 +95,7 @@ export function webviewThemeClass(kind: ThemeKind): (typeof THEME_CLASSES)[numbe
   }
 }
 
-export function applyWebviewThemeClass(
+function applyWebviewThemeClass(
   target: HTMLElement,
   kind: ThemeKind,
 ): void {

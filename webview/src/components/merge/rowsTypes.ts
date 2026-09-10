@@ -47,9 +47,9 @@ export type BlockRows = {
   resultEnd: number;
   // The current center (result) text for this block, used to detect real edits.
   centerText: string;
-  // Stub git-blame annotation per side. Host-backed blame wiring is planned;
-  // for now we derive a placeholder from the branch labels so the details
-  // column renders in the right place.
+  // Placeholder blame annotation per side, derived from the branch labels so the
+  // details column renders in the right place. Replaced when the host supplies
+  // real blame data.
   blameLeft: string;
   blameRight: string;
   /** Base (ancestor) lines for word-level diff highlighting in side panes. */

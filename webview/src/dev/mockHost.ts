@@ -20,7 +20,7 @@ import {
 
 const PLAYGROUND_REPO_ID = "playground-repo";
 
-export type PostedMessage = Record<string, unknown>;
+type PostedMessage = Record<string, unknown>;
 
 export type MockHost = {
   handleMessage: (msg: Record<string, unknown>) => void;
@@ -83,7 +83,7 @@ export function createMockHost(
     dispatch(createHostEvent("merge.document", doc));
   }
 
-  function sendHistoryBootstrap(path = "src/app.ts"): void {
+  function sendHistoryBootstrap(path = "src/components/Button.tsx"): void {
     dispatch({
       protocolVersion: PROTOCOL_VERSION,
       type: "history.init",
@@ -167,7 +167,7 @@ export function createMockHost(
           );
           break;
         case "merge.openFile": {
-          const path = (msg.payload as { path?: string }).path ?? "src/app.ts";
+          const path = (msg.payload as { path?: string }).path ?? "src/components/Button.tsx";
           openDocument(path);
           dispatch(
             createHostResponse(requestId, "merge.openFile", { path }),
@@ -176,7 +176,7 @@ export function createMockHost(
         }
         case "merge.markResolved": {
           const path =
-            (msg.payload as { path?: string }).path ?? "src/app.ts";
+            (msg.payload as { path?: string }).path ?? "src/components/Button.tsx";
           dispatch(
             createHostResponse(requestId, "merge.resolved", { path }),
           );
@@ -184,7 +184,7 @@ export function createMockHost(
         }
         case "merge.save": {
           const path =
-            (msg.payload as { path?: string }).path ?? "src/app.ts";
+            (msg.payload as { path?: string }).path ?? "src/components/Button.tsx";
           dispatch(
             createHostResponse(requestId, "merge.saved", {
               path,
@@ -200,7 +200,7 @@ export function createMockHost(
             type: "blame.snapshot",
             payload: {
               repoId: PLAYGROUND_REPO_ID,
-              filePath: payload.path ?? "src/app.ts",
+              filePath: payload.path ?? "src/components/Button.tsx",
               ref: "HEAD",
               lines: [
                 {
@@ -219,7 +219,7 @@ export function createMockHost(
           dispatch(
             createHostResponse(requestId, "blame.query", {
               repoId: PLAYGROUND_REPO_ID,
-              filePath: payload.path ?? "src/app.ts",
+              filePath: payload.path ?? "src/components/Button.tsx",
               ref: "HEAD",
               lines: [],
               refreshedAt: Date.now(),
@@ -237,7 +237,7 @@ export function createMockHost(
               revisionRange: fixtures.changesFromSide.revisionRange,
               branchRef: "HEAD",
               commits: fixtures.changesFromSide.commits,
-              allChangedPaths: ["src/app.ts"],
+              allChangedPaths: ["src/components/Button.tsx"],
             }),
           );
           break;

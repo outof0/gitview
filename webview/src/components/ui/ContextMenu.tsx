@@ -101,12 +101,3 @@ export function ContextMenu({
     </div>
   );
 }
-
-export function openContextMenu(
-  e: React.MouseEvent,
-  setMenu: (state: ContextMenuState) => void,
-): void {
-  e.preventDefault();
-  e.stopPropagation();
-  setMenu({ visible: true, x: e.clientX, y: e.clientY });
-}

@@ -136,6 +136,24 @@
     var(--vscode-editorError-foreground, #cf5c56) 32%,
     transparent
   );
+  /* Diff rows use the workbench line wash; changed text gets Monaco's stronger
+   * text background as a second layer. */
+  --nx-diff-insert-line: var(
+    --vscode-diffEditor-insertedLineBackground,
+    rgba(46, 160, 67, 0.22)
+  );
+  --nx-diff-delete-line: var(
+    --vscode-diffEditor-removedLineBackground,
+    rgba(248, 81, 73, 0.22)
+  );
+  --nx-diff-insert-char: var(
+    --vscode-diffEditor-insertedTextBackground,
+    rgba(46, 160, 67, 0.22)
+  );
+  --nx-diff-delete-char: var(
+    --vscode-diffEditor-removedTextBackground,
+    rgba(248, 81, 73, 0.22)
+  );
   --nx-added-bar: var(--vscode-gitDecoration-addedResourceForeground, #4ba85a);
   --nx-modified-bar: var(
     --vscode-gitDecoration-modifiedResourceForeground,

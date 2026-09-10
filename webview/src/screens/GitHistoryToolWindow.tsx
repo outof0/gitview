@@ -84,7 +84,7 @@ type FileMenuState = {
 };
 
 type GitHistoryToolWindowProps = {
-  /** Embedded in history/blame shell — use parent size instead of viewport. */
+  /** Embedded in another Git surface — use parent size instead of viewport. */
   embedded?: boolean;
   /** Current / HEAD revision for annotate rows. */
   currentSha?: string | null;
@@ -135,8 +135,8 @@ export function GitHistoryToolWindow({
         : "Log";
 
   useEffect(() => {
-    // GitBlameApp owns the annotate query. Running the generic history loader
-    // here as well doubles the repository work and races commit selection.
+    // Annotate callers own the query. Running the generic history loader here
+    // as well doubles the repository work and races commit selection.
     if (annotateMode || !state.path || !state.loading || !repoId) {
       return;
     }
@@ -576,7 +576,7 @@ export function GitHistoryToolWindow({
           </div>
         );
 
-        // Annotate under blame: commits | files
+        // Annotate compare: commits | files
         if (twoPane) {
           return (
             <div
@@ -615,7 +615,7 @@ export function GitHistoryToolWindow({
             minFirstPercent={20}
             minSecondPercent={25}
             storageKey="gitView.gitLog.rightFilesDiffSplit"
-            className="flex-1 min-h-0 w-full"
+            className="h-full min-h-0 w-full"
             first={
               <ResizableSplit
                 direction="vertical"

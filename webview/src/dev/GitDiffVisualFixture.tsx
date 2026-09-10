@@ -8,7 +8,7 @@ import { VISUAL_HISTORY_PATH } from "./historyBlameVisualFixtures";
  * Seeded Diff Viewer for visual baselines / playground.
  * /?app=gitDiffVisual
  */
-export function visualDiffPreview(): StandaloneDiffPreview {
+function visualDiffPreview(): StandaloneDiffPreview {
   return {
     relativePath: VISUAL_HISTORY_PATH,
     title: `${VISUAL_HISTORY_PATH} (HEAD ↔ Working Tree)`,

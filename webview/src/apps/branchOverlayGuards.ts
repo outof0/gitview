@@ -1,6 +1,6 @@
 import { PROTOCOL_VERSION } from "@gitview/shared/protocol";
 
-export type BranchOverlaySurface = "createBranch" | "branches";
+type BranchOverlaySurface = "createBranch" | "branches";
 
 export type BranchOverlayRequest = {
   surface: BranchOverlaySurface;

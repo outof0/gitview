@@ -7,6 +7,7 @@ type GitDialogSize = "default" | "medium" | "wide" | "list" | "xl";
 type GitDialogShellProps = {
   title: string;
   titleIcon?: ReactNode;
+  titleCentered?: boolean;
   children: ReactNode;
   footer?: ReactNode;
   headerActions?: ReactNode;
@@ -52,6 +53,7 @@ const SIZE_CLASSES: Record<GitDialogSize, string> = {
 export function GitDialogShell({
   title,
   titleIcon,
+  titleCentered = false,
   children,
   footer,
   headerActions,
@@ -165,7 +167,12 @@ export function GitDialogShell({
           className,
         )}
       >
-        <div className="mb-1.5 flex items-center gap-2 shrink-0">
+        <div
+          className={cn(
+            "relative mb-1.5 flex items-center gap-2 shrink-0",
+            titleCentered && "min-h-control",
+          )}
+        >
           {titleIcon ? (
             <span
               className="inline-flex h-icon-md w-icon-md shrink-0 items-center justify-center"
@@ -174,7 +181,14 @@ export function GitDialogShell({
               {titleIcon}
             </span>
           ) : null}
-          <h3 className="m-0 flex-1 text-ui font-semibold leading-tight">
+          <h3
+            className={cn(
+              "m-0 text-ui font-semibold leading-tight",
+              titleCentered
+                ? "pointer-events-none absolute inset-0 flex items-center justify-center text-center"
+                : "flex-1",
+            )}
+          >
             {title}
           </h3>
           {headerActions}

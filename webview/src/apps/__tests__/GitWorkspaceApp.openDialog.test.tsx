@@ -42,6 +42,18 @@ function sendSyncOperation(payload: SyncOperationEvent) {
   );
 }
 
+function sendRollbackRequest() {
+  window.dispatchEvent(
+    new MessageEvent("message", {
+      data: {
+        protocolVersion: PROTOCOL_VERSION,
+        type: "git.requestRollback",
+        payload: { repoId: "repo-1", path: "src/app.ts" },
+      },
+    }),
+  );
+}
+
 beforeEach(() => {
   posted.length = 0;
   (
@@ -57,6 +69,7 @@ afterEach(() => {
   cleanup();
   useGitWorkspaceStore.setState({
     dialogs: {},
+    pendingRollback: null,
     branchesOpen: false,
     nativeFocusSurface: null,
     syncOperations: [],
@@ -136,6 +149,18 @@ describe("native Git submenu → panel dialog", () => {
       expect(screen.getByTestId("merge-branch-dialog")).toBeTruthy();
     });
     expect(screen.queryByTestId("git-native-dialog-backdrop")).toBeNull();
+  });
+
+  it("queues a native rollback request for the changes content", async () => {
+    render(<GitWorkspaceApp />);
+    sendRollbackRequest();
+
+    await waitFor(() => {
+      expect(useGitWorkspaceStore.getState().pendingRollback).toEqual({
+        repoId: "repo-1",
+        path: "src/app.ts",
+      });
+    });
   });
 });
 

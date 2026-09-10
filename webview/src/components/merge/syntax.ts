@@ -6,7 +6,6 @@
 
 import { tokenizeLine } from "./syntaxTokenizer";
 
-export type { SyntaxToken, SyntaxTokenType } from "./syntaxTypes";
 export { tokenizeLine };
 
 // ── CSS class mapper ─────────────────────────────────────────────────────────

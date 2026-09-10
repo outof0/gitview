@@ -1,4 +1,4 @@
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
 import { render, type RenderOptions } from "@testing-library/react";
 import {
   MergeClientProvider,
@@ -25,10 +25,6 @@ export function setupMergeTestBootstrap(repoId = "test-repo"): void {
     getState: () => null,
     setState: () => {},
   });
-}
-
-export function MergeTestProviders({ children }: { children: ReactNode }) {
-  return <MergeClientProvider>{children}</MergeClientProvider>;
 }
 
 export function renderWithMerge(

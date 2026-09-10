@@ -14,7 +14,7 @@ export function splitForView(text: string): string[] {
   return text.replace(/\r\n/g, "\n").split("\n");
 }
 
-export function visualLineCount(text: string): number {
+function visualLineCount(text: string): number {
   return splitForView(text).length;
 }
 
@@ -65,7 +65,7 @@ export function classifyChangeType(block: ChangeBlock): ChangeType {
   return "modified";
 }
 
-export function originLines(text: string, origin: OriginLine["origin"]): OriginLine[] {
+function originLines(text: string, origin: OriginLine["origin"]): OriginLine[] {
   return splitForView(text).map((line) => ({ text: line, origin }));
 }
 
@@ -196,10 +196,9 @@ export function padOriginCells(
   return cells;
 }
 
-// Stub git-blame annotation for a block, mirroring the mockup's
-// GitAdapter.getBlameText: left pane shows the local/ours side, right shows the
-// incoming/theirs side; unchanged context falls back to the base label. This is
-// a placeholder until the host wires real `git blame` data into the document.
+// Placeholder blame annotation for a block: the left pane shows the local/ours
+// side, the right pane the incoming/theirs side, and unchanged context falls back
+// to the base label. Replace once the host wires real `git blame` into the document.
 function blameFor(
   block: ChangeBlock,
   side: "left" | "right",

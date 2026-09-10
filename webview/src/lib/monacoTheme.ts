@@ -30,21 +30,85 @@ function themeBase(kind: ThemeKind): "vs" | "vs-dark" | "hc-black" | "hc-light" 
   }
 }
 
-function vscodeColor(name: string, fallback: string): string {
+function vscodeColor(...names: string[]): string {
+  const fallback = names[names.length - 1] ?? "";
   if (typeof document === "undefined") {
     return fallback;
   }
-  return (
-    getComputedStyle(document.documentElement).getPropertyValue(name).trim() ||
-    fallback
+  const targets = [document.body, document.documentElement];
+  for (const name of names) {
+    if (!name.startsWith("--")) {
+      return name;
+    }
+    for (const el of targets) {
+      if (!el) {
+        continue;
+      }
+      const value = getComputedStyle(el).getPropertyValue(name).trim();
+      if (value) {
+        return toMonacoColor(value);
+      }
+    }
+  }
+  return fallback;
+}
+
+function toMonacoColor(value: string): string {
+  const match = value.match(
+    /^rgba?\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)(?:\s*,\s*(\d+(?:\.\d+)?))?\s*\)$/i,
   );
+  if (!match) {
+    return value;
+  }
+  const byte = (component: string) =>
+    Math.max(0, Math.min(255, Math.round(Number(component))))
+      .toString(16)
+      .padStart(2, "0");
+  const alpha = match[4]
+    ? byte(String(Number(match[4]) * 255))
+    : "ff";
+  return `#${byte(match[1]!)}${byte(match[2]!)}${byte(match[3]!)}${alpha}`;
+}
+
+const DARK_SYNTAX_RULES: Monaco.editor.ITokenThemeRule[] = [
+  { token: "comment", foreground: "6A9955", fontStyle: "italic" },
+  { token: "string", foreground: "CE9178" },
+  { token: "keyword", foreground: "569CD6" },
+  { token: "number", foreground: "B5CEA8" },
+  { token: "type", foreground: "4EC9B0" },
+  { token: "class", foreground: "4EC9B0" },
+  { token: "function", foreground: "DCDCAA" },
+  { token: "variable", foreground: "9CDCFE" },
+  { token: "constant", foreground: "4FC1FF" },
+  { token: "regexp", foreground: "D16969" },
+  { token: "operator", foreground: "D4D4D4" },
+  { token: "delimiter", foreground: "D4D4D4" },
+  { token: "tag", foreground: "569CD6" },
+  { token: "attribute.name", foreground: "9CDCFE" },
+  { token: "attribute.value", foreground: "CE9178" },
+];
+
+const LIGHT_SYNTAX_RULES: Monaco.editor.ITokenThemeRule[] = [
+  { token: "comment", foreground: "008000", fontStyle: "italic" },
+  { token: "string", foreground: "A31515" },
+  { token: "keyword", foreground: "0000FF" },
+  { token: "number", foreground: "098658" },
+  { token: "type", foreground: "267F99" },
+  { token: "function", foreground: "795E26" },
+  { token: "variable", foreground: "001080" },
+];
+
+function syntaxRules(kind: ThemeKind): Monaco.editor.ITokenThemeRule[] {
+  return kind === "light" || kind === "high-contrast-light"
+    ? LIGHT_SYNTAX_RULES
+    : DARK_SYNTAX_RULES;
 }
 
 /**
  * Register Monaco themes that keep rich syntax colors but never paint
  * per-line content backgrounds (only selection / find may tint).
  */
-export function registerGitViewMonacoThemes(monaco: typeof Monaco): void {
+function registerGitViewMonacoThemes(monaco: typeof Monaco): void {
   if (themesRegistered) {
     return;
   }
@@ -62,23 +126,7 @@ export function registerGitViewMonacoThemes(monaco: typeof Monaco): void {
   monaco.editor.defineTheme("gitview-dark", {
     base: "vs-dark",
     inherit: true,
-    rules: [
-      { token: "comment", foreground: "6A9955", fontStyle: "italic" },
-      { token: "string", foreground: "CE9178" },
-      { token: "keyword", foreground: "569CD6" },
-      { token: "number", foreground: "B5CEA8" },
-      { token: "type", foreground: "4EC9B0" },
-      { token: "class", foreground: "4EC9B0" },
-      { token: "function", foreground: "DCDCAA" },
-      { token: "variable", foreground: "9CDCFE" },
-      { token: "constant", foreground: "4FC1FF" },
-      { token: "regexp", foreground: "D16969" },
-      { token: "operator", foreground: "D4D4D4" },
-      { token: "delimiter", foreground: "D4D4D4" },
-      { token: "tag", foreground: "569CD6" },
-      { token: "attribute.name", foreground: "9CDCFE" },
-      { token: "attribute.value", foreground: "CE9178" },
-    ],
+    rules: DARK_SYNTAX_RULES,
     colors: {
       "editor.background": "#1e1e1e",
       "editor.foreground": "#d4d4d4",
@@ -90,15 +138,7 @@ export function registerGitViewMonacoThemes(monaco: typeof Monaco): void {
   monaco.editor.defineTheme("gitview-light", {
     base: "vs",
     inherit: true,
-    rules: [
-      { token: "comment", foreground: "008000", fontStyle: "italic" },
-      { token: "string", foreground: "A31515" },
-      { token: "keyword", foreground: "0000FF" },
-      { token: "number", foreground: "098658" },
-      { token: "type", foreground: "267F99" },
-      { token: "function", foreground: "795E26" },
-      { token: "variable", foreground: "001080" },
-    ],
+    rules: LIGHT_SYNTAX_RULES,
     colors: {
       "editor.background": "#ffffff",
       "editor.foreground": "#000000",
@@ -145,7 +185,7 @@ export function applyGitViewMonacoTheme(
   monaco.editor.defineTheme(id, {
     base: themeBase(kind),
     inherit: true,
-    rules: [],
+    rules: syntaxRules(kind),
     colors: {
       "editor.background": background,
       "editor.foreground": foreground,
@@ -181,6 +221,38 @@ export function applyGitViewMonacoTheme(
       "editor.lineHighlightBorder": "#00000000",
       "editorIndentGuide.background1": "#00000000",
       "editorIndentGuide.activeBackground1": "#00000000",
+      "diffEditor.insertedTextBackground": vscodeColor(
+        "--vscode-diffEditor-insertedTextBackground",
+        light ? "#9ccc9c33" : "#2ea04338",
+      ),
+      "diffEditor.removedTextBackground": vscodeColor(
+        "--vscode-diffEditor-removedTextBackground",
+        light ? "#ff9b9b33" : "#f8514938",
+      ),
+      "diffEditor.insertedLineBackground": vscodeColor(
+        "--vscode-diffEditor-insertedLineBackground",
+        "--vscode-diffEditor-insertedTextBackground",
+        light ? "#9ccc9c22" : "#2ea04322",
+      ),
+      "diffEditor.removedLineBackground": vscodeColor(
+        "--vscode-diffEditor-removedLineBackground",
+        "--vscode-diffEditor-removedTextBackground",
+        light ? "#ff9b9b22" : "#f8514922",
+      ),
+      "diffEditor.diagonalFill": vscodeColor(
+        "--vscode-diffEditor-diagonalFill",
+        light ? "#00000014" : "#ffffff14",
+      ),
+      "diffEditorOverview.insertedForeground": vscodeColor(
+        "--vscode-diffEditorOverview-insertedForeground",
+        "--vscode-editorGutter-addedBackground",
+        light ? "#587c0c" : "#81b88b",
+      ),
+      "diffEditorOverview.removedForeground": vscodeColor(
+        "--vscode-diffEditorOverview-removedForeground",
+        "--vscode-editorGutter-deletedBackground",
+        light ? "#ad0707" : "#c74e39",
+      ),
     },
   });
   monaco.editor.setTheme(id);

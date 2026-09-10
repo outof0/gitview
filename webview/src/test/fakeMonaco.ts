@@ -62,16 +62,10 @@ function renderModel(el: HTMLElement, model: FakeModel) {
   }
 }
 
-type FakeDiffEditor = {
-  clickDiffMarker: (side: "left" | "right", lineNumber: number) => void;
-};
-
 export function createFakeMonaco() {
   const models = new Map<string, FakeModel>();
-  let lastDiffEditor: FakeDiffEditor | null = null;
 
   return {
-    getLastDiffEditor: () => lastDiffEditor,
     Uri: {
       parse: (uri: string) => ({ toString: () => uri }),
     },
@@ -173,13 +167,6 @@ export function createFakeMonaco() {
         let original: FakeModel | null = null;
         let modified: FakeModel | null = null;
         let diffListeners: Array<() => void> = [];
-        const mouseDownListeners: Record<
-          "left" | "right",
-          Array<(event: { target: { position: { lineNumber: number }; element: HTMLElement } }) => void>
-        > = {
-          left: [],
-          right: [],
-        };
         const diffOptions: Record<string, unknown> = { ...options };
         const publishOptions = () => {
           el.setAttribute(
@@ -231,25 +218,7 @@ export function createFakeMonaco() {
         };
         const sideOptions: Record<string, unknown> = {};
         const sideEditor = (side: "left" | "right") => ({
-          onMouseDown: (
-            listener: (event: {
-              target: {
-                position: { lineNumber: number };
-                element: HTMLElement;
-              };
-            }) => void,
-          ) => {
-            mouseDownListeners[side].push(listener);
-            return {
-              dispose: () => {
-                const listeners = mouseDownListeners[side];
-                const index = listeners.indexOf(listener);
-                if (index >= 0) {
-                  listeners.splice(index, 1);
-                }
-              },
-            };
-          },
+          onMouseDown: () => ({ dispose: () => {} }),
           onContextMenu: () => ({ dispose: () => {} }),
           onDidScrollChange: () => ({ dispose: () => {} }),
           onDidLayoutChange: () => ({ dispose: () => {} }),
@@ -276,12 +245,17 @@ export function createFakeMonaco() {
           createDecorationsCollection: () => ({
             set: (decorations: unknown[]) => {
               el.setAttribute(
-                "data-fake-decorations",
+                `data-fake-decorations-${side}`,
                 String((decorations as unknown[]).length),
+              );
+              el.setAttribute(
+                `data-fake-decorations-${side}-json`,
+                JSON.stringify(decorations),
               );
             },
             clear: () => {
-              el.removeAttribute("data-fake-decorations");
+              el.removeAttribute(`data-fake-decorations-${side}`);
+              el.removeAttribute(`data-fake-decorations-${side}-json`);
             },
             dispose: () => {},
           }),
@@ -327,24 +301,11 @@ export function createFakeMonaco() {
           dispose: () => {
             el.innerHTML = "";
           },
-          clickDiffMarker: (side: "left" | "right", lineNumber: number) => {
-            const element = document.createElement("div");
-            element.className = "monaco-diff-changed-gutter";
-            for (const listener of mouseDownListeners[side]) {
-              listener({
-                target: {
-                  position: { lineNumber },
-                  element,
-                },
-              });
-            }
-          },
           updateOptions: (next: Record<string, unknown>) => {
             Object.assign(diffOptions, next);
             publishOptions();
           },
         };
-        lastDiffEditor = diffEditor;
         return diffEditor;
       },
       colorize: async (text: string) =>

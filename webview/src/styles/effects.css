@@ -1,5 +1,27 @@
 /* Semantic diff / merge tokens — applied dynamically on rows and blocks */
 
+.git-log-ref-icon {
+  position: relative;
+  width: 9px;
+  height: 9px;
+  margin-left: 2px;
+  flex: 0 0 auto;
+  border: 1.5px solid currentColor;
+  border-radius: 1.5px;
+  transform: rotate(45deg);
+}
+
+.git-log-ref-icon::after {
+  content: "";
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  top: 1px;
+  left: 1px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
 .nx-match {
   background: var(
     --vscode-editor-findMatchHighlightBackground,
@@ -112,24 +134,15 @@
   display: none;
 }
 
-/* Intentional change fills only */
+/* Intentional change fills — VS Code diff tokens via --nx-diff-*. */
 .nx-hl-added {
-  background: var(
-    --vscode-diffEditor-insertedTextBackground,
-    rgba(46, 160, 67, 0.22)
-  ) !important;
+  background: var(--nx-diff-insert-line) !important;
 }
 .nx-hl-removed {
-  background: var(
-    --vscode-diffEditor-removedTextBackground,
-    rgba(248, 81, 73, 0.22)
-  ) !important;
+  background: var(--nx-diff-delete-line) !important;
 }
 .nx-hl-changed {
-  background: var(
-    --vscode-diffEditor-modifiedTextBackground,
-    rgba(187, 128, 9, 0.28)
-  ) !important;
+  background: var(--nx-diff-insert-line) !important;
 }
 
 /*
@@ -145,16 +158,13 @@
   background-color: var(--vscode-editor-background, #1f1f1f);
 }
 .nx-diff-code-line.nx-hl-added > .nx-diff-ln.nx-diff-gutter {
-  box-shadow: inset 0 0 0 9999px
-    var(--vscode-diffEditor-insertedTextBackground, rgba(46, 160, 67, 0.22));
+  box-shadow: inset 0 0 0 9999px var(--nx-diff-insert-line);
 }
 .nx-diff-code-line.nx-hl-removed > .nx-diff-ln.nx-diff-gutter {
-  box-shadow: inset 0 0 0 9999px
-    var(--vscode-diffEditor-removedTextBackground, rgba(248, 81, 73, 0.22));
+  box-shadow: inset 0 0 0 9999px var(--nx-diff-delete-line);
 }
 .nx-diff-code-line.nx-hl-changed > .nx-diff-ln.nx-diff-gutter {
-  box-shadow: inset 0 0 0 9999px
-    var(--vscode-diffEditor-modifiedTextBackground, rgba(187, 128, 9, 0.28));
+  box-shadow: inset 0 0 0 9999px var(--nx-diff-insert-line);
 }
 
 /* Blame gutter rows — code/line number stay clean */
@@ -285,7 +295,17 @@ pre,
   padding: 0 !important;
 }
 
-/* Re-enable intentional change-line fills (must win over the rules above) */
+/* Re-enable intentional change fills (must win over the rules above) */
+.nx-diff-code-line.nx-hl-added [data-testid="code-line"],
+.nx-diff-hover-line.nx-hl-added [data-testid="code-line"] {
+  /* Monaco paints the changed characters with a stronger layer on top of the
+   * line wash. List-based Git diffs need the same second layer for parity. */
+  background: var(--nx-diff-insert-char) !important;
+}
+.nx-diff-code-line.nx-hl-removed [data-testid="code-line"],
+.nx-diff-hover-line.nx-hl-removed [data-testid="code-line"] {
+  background: var(--nx-diff-delete-char) !important;
+}
 .monaco-editor .view-line.nx-monaco-added,
 .monaco-editor .view-lines .view-line.nx-monaco-added,
 .nx-monaco-center .monaco-editor .view-line.nx-monaco-added {
@@ -366,55 +386,59 @@ pre,
   background-color: var(--nx-deleted-bar) !important;
 }
 
-/* Monaco diff viewer — LCS on main thread (diff worker is a noop in webview) */
-.monaco-editor .view-line.monaco-diff-added,
-.nx-monaco-diff-host .monaco-editor .view-line.monaco-diff-added,
-.nx-monaco-diff-host .monaco-editor .cmdr.monaco-diff-added,
-.cdr.monaco-diff-added {
-  background: var(
-    --vscode-diffEditor-insertedTextBackground,
-    rgba(46, 160, 67, 0.22)
-  ) !important;
-}
-.monaco-editor .view-line.monaco-diff-removed,
-.nx-monaco-diff-host .monaco-editor .view-line.monaco-diff-removed,
-.nx-monaco-diff-host .monaco-editor .cmdr.monaco-diff-removed,
-.cdr.monaco-diff-removed {
-  background: var(
-    --vscode-diffEditor-removedTextBackground,
-    rgba(248, 81, 73, 0.22)
-  ) !important;
-}
-.monaco-editor .view-line.monaco-diff-changed,
-.nx-monaco-diff-host .monaco-editor .view-line.monaco-diff-changed,
-.nx-monaco-diff-host .monaco-editor .cmdr.monaco-diff-changed,
-.cdr.monaco-diff-changed {
-  background: var(
-    --vscode-diffEditor-modifiedTextBackground,
-    rgba(187, 128, 9, 0.28)
-  ) !important;
+.nx-monaco-diff-host .diagonal-fill {
+  background-image: linear-gradient(
+    -45deg,
+    color-mix(in srgb, var(--vscode-editor-foreground) 16%, transparent) 12.5%,
+    transparent 12.5%,
+    transparent 50%,
+    color-mix(in srgb, var(--vscode-editor-foreground) 16%, transparent) 50%,
+    color-mix(in srgb, var(--vscode-editor-foreground) 16%, transparent) 62.5%,
+    transparent 62.5%,
+    transparent 100%
+  );
+  background-size: 8px 8px;
 }
 
-/* VS Code-style diff markers: the line wash is useful, but the gutter stripe
- * is what makes a change discoverable when the code is scrolled. */
+/* Monaco's built-in diff worker is disabled in the webview. These classes are
+ * applied by MonacoDiffViewer from the same LCS ranges so the rendered diff
+ * keeps VS Code's red/green line washes and gutter markers. */
+.nx-monaco-diff-host .monaco-editor .view-line.monaco-diff-added,
+.nx-monaco-diff-host .monaco-editor .view-lines .view-line.monaco-diff-added,
+.nx-monaco-diff-host .monaco-editor .cmdr.monaco-diff-added,
+.nx-monaco-diff-host .monaco-editor .cdr.monaco-diff-added {
+  background: var(--nx-diff-insert-line) !important;
+}
+
+.nx-monaco-diff-host .monaco-editor .view-line.monaco-diff-removed,
+.nx-monaco-diff-host .monaco-editor .view-lines .view-line.monaco-diff-removed,
+.nx-monaco-diff-host .monaco-editor .cmdr.monaco-diff-removed,
+.nx-monaco-diff-host .monaco-editor .cdr.monaco-diff-removed {
+  background: var(--nx-diff-delete-line) !important;
+}
+
+/* Keep the diff decorations for navigation/accessibility, but do not paint a
+ * colored stripe beside every changed line. The line wash and overview ruler
+ * already communicate the change without consuming visual space in the gutter. */
 .nx-monaco-diff-host .monaco-editor .lines-decoration.monaco-diff-added-gutter,
-.nx-monaco-diff-host .monaco-editor .margin-view-overlays .monaco-diff-added-gutter {
-  background-color: var(--nx-added-bar) !important;
-  cursor: pointer;
-}
 .nx-monaco-diff-host .monaco-editor .lines-decoration.monaco-diff-removed-gutter,
+.nx-monaco-diff-host .monaco-editor .margin-view-overlays .monaco-diff-added-gutter,
 .nx-monaco-diff-host .monaco-editor .margin-view-overlays .monaco-diff-removed-gutter {
-  background-color: var(--nx-deleted-bar) !important;
-  cursor: pointer;
+  background-color: transparent !important;
+  cursor: default;
 }
-.nx-monaco-diff-host .monaco-editor .lines-decoration.monaco-diff-changed-gutter,
-.nx-monaco-diff-host .monaco-editor .margin-view-overlays .monaco-diff-changed-gutter {
-  background-color: var(--nx-modified-bar) !important;
-  cursor: pointer;
-}
+
 .nx-monaco-diff-host .monaco-editor .decorationsOverviewRuler {
   cursor: pointer;
 }
+
+.nx-monaco-diff-host .editor.original .overview-ruler,
+.nx-monaco-diff-host .editor.original .decorationsOverviewRuler {
+  display: none !important;
+}
+
+/* Native VS Code look: no gutter stripes next to the line numbers — changes
+ * are marked only by the line wash above and the overview ruler markers. */
 .nx-monaco-diff-host .monaco-editor .view-line.monaco-diff-active {
   box-shadow: inset 0 0 0 9999px var(--nx-active-block) !important;
 }
@@ -516,9 +540,8 @@ body.vscode-light .mtk8 { color: #001080 !important; }
 body.vscode-light .mtk9 { color: #267f99 !important; }
 body.vscode-light .mtk10 { color: #af00db !important; }
 
-/* Git log pane height override */
+/* Embedded history fixture height override */
 
-[data-testid="blame-git-log-pane"] [data-testid="git-history-tool-window"],
 [data-testid="history-git-log-pane"] [data-testid="git-history-tool-window"] {
   height: 100% !important;
   width: 100% !important;

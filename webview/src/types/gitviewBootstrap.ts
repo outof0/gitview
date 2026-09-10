@@ -36,12 +36,19 @@ export type GitCreateBranchBootstrap = {
   startPoint?: string;
 };
 
+export type WorkspaceBootstrap = {
+  surface?: "workspace" | "commit" | "branches" | "sidebar" | "content";
+  /** Repository explicitly targeted by a transient editor-area dialog. */
+  repoId?: string;
+};
+
 export type GitViewBootstrap =
   | HistoryBootstrap
   | BlameBootstrap
   | DiffBootstrap
   | MergeBootstrap
-  | GitCreateBranchBootstrap;
+  | GitCreateBranchBootstrap
+  | WorkspaceBootstrap;
 
 declare global {
   interface Window {

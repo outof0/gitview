@@ -6,8 +6,7 @@ import { GitCreateBranchApp } from "./apps/GitCreateBranchApp";
 import { GitCommitPanelApp } from "./apps/GitCommitPanelApp";
 import { GitBranchesPanelApp } from "./apps/GitBranchesPanelApp";
 import { GitDiffApp } from "./apps/GitDiffApp";
-import { GitWorkspaceApp } from "./apps/GitWorkspaceApp";
-import { BlameVisualFixture } from "./dev/BlameVisualFixture";
+import { GitSidebarApp, GitWorkspaceApp } from "./apps/GitWorkspaceApp";
 import { GitDiffVisualFixture } from "./dev/GitDiffVisualFixture";
 import { GitMenuVisualFixture } from "./dev/GitMenuVisualFixture";
 import { HistoryVisualFixture } from "./dev/HistoryVisualFixture";
@@ -27,6 +26,7 @@ declare global {
       | "merge"
       | "gitHistory"
       | "gitWorkspace"
+      | "gitSidebar"
       | "gitDiff"
       | "gitBlame"
       | "gitMenu"
@@ -35,7 +35,6 @@ declare global {
       | "gitBranches"
       | "gitWorkspaceVisual"
       | "gitHistoryVisual"
-      | "gitBlameVisual"
       | "gitDiffVisual";
   }
 }
@@ -65,6 +64,8 @@ if (appMode === "gitWorkspaceVisual") {
 const RootApp =
   appMode === "gitWorkspace" || appMode === "gitWorkspaceVisual"
     ? GitWorkspaceApp
+    : appMode === "gitSidebar"
+      ? GitSidebarApp
     : appMode === "gitHistory"
       ? GitHistoryApp
       : appMode === "gitHistoryVisual"
@@ -81,9 +82,7 @@ const RootApp =
                 ? GitCommitPanelApp
               : appMode === "gitBranches"
                 ? GitBranchesPanelApp
-              : appMode === "gitBlameVisual"
-                ? BlameVisualFixture
-                : appMode === "gitMenu"
+              : appMode === "gitMenu"
                   ? GitMenuVisualFixture
                   : App;
 

@@ -1,12 +1,7 @@
+import EditorWorker from "monaco-editor/editor/editor.worker?worker";
+
 // Wire Monaco editor worker for Vite. Must run before the editor API loads.
 let configured = false;
-
-function createNoopWorker(): Worker {
-  const source = "self.onmessage=function(){}";
-  return new Worker(
-    URL.createObjectURL(new Blob([source], { type: "application/javascript" })),
-  );
-}
 
 export function configureMonacoEnvironment(): void {
   if (configured) {
@@ -22,7 +17,7 @@ export function configureMonacoEnvironment(): void {
 
   global.MonacoEnvironment = {
     getWorker() {
-      return createNoopWorker();
+      return new EditorWorker();
     },
   };
 }

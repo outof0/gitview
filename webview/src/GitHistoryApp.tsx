@@ -54,10 +54,9 @@ export function GitHistoryApp() {
   }, [store]);
 
   useEffect(() => {
-    // The host pushes `history.init` only after it answers this handshake
-    // (src/webview/GitHistoryWebviewPanel.ts), so swallowing a failure here is
-    // not cosmetic: the tool window would sit on "Loading history…" forever,
-    // with nothing on screen and nothing in the log.
+    // The host pushes `history.init` only after it answers this handshake, so
+    // swallowing a failure here is not cosmetic: the tool window would sit on
+    // "Loading history…" forever, with nothing on screen and nothing in the log.
     void client.ready("gitHistory").catch((error: unknown) => {
       store.getState().setLogResult({
         error:

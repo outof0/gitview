@@ -41,7 +41,7 @@ export function ToolbarIconButton({
   );
 }
 
-export type ToolbarDropdownItem = {
+type ToolbarDropdownItem = {
   value: string;
   label: string;
   active: boolean;

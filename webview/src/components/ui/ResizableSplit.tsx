@@ -44,7 +44,11 @@ export function ResizableSplit({
   className = "",
 }: ResizableSplitProps) {
   const [percent, setPercent] = useState(() =>
-    readStoredPercent(storageKey, initialPercent),
+    clamp(
+      readStoredPercent(storageKey, initialPercent),
+      minFirstPercent,
+      100 - minSecondPercent,
+    ),
   );
   const containerRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
