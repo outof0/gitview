@@ -87,10 +87,18 @@ export default defineConfig({
 
         "webview/**/__tests__/**",
       ],
-      // Vitest 4's V8 provider uses AST remapping. Baseline measured on
-      // 2026-09-10 over the configured suite (304 files / 1906 tests), after
-      // the review fixes below. These are integer floors of that baseline;
-      // ratchet upward as tests improve.
+      // Vitest 4's V8 provider uses AST remapping. Baseline re-measured on
+      // 2026-09-10 over the configured suite (304 files / 1,906 tests), after
+      // the hand-picked excludes above were trimmed so 22 files / 1,850 lines
+      // rejoin the gate. The statement and line floors rose (63 → 68); the
+      // function and branch floors fell (78 → 70 and 72 → 63) because AST
+      // remapping counts more, smaller units. These are integer floors of that
+      // baseline, not a target.
+      //
+      // Follow-up target: record the measured value beside each floor on the
+      // next `pnpm run test:coverage` and raise the floor whenever it moves.
+      // The pre-migration 78 / 72 are not the target — they measured a
+      // different denominator.
       thresholds: {
         lines: 68,
         functions: 70,
