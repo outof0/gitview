@@ -1,10 +1,12 @@
 # GitView
 
-**Your Git is spread across five places. This is one.**
+**All of Git, one window.**
 
-Commit, read history, blame a line, switch branches, stash, rebase, cherry-pick and review
-pull requests from a single panel — the Git tool window you get in a JetBrains IDE, without
-leaving VS Code. When a merge does break, resolve it from the real Git index stages.
+Your Git is spread across five places — history in one extension, blame in another, the graph
+in a third, stash in the terminal. Commit, read history, blame a line, switch branches, stash,
+rebase, cherry-pick and review pull requests from one panel: the Git tool window you get in a
+JetBrains IDE, without leaving VS Code. When a merge does break, resolve it from the real Git
+index stages.
 
 **MIT · no account · no telemetry · commit graph works on private repos too.**
 
@@ -12,7 +14,7 @@ leaving VS Code. When a merge does break, resolve it from the real Git index sta
 · [Open VSX](https://open-vsx.org/extension/gitview/gitview)
 · [gitview.dev](https://gitview.dev)
 
-![GitView Git workspace — changes, commit, branches, log and diff in one panel](https://raw.githubusercontent.com/outof0/gitview/main/docs/launch/workspace.png)
+![GitView Git workspace — changes, commit, branches, log and diff in one panel](https://raw.githubusercontent.com/outof0/gitview/main/docs/launch/readme/workspace.png)
 
 ---
 
@@ -31,7 +33,7 @@ leaving VS Code. When a merge does break, resolve it from the real Git index sta
 | **Keyboard-first** | `F7` / `Shift+F7` conflicts · `Alt+↑↓` hunks · `Alt+1/2/3` panes · `Ctrl+Enter` commit. |
 | **Theme-aware** | Uses the host `--vscode-*` variables — light, dark and high-contrast all look native. |
 
-![GitView history — branch tree, commit graph and file tree](https://raw.githubusercontent.com/outof0/gitview/main/docs/launch/history.png)
+![GitView history — branch tree, commit graph and file tree](https://raw.githubusercontent.com/outof0/gitview/main/docs/launch/readme/history.png)
 
 ## 3-way merge that reads Git, not a guess
 
@@ -42,13 +44,13 @@ It reads the three versions Git itself writes into the index — `:1:` base, `:2
 fires when both sides wrote a byte-identical block; it never invents content. Everything
 else is a decision you make, in a three-pane editor with a live result preview.
 
-![GitView 3-way merge editor — base, ours, theirs and the editable result](https://raw.githubusercontent.com/outof0/gitview/main/docs/launch/merge.png)
+![GitView 3-way merge editor — base, ours, theirs and the editable result](https://raw.githubusercontent.com/outof0/gitview/main/docs/launch/readme/merge.png)
 
 That matters for the conflicts AI gets wrong most often: whitespace-only edits, rename
 plus edit, and binary hunks. Review the result before you apply it — nothing is written
 until you say so.
 
-![GitView blame — author, commit and date inline](https://raw.githubusercontent.com/outof0/gitview/main/docs/launch/blame.png)
+![GitView blame — author, commit and date inline](https://raw.githubusercontent.com/outof0/gitview/main/docs/launch/readme/blame.png)
 
 ## Why GitView exists
 
@@ -91,9 +93,22 @@ Full walkthrough: [getting started](https://github.com/outof0/gitview/blob/main/
 
 ## What's new in 0.1.1
 
-Completes the workspace experience and hardens the repository workflows: fixes silent data
-loss in shelf, drop-selected and branch apply, plus wider end-to-end coverage, tighter CI
-and cleaner packaging. [Full changelog](https://github.com/outof0/gitview/blob/main/CHANGELOG.md).
+Completes the workspace experience and hardens the repository workflows.
+
+- **Commit flow** — a real commit composer and toolbar, with sign-off, GPG signing and hook
+  options, plus a commit sidebar in the activity bar.
+- **Rollback** — a Rollback Changes dialog with a per-file tree and a typed confirmation before
+  anything is discarded.
+- **Blame** — annotations now open in the editor area, with file history coordinated from the
+  workspace panel.
+- **Room to breathe** — commit, branches and rollback open as their own editor-area surfaces
+  instead of being crushed into a 258px panel.
+- **Fixes** — silent data loss in shelf, drop-selected and branch apply; a cleaner commit graph
+  with slimmer scrollbars.
+- **Under the hood** — lazy-loaded Monaco language support, wider end-to-end coverage, tighter
+  CI and cleaner packaging.
+
+[Full changelog](https://github.com/outof0/gitview/blob/main/CHANGELOG.md).
 
 ## Known limits
 
