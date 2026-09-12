@@ -16,6 +16,24 @@ async function writeExecutable(filePath: string, content: string): Promise<void>
   await fs.writeFile(filePath, content, { mode: 0o755 });
 }
 
+function shellPath(filePath: string): string {
+  return process.platform === "win32" ? filePath.replaceAll("\\", "/") : filePath;
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replaceAll("'", "'\\''")}'`;
+}
+
+function createCopyEditor(sourcePath: string): string {
+  const source = shellQuote(shellPath(sourcePath));
+  return [
+    "#!/bin/sh",
+    `target=$(printf '%s' "$1" | sed 's#\\\\#/#g')`,
+    `cp -- ${source} "$target"`,
+    "",
+  ].join("\n");
+}
+
 /**
  * Deletes a rebase temp directory.
  *
@@ -45,28 +63,22 @@ async function runWithEditors(
     .map((line) => `${line.action} ${line.sha} ${line.subject}`)
     .join("\n")}\n`;
   await fs.writeFile(todoPath, todoContent, "utf8");
-  await writeExecutable(
-    seqEditor,
-    `#!/bin/sh\ncp "${todoPath}" "$1"\n`,
-  );
+  await writeExecutable(seqEditor, createCopyEditor(todoPath));
 
   const env: NodeJS.ProcessEnv = {
-    GIT_SEQUENCE_EDITOR: seqEditor,
+    GIT_SEQUENCE_EDITOR: shellQuote(shellPath(seqEditor)),
   };
   if (opts?.messagePath) {
     const msgEditor = path.join(dir, "msg-editor.sh");
-    await writeExecutable(
-      msgEditor,
-      `#!/bin/sh\ncp "${opts.messagePath}" "$1"\n`,
-    );
-    env.GIT_EDITOR = msgEditor;
+    await writeExecutable(msgEditor, createCopyEditor(opts.messagePath));
+    env.GIT_EDITOR = shellQuote(shellPath(msgEditor));
   } else if (opts?.keepGeneratedMessage) {
     // `squash` asks git to compose a combined message. Without an editor that
     // accepts it, git opens the user's real editor and the command blocks
     // forever. Exiting without touching $1 keeps git's own message.
     const noopEditor = path.join(dir, "msg-keep.sh");
     await writeExecutable(noopEditor, "#!/bin/sh\nexit 0\n");
-    env.GIT_EDITOR = noopEditor;
+    env.GIT_EDITOR = shellQuote(shellPath(noopEditor));
   }
 
   try {
