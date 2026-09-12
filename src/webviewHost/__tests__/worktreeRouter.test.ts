@@ -125,7 +125,7 @@ describe("messageRouter worktree handlers", () => {
     };
     expect(stale.error?.code).toBe("CONFIRMATION_STALE");
     expect(stale.error?.details?.confirmation?.target.headSha).toBe("fed");
-    expect(execGit).not.toHaveBeenCalledWith("/repo", [
+    expect(execGit).not.toHaveBeenCalledWith(repo!.rootPath, [
       "worktree",
       "remove",
       "--force",
@@ -152,7 +152,7 @@ describe("messageRouter worktree handlers", () => {
         (message as { type?: string }).type === "worktree.remove",
     ) as { ok?: boolean };
     expect(completed.ok).toBe(true);
-    expect(execGit).toHaveBeenCalledWith("/repo", [
+    expect(execGit).toHaveBeenCalledWith(repo!.rootPath, [
       "worktree",
       "remove",
       "--force",
