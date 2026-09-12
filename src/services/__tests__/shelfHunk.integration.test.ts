@@ -238,7 +238,7 @@ describe("shelf hunk integration", () => {
       // Worktree reverse-apply fails and the compensating re-stage fails too.
       // The restage command is `apply --cached <patch>` (no --reverse),
       // unlike the unstage command.
-      withGitFailures([/^apply --reverse /, /^apply --cached \//]),
+      withGitFailures([/^apply --reverse(?: |$)/, /^apply --cached (?!--reverse\b)/]),
       spiedStorage,
     );
 

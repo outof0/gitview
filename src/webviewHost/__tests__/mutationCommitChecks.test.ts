@@ -59,7 +59,7 @@ describe("commit checks", () => {
 
     await handlers.runCommitChecks("checks-1", repository.id);
 
-    expect(runChecks).toHaveBeenCalledWith("/repo", ["staged.ts"], {
+    expect(runChecks).toHaveBeenCalledWith(repository.rootPath, ["staged.ts"], {
       kinds: undefined,
       applyFixes: false,
     });

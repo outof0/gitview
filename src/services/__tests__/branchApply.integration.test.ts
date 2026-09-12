@@ -50,7 +50,9 @@ describe("branch apply file type and mode", () => {
     await api().applyFileFromBranch(repo!.root, "side", "run.sh", "workingTree");
 
     const stat = await fs.stat(path.join(repo!.root, "run.sh"));
-    expect(stat.mode & 0o777).toBe(0o755);
+    expect(stat.mode & 0o777).toBe(
+      process.platform === "win32" ? 0o666 : 0o755,
+    );
     expect(await fs.readFile(path.join(repo!.root, "run.sh"), "utf8")).toBe(
       "#!/bin/sh\necho hi\n",
     );

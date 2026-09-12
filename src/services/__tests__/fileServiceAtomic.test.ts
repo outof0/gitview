@@ -47,7 +47,9 @@ describe("atomic repository writes under parent-directory swap", () => {
     const { writeBufferAtomically } = await import("../fileService");
     await writeBufferAtomically(repoRoot, dest, Buffer.from("#!/bin/sh\n"));
     expect(await fs.readFile(dest, "utf8")).toBe("#!/bin/sh\n");
-    expect((await fs.stat(dest)).mode & 0o777).toBe(0o755);
+    expect((await fs.stat(dest)).mode & 0o777).toBe(
+      process.platform === "win32" ? 0o666 : 0o755,
+    );
   });
 
   it("keeps the default mode for new files", async () => {
@@ -55,7 +57,9 @@ describe("atomic repository writes under parent-directory swap", () => {
     const dest = path.join(sub, "new.txt");
     const { writeBufferAtomically } = await import("../fileService");
     await writeBufferAtomically(repoRoot, dest, Buffer.from("hello\n"));
-    expect((await fs.stat(dest)).mode & 0o777).toBe(0o644);
+    expect((await fs.stat(dest)).mode & 0o777).toBe(
+      process.platform === "win32" ? 0o666 : 0o644,
+    );
   });
 
   it("refuses the rename when the staged entry was hard-linked elsewhere", async () => {

@@ -76,7 +76,9 @@ describe("applySuggestionToFile", () => {
     await fs.chmod(absolute, 0o755);
     await applySuggestionToFile(repoRoot, "run.sh", 2, undefined, "new");
     expect(await fs.readFile(absolute, "utf8")).toBe("#!/bin/sh\nnew\n");
-    expect((await fs.stat(absolute)).mode & 0o777).toBe(0o755);
+    expect((await fs.stat(absolute)).mode & 0o777).toBe(
+      process.platform === "win32" ? 0o666 : 0o755,
+    );
   });
 
   it("rejects absolute paths", async () => {

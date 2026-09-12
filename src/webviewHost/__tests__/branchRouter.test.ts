@@ -375,7 +375,7 @@ describe("messageRouter branch handlers", () => {
     };
     expect(stale.error?.code).toBe("CONFIRMATION_STALE");
     expect(stale.error?.details?.confirmation?.targetSha).toBe("fed");
-    expect(execGit).not.toHaveBeenCalledWith("/repo", [
+    expect(execGit).not.toHaveBeenCalledWith(repo!.rootPath, [
       "switch",
       "-f",
       "feature",
@@ -397,7 +397,7 @@ describe("messageRouter branch handlers", () => {
       (message) => (message as { requestId?: string }).requestId === "force-submit",
     ) as { ok?: boolean };
     expect(completed.ok).toBe(true);
-    expect(execGit).toHaveBeenCalledWith("/repo", [
+    expect(execGit).toHaveBeenCalledWith(repo!.rootPath, [
       "switch",
       "-f",
       "feature",

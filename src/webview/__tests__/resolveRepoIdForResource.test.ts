@@ -55,7 +55,7 @@ describe("resolveRepoIdForResource", () => {
     expect(discoverRepositories).not.toHaveBeenCalled();
     expect(resolveRepositoryForResource).toHaveBeenCalledWith(
       cached,
-      expect.stringContaining("src/app.ts"),
+      expect.stringMatching(/[\\/]src[\\/]app\.ts$/),
     );
   });
 
@@ -74,7 +74,7 @@ describe("resolveRepoIdForResource", () => {
 
     expect(discoverRepositories).toHaveBeenCalledWith(
       expect.objectContaining({
-        resourcePath: expect.stringContaining("src/app.ts"),
+        resourcePath: expect.stringMatching(/[\\/]src[\\/]app\.ts$/),
         trusted: true,
       }),
     );

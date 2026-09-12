@@ -275,13 +275,13 @@ describe("mutationStaging.rollback confirmation", () => {
     );
 
     expect(errorCode(sent)).toBe("CONFIRMATION_STALE");
-    expect(execGit).not.toHaveBeenCalledWith("/repo", [
+    expect(execGit).not.toHaveBeenCalledWith(repos[0]!.rootPath, [
       "clean",
       "-f",
       "--",
       "untracked.txt",
     ]);
-    expect(execGit).not.toHaveBeenCalledWith("/repo", [
+    expect(execGit).not.toHaveBeenCalledWith(repos[0]!.rootPath, [
       "restore",
       "--staged",
       "--worktree",
@@ -322,7 +322,7 @@ describe("mutationStaging.rollback confirmation", () => {
     );
 
     expect(errorCode(sent)).toBeUndefined();
-    expect(execGit).toHaveBeenCalledWith("/repo", [
+    expect(execGit).toHaveBeenCalledWith(repos[0]!.rootPath, [
       "restore",
       "--staged",
       "--worktree",
