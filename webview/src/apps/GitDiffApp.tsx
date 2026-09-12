@@ -132,6 +132,8 @@ function openFileLog(repoId: string, relativePath: string) {
     path: relativePath,
     isFolder: false,
     loading: true,
+    hasMore: true,
+    loadingMore: false,
     error: null,
     showDiffPreview: false,
     showDetails: true,

@@ -5,9 +5,11 @@ import type {
 import type { WorkspaceDiffDocument } from "@gitview/shared/types/diff";
 import type {
   LogCommitEntry,
+  LogDagSnapshot,
   LogQueryFilters,
   LogSnapshot,
 } from "@gitview/shared/types/log";
+import { logQueryFiltersEqual } from "@gitview/shared/types/log";
 import type { RepositorySnapshot } from "@gitview/shared/types/repository";
 import type { ShelfListSnapshot } from "@gitview/shared/types/shelf";
 import type { StashListSnapshot } from "@gitview/shared/types/stash";
@@ -86,7 +88,9 @@ export function createGitWorkspaceStoreSlice(set: SetState, get: GetState) {
       logSelectedFilePath: null,
       logError: null,
       logSnapshot: null,
+      logDag: null,
       logLoading: false,
+      logLoadingMore: false,
       diffDocument: null,
       diffLoading: false,
       diffError: null,
@@ -166,6 +170,7 @@ export function createGitWorkspaceStoreSlice(set: SetState, get: GetState) {
               // stuck on forever.
               branchesLoading: false,
               logLoading: false,
+              logLoadingMore: false,
               logError: null,
               diffLoading: false,
               tagsLoading: false,
@@ -177,6 +182,7 @@ export function createGitWorkspaceStoreSlice(set: SetState, get: GetState) {
               branchCompareOpen: false,
               branchCompareSelectedFile: null,
               logSnapshot: null,
+              logDag: null,
               logSelectedSha: null,
               logSelectedShas: [],
               logSelectedFilePath: null,
@@ -377,11 +383,62 @@ export function createGitWorkspaceStoreSlice(set: SetState, get: GetState) {
       notification: GitWorkspaceState["workspaceNotification"],
     ) => set({ workspaceNotification: notification }),
     clearWorkspaceNotification: () => set({ workspaceNotification: null }),
+    applyLogDag: (snapshot: LogDagSnapshot) => {
+      if (isStaleSnapshot(snapshot.repoId)) {
+        return;
+      }
+      set({ logDag: snapshot });
+    },
     applyLogSnapshot: (snapshot: LogSnapshot) => {
       if (isStaleSnapshot(snapshot.repoId)) {
         return;
       }
-      set({ logSnapshot: snapshot, logLoading: false, logError: null });
+      const pageSkip = snapshot.filters?.skip ?? 0;
+      if (pageSkip > 0) {
+        const state = get();
+        const current = state.logSnapshot;
+        if (
+          !current ||
+          current.repoId !== snapshot.repoId ||
+          !logQueryFiltersEqual(snapshot.filters, state.logFilters)
+        ) {
+          set({ logLoadingMore: false });
+          return;
+        }
+        const seen = new Set(current.commits.map((commit) => commit.sha));
+        const commits = [
+          ...current.commits,
+          ...snapshot.commits.filter((commit) => {
+            if (seen.has(commit.sha)) {
+              return false;
+            }
+            seen.add(commit.sha);
+            return true;
+          }),
+        ];
+        const pageSize = state.logFilters.limit ?? 200;
+        set({
+          logSnapshot: {
+            ...current,
+            branch: snapshot.branch,
+            commits,
+            refreshedAt: snapshot.refreshedAt,
+            filters: state.logFilters,
+            hasMore:
+              snapshot.hasMore ?? snapshot.commits.length >= pageSize,
+          },
+          logLoading: false,
+          logLoadingMore: false,
+          logError: null,
+        });
+        return;
+      }
+      set({
+        logSnapshot: snapshot,
+        logLoading: false,
+        logLoadingMore: false,
+        logError: null,
+      });
     },
     applyLogCommitDetail: (repoId: string, commit: LogCommitEntry) => {
       const snapshot = get().logSnapshot;
@@ -403,8 +460,11 @@ export function createGitWorkspaceStoreSlice(set: SetState, get: GetState) {
       set({ logSnapshot: { ...snapshot, commits } });
     },
     setLogLoading: (loading: boolean) => set({ logLoading: loading }),
+    setLogLoadingMore: (loading: boolean) => set({ logLoadingMore: loading }),
     setLogError: (error: string | null) =>
-      set({ logError: error, logLoading: false }),
+      set(error === null
+        ? { logError: null }
+        : { logError: error, logLoading: false, logLoadingMore: false }),
     selectLogCommit: (sha: string | null) =>
       set({
         logSelectedSha: sha,
@@ -437,8 +497,14 @@ export function createGitWorkspaceStoreSlice(set: SetState, get: GetState) {
     clearLogCommitSelection: () =>
       set({ logSelectedSha: null, logSelectedShas: [], logSelectedFilePath: null }),
     selectLogFile: (path: string | null) => set({ logSelectedFilePath: path }),
-    setLogFilters: (filters: LogQueryFilters) =>
-      set({ logFilters: filters }),
+    setLogFilters: (filters: LogQueryFilters) => {
+      // The same filters arrive as fresh objects from several effects; keeping
+      // the old reference avoids a query round-trip (and a list blink).
+      if (logQueryFiltersEqual(get().logFilters, filters)) {
+        return;
+      }
+      set({ logFilters: filters });
+    },
     resetLogView: () => set(rootLogViewState()),
     focusLogRoot: () =>
       set((state) => ({

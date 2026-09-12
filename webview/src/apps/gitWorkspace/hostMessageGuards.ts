@@ -8,7 +8,7 @@ import type {
   BranchListSnapshot,
 } from "@gitview/shared/types/branch";
 import type { WorkspaceDiffDocument } from "@gitview/shared/types/diff";
-import type { LogSnapshot } from "@gitview/shared/types/log";
+import type { LogDagSnapshot, LogSnapshot } from "@gitview/shared/types/log";
 import type { RepositorySnapshot } from "@gitview/shared/types/repository";
 import { isRepositorySnapshotPayload } from "@gitview/shared/types/repositoryShell";
 import type { ShelfListSnapshot } from "@gitview/shared/types/shelf";
@@ -185,6 +185,15 @@ export function isLogSnapshot(value: unknown): value is { type: "log.snapshot"; 
     typeof value === "object" &&
     value !== null &&
     (value as { type?: string }).type === "log.snapshot" &&
+    (value as { protocolVersion?: number }).protocolVersion === PROTOCOL_VERSION
+  );
+}
+
+export function isLogDag(value: unknown): value is { type: "log.dag"; payload: LogDagSnapshot } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    (value as { type?: string }).type === "log.dag" &&
     (value as { protocolVersion?: number }).protocolVersion === PROTOCOL_VERSION
   );
 }

@@ -463,11 +463,13 @@ const requestValidators = {
     listId: stringValue,
     paths: stringArray,
   }),
+  "log.dag": repoOnly,
   "log.query": shape(
     { repoId: stringValue },
     {
       branch: stringValue,
       limit: positiveInteger,
+      skip: nonNegativeInteger,
       author: stringValue,
       since: stringValue,
       until: stringValue,

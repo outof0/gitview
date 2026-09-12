@@ -7,10 +7,15 @@ export async function dispatchLog(
 ): Promise<boolean> {
   const { logHandlers } = ctx;
   switch (request.type) {
+      case "log.dag":
+        await logHandlers.dag(request.requestId, request.payload.repoId);
+        return true;
+
       case "log.query":
         await logHandlers.query(request.requestId, request.payload.repoId, {
           branch: request.payload.branch,
           limit: request.payload.limit,
+          skip: request.payload.skip,
           author: request.payload.author,
           since: request.payload.since,
           until: request.payload.until,

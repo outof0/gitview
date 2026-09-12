@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { ResetMode } from "@gitview/shared/types/log";
 import type { DiffLineSelection } from "@gitview/shared/types/diff";
 import { orderShasOldestFirst } from "@gitview/shared/lib/commitBatchOrder";
+import { buildPermanentGraph } from "@gitview/shared/lib/gitLogGraph";
 import type { GitWorkspaceController } from "./gitWorkspaceControllerTypes";
 import { WorkspaceLogPanel } from "../../components/git/WorkspaceLogPanel";
 import type { WorkspaceLogPanelProps } from "../../components/git/workspaceLogPanel/workspaceLogPanelTypes";
@@ -20,7 +21,9 @@ export function GitWorkspaceLogTab({ ctx }: { ctx: GitWorkspaceController }) {
 
     workspaceTab,
     logSnapshot,
+    logDag,
     logLoading,
+    logLoadingMore,
     logError,
     logSelectedSha,
     logSelectedShas,
@@ -37,6 +40,7 @@ export function GitWorkspaceLogTab({ ctx }: { ctx: GitWorkspaceController }) {
     activeRepo,
     runMutation,
     loadLog,
+    loadMoreLog,
     loadLogFileDiff,
     handleRewriteHistory,
     handleDropSelected,
@@ -459,6 +463,11 @@ export function GitWorkspaceLogTab({ ctx }: { ctx: GitWorkspaceController }) {
     [activeRepo, clientRef, logSelectedFilePath, logSelectedSha, runMutation],
   );
 
+  const permanentGraph = useMemo(
+    () => (logDag ? buildPermanentGraph(logDag) : null),
+    [logDag],
+  );
+
   const handleDropLines = useCallback(
     (lines: DiffLineSelection[]) => {
       if (!logSelectedSha || !logSelectedFilePath) {
@@ -473,6 +482,7 @@ export function GitWorkspaceLogTab({ ctx }: { ctx: GitWorkspaceController }) {
     () => ({
       snapshot: logSnapshot,
       loading: logLoading,
+      loadingMore: logLoadingMore,
       error: logError,
       selectedSha: logSelectedSha,
       selectedShas: logSelectedShas,
@@ -484,6 +494,7 @@ export function GitWorkspaceLogTab({ ctx }: { ctx: GitWorkspaceController }) {
       onSelectCommit: handleSelectCommit,
       issueTrackerBaseUrl,
       currentBranchHeadSha: activeRepo?.headSha ?? null,
+      permanentGraph,
       onSelectFile: handleSelectFile,
       filters: logFilters,
       onFiltersChange: setLogFilters,
@@ -493,6 +504,7 @@ export function GitWorkspaceLogTab({ ctx }: { ctx: GitWorkspaceController }) {
       onBranchMenuOpen: handleBranchMenuOpen,
       onOpenFileDiff: handleOpenFileDiff,
       onRefresh: handleRefresh,
+      onLoadMore: loadMoreLog,
       busy: syncing,
       protectedBranch: activeRepo?.protectedBranch,
       hasUpstream: Boolean(activeRepo?.upstream),
@@ -521,7 +533,9 @@ export function GitWorkspaceLogTab({ ctx }: { ctx: GitWorkspaceController }) {
     }),
     [
       logSnapshot,
+      permanentGraph,
       logLoading,
+      logLoadingMore,
       logError,
       logSelectedSha,
       logSelectedShas,
@@ -542,6 +556,7 @@ export function GitWorkspaceLogTab({ ctx }: { ctx: GitWorkspaceController }) {
       handleBranchMenuOpen,
       handleOpenFileDiff,
       handleRefresh,
+      loadMoreLog,
       syncing,
       activeRepo?.protectedBranch,
       activeRepo?.upstream,

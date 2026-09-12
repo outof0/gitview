@@ -1,5 +1,5 @@
 import { Button } from "../ui/Button";
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, Copy, GitCompare, Search } from "lucide-react";
 import { ContextMenu } from "../ui/ContextMenu";
 import { MenuItem } from "../ui/MenuItem";
@@ -28,6 +28,7 @@ import {
 export const WorkspaceLogPanel = memo(function WorkspaceLogPanel({
   snapshot,
   loading = false,
+  loadingMore = false,
   error = null,
   selectedSha,
   selectedShas = [],
@@ -40,6 +41,7 @@ export const WorkspaceLogPanel = memo(function WorkspaceLogPanel({
   onSelectFile,
   onOpenFileDiff,
   onRefresh,
+  onLoadMore,
   filters,
   onFiltersChange,
   busy = false,
@@ -55,6 +57,7 @@ export const WorkspaceLogPanel = memo(function WorkspaceLogPanel({
   onRevertMultiple,
   issueTrackerBaseUrl,
   currentBranchHeadSha,
+  permanentGraph,
   onCopyHash,
   onCreateBranchFromCommit,
   onResetToCommit,
@@ -87,6 +90,13 @@ export const WorkspaceLogPanel = memo(function WorkspaceLogPanel({
     historyScope?.isFolder === false && historyScope.showDiff !== false;
 
   const rawCommits = snapshot?.commits ?? [];
+  const hasMoreCommits = Boolean(
+    snapshot &&
+      (snapshot.hasMore ?? rawCommits.length >= (filters.limit ?? 200)),
+  );
+  useEffect(() => {
+    setExpandedLinear(null);
+  }, [rawCommits.length]);
   const commits = useMemo(() => {
     if (filters.graphSort === "topological") {
       return sortLogCommitsTopologically(rawCommits);
@@ -167,6 +177,45 @@ export const WorkspaceLogPanel = memo(function WorkspaceLogPanel({
     [openFile],
   );
 
+  const handleCommitScroll = useCallback(
+    (event: React.UIEvent<HTMLDivElement>) => {
+      if (!onLoadMore || loadingMore || !hasMoreCommits) {
+        return;
+      }
+      const element = event.currentTarget;
+      if (element.clientHeight <= 0) {
+        return;
+      }
+      // Prefetch while the viewport still has about two screens of commits
+      // below it, so the next page is laid out before the user reaches it.
+      const distanceFromBottom =
+        element.scrollHeight - element.scrollTop - element.clientHeight;
+      if (distanceFromBottom <= Math.max(480, element.clientHeight * 2)) {
+        void onLoadMore();
+      }
+    },
+    [hasMoreCommits, loadingMore, onLoadMore],
+  );
+
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const element = scrollRef.current;
+    if (
+      !element ||
+      !onLoadMore ||
+      loadingMore ||
+      !hasMoreCommits ||
+      element.clientHeight <= 0
+    ) {
+      return;
+    }
+    const distanceFromBottom =
+      element.scrollHeight - element.scrollTop - element.clientHeight;
+    if (distanceFromBottom <= Math.max(480, element.clientHeight * 2)) {
+      void onLoadMore();
+    }
+  }, [hasMoreCommits, loadingMore, onLoadMore, rawCommits.length]);
+
   const changedFilesTree = (
     <GitChangedFilesTree
       files={changedFiles}
@@ -205,8 +254,10 @@ export const WorkspaceLogPanel = memo(function WorkspaceLogPanel({
         />
       </div>
       <div
+        ref={scrollRef}
         className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
         data-testid="workspace-log-commits-scroll"
+        onScroll={handleCommitScroll}
       >
         <GitCommitList
           entries={displayEntries}
@@ -220,9 +271,19 @@ export const WorkspaceLogPanel = memo(function WorkspaceLogPanel({
           highlightCurrentBranch={filters.highlightCurrentBranch}
           currentBranchHeadSha={currentBranchHeadSha}
           graphDensity
-          loading={loading}
+          permanentGraph={permanentGraph}
+          loading={loading || !snapshot}
           emptyLabel="No commits in this branch."
         />
+        {loadingMore && hasMoreCommits ? (
+          <div
+            className="px-3 py-1 text-center text-ui-sm text-vscode-description"
+            aria-live="polite"
+            data-testid="workspace-log-loading-more"
+          >
+            Loading older commits…
+          </div>
+        ) : null}
       </div>
     </div>
   );

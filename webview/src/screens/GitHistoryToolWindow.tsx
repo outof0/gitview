@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { buildPermanentGraph } from "@gitview/shared/lib/gitLogGraph";
+import type { LogDagSnapshot } from "@gitview/shared/types/log";
 import { useGitHistoryStore } from "../stores/gitHistoryStore";
 import { useVsCodeApi } from "../hooks/useVsCodeApi";
 import { createProtocolClient } from "../protocol/client";
@@ -106,6 +108,88 @@ export function GitHistoryToolWindow({
   );
   const [commitMenu, setCommitMenu] = useState<CommitMenuState | null>(null);
   const [fileMenu, setFileMenu] = useState<FileMenuState | null>(null);
+  const logScrollRef = useRef<HTMLDivElement | null>(null);
+  const logPagingRequestRef = useRef(0);
+  const [logDag, setLogDag] = useState<LogDagSnapshot | null>(null);
+  const permanentGraph = useMemo(
+    () => (logDag ? buildPermanentGraph(logDag) : null),
+    [logDag],
+  );
+
+  const loadMoreLog = useCallback(async () => {
+    const current = useGitHistoryStore.getState();
+    if (
+      !current.repoId ||
+      current.loading ||
+      current.loadingMore ||
+      !current.hasMore ||
+      current.commits.length === 0
+    ) {
+      return;
+    }
+    const request = logPagingRequestRef.current + 1;
+    logPagingRequestRef.current = request;
+    current.setLoadingMore(true);
+    try {
+      const response = await client.queryLog(current.repoId, {
+        path: current.path || undefined,
+        isFolder: current.isFolder,
+        limit: 200,
+        branch: current.branchFilter || undefined,
+        skip: current.commits.length,
+      });
+      if (logPagingRequestRef.current === request) {
+        useGitHistoryStore
+          .getState()
+          .appendLogResult(logSnapshotToStorePayload(response));
+      }
+    } catch (err) {
+      if (logPagingRequestRef.current === request) {
+        useGitHistoryStore.getState().setLogError(
+          err instanceof Error ? err.message : "Could not load older commits",
+        );
+      }
+    } finally {
+      if (logPagingRequestRef.current === request) {
+        useGitHistoryStore.getState().setLoadingMore(false);
+      }
+    }
+  }, [client]);
+
+  const handleLogScroll = useCallback(
+    (event: React.UIEvent<HTMLDivElement>) => {
+      const element = event.currentTarget;
+      if (element.clientHeight <= 0) {
+        return;
+      }
+      const distanceFromBottom =
+        element.scrollHeight - element.scrollTop - element.clientHeight;
+      if (distanceFromBottom <= Math.max(480, element.clientHeight * 2)) {
+        void loadMoreLog();
+      }
+    },
+    [loadMoreLog],
+  );
+
+  useEffect(() => {
+    const element = logScrollRef.current;
+    const current = useGitHistoryStore.getState();
+    if (
+      !element ||
+      current.loading ||
+      current.loadingMore ||
+      !current.hasMore ||
+      current.commits.length === 0 ||
+      element.clientHeight <= 0
+    ) {
+      return;
+    }
+    const distanceFromBottom =
+      element.scrollHeight - element.scrollTop - element.clientHeight;
+    if (distanceFromBottom <= Math.max(480, element.clientHeight * 2)) {
+      void loadMoreLog();
+    }
+  }, [loadMoreLog, state.commits.length, state.hasMore, state.loading, state.loadingMore]);
 
   // `filteredCommits()` allocates, and this array's identity gates the
   // commit-graph layout memo downstream, so key it on the inputs it reads.
@@ -133,6 +217,15 @@ export function GitHistoryToolWindow({
       : state.path
         ? `History: ${state.path.split("/").pop() ?? state.path}`
         : "Log";
+
+  useEffect(() => {
+    if (!repoId) {
+      return;
+    }
+    void client.queryLogDag(repoId).then(setLogDag).catch(() => {
+      setLogDag(null);
+    });
+  }, [client, repoId]);
 
   useEffect(() => {
     // Annotate callers own the query. Running the generic history loader here
@@ -480,12 +573,18 @@ export function GitHistoryToolWindow({
 
         // Center: commit graph + list (JB Log main pane)
         const commitPane = (
-          <ScrollArea className="h-full w-full bg-vscode-editor-bg">
+          <ScrollArea
+            ref={logScrollRef}
+            onScroll={handleLogScroll}
+            className="h-full w-full bg-vscode-editor-bg"
+            data-testid="git-history-commits-scroll"
+          >
             <GitCommitList
               commits={filtered}
               selectedSha={state.selectedSha}
               onSelect={handleSelectCommit}
               graphDensity
+              permanentGraph={permanentGraph ?? undefined}
               currentSha={annotateMode ? currentSha : null}
               onContextMenu={openCommitMenu}
               loading={state.loading}
@@ -497,6 +596,15 @@ export function GitHistoryToolWindow({
                     : "No commits found."
               }
             />
+            {state.loadingMore && state.hasMore ? (
+              <div
+                className="px-3 py-1 text-center text-ui-sm text-vscode-description"
+                aria-live="polite"
+                data-testid="git-history-loading-more"
+              >
+                Loading older commits…
+              </div>
+            ) : null}
           </ScrollArea>
         );
 

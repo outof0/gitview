@@ -39,6 +39,7 @@ export function toLogSnapshot(
   branch: string | null,
   commits: LogSnapshot["commits"],
   filters?: LogQueryFilters,
+  hasMore?: boolean,
 ): LogSnapshot {
   return {
     repoId,
@@ -46,6 +47,7 @@ export function toLogSnapshot(
     commits,
     refreshedAt: Date.now(),
     filters,
+    hasMore,
   };
 }
 

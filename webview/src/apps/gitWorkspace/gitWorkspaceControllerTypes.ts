@@ -38,6 +38,8 @@ export type GitWorkspaceLoaderApi = {
   openBranches: () => void;
   loadDiff: (path: string, staged?: boolean) => Promise<void>;
   loadLog: () => Promise<void>;
+  loadLogDag: () => Promise<void>;
+  loadMoreLog: () => Promise<void>;
   loadLogFileDiff: (sha: string, path: string, status: string) => Promise<void>;
   handleSelectFile: (path: string) => void;
 };

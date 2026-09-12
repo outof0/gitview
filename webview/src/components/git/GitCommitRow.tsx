@@ -1,5 +1,5 @@
 import { Button } from "../ui/Button";
-import { memo, type RefObject } from "react";
+import { memo, type CSSProperties, type RefObject } from "react";
 import type { LogCommitEntry } from "@gitview/shared/types/log";
 import { parseIssueLinks } from "../../lib/issueLinks";
 import { cn } from "../../lib/cn";
@@ -15,6 +15,8 @@ type GitCommitRowProps = {
   /** Non-null only in graph mode; drives the leading gutter width. */
   graphWidth: number | null;
   graphColor?: string;
+  graphLane?: number | null;
+  rowStyle?: CSSProperties;
   selectedRef: RefObject<HTMLButtonElement>;
   onSelect: (sha: string, multi?: boolean) => void;
   onContextMenu?: (e: React.MouseEvent, commit: LogCommitEntry) => void;
@@ -66,6 +68,8 @@ export const GitCommitRow = memo(function GitCommitRow({
   compact = false,
   graphWidth,
   graphColor,
+  graphLane = null,
+  rowStyle,
   selectedRef,
   onSelect,
   onContextMenu,
@@ -84,7 +88,9 @@ export const GitCommitRow = memo(function GitCommitRow({
     const dateLabel = `${commitDate.getDate()}/${commitDate.getMonth() + 1}/${String(commitDate.getFullYear()).slice(-2)}, ${String(commitDate.getHours()).padStart(2, "0")}:${String(commitDate.getMinutes()).padStart(2, "0")}`;
 
     return (
-      <li>
+      <li
+        style={rowStyle}
+      >
         <Button variant="ghost" size="content"
           type="button"
           className={cn(
@@ -104,6 +110,7 @@ export const GitCommitRow = memo(function GitCommitRow({
           onContextMenu={handleContextMenu}
           data-testid={`git-commit-${commit.shortSha}`}
           data-graph-row="true"
+          data-graph-lane={graphLane ?? undefined}
           data-current={current ? "true" : undefined}
         >
           <span

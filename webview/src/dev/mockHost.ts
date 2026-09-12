@@ -241,6 +241,27 @@ export function createMockHost(
             }),
           );
           break;
+        case "log.dag": {
+          const nodes = fixtures.fileLog.map((commit) => ({
+            sha: commit.sha,
+            parentShas: commit.parentShas ?? [],
+            timestamp: commit.authorTime,
+          }));
+          const snapshot = {
+            repoId: PLAYGROUND_REPO_ID,
+            headSha: nodes[0]?.sha ?? null,
+            refTips: nodes[0] ? [nodes[0].sha] : [],
+            nodes,
+            generatedAt: Date.now(),
+          };
+          dispatch({
+            protocolVersion: PROTOCOL_VERSION,
+            type: "log.dag",
+            payload: snapshot,
+          });
+          dispatch(createHostResponse(requestId, "log.dag", snapshot));
+          break;
+        }
         case "log.query": {
           const query = (msg.payload ?? {}) as {
             path?: string;

@@ -8,6 +8,7 @@ import {
   isBranchCompareSnapshot,
   isBranchSnapshot,
   isLogSnapshot,
+  isLogDag,
   isNotification,
   isReviewSnapshot,
   isReviewDetails,
@@ -40,6 +41,7 @@ export function useGitWorkspaceHostSubscription(
     applySyncOperation,
     applyBranchSnapshot,
     applyLogSnapshot,
+    applyLogDag,
     applyStashSnapshot,
     applyShelfSnapshot,
     applyTagSnapshot,
@@ -114,6 +116,10 @@ export function useGitWorkspaceHostSubscription(
       } else if (isLogSnapshot(event.data)) {
         if (isCurrent("log.snapshot", event.data)) {
           applyLogSnapshot(event.data.payload);
+        }
+      } else if (isLogDag(event.data)) {
+        if (isCurrent("log.dag", event.data)) {
+          applyLogDag(event.data.payload);
         }
       } else if (isStashSnapshot(event.data)) {
         if (isCurrent("stash.snapshot", event.data)) {
@@ -297,6 +303,7 @@ export function useGitWorkspaceHostSubscription(
     applyBranchSnapshot,
     applyBranchCompareSnapshot,
     applyLogSnapshot,
+    applyLogDag,
     applyRepoSnapshot,
     applyReviewDetails,
     applyReviewSnapshot,

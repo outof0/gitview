@@ -82,6 +82,7 @@ const ROUTES = {
   "diff.stageLines": dispatchDiff,
   "diff.unstageLines": dispatchDiff,
 
+  "log.dag": dispatchLog,
   "log.query": dispatchLog,
   "log.fileDiff": dispatchLog,
   "log.commitDetail": dispatchLog,
@@ -232,6 +233,7 @@ const ROUTE_SEMANTICS = {
   "diff.unstageHunk": { mutation: true, selfSerializing: false },
   "diff.stageLines": { mutation: true, selfSerializing: false },
   "diff.unstageLines": { mutation: true, selfSerializing: false },
+  "log.dag": { mutation: false, selfSerializing: true },
   "log.query": { mutation: false, selfSerializing: true },
   "log.fileDiff": { mutation: false, selfSerializing: true },
   "log.commitDetail": { mutation: false, selfSerializing: true },

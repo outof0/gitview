@@ -5,6 +5,7 @@ import type {
 import type { WorkspaceDiffDocument } from "@gitview/shared/types/diff";
 import type {
   LogCommitEntry,
+  LogDagSnapshot,
   LogQueryFilters,
   LogSnapshot,
 } from "@gitview/shared/types/log";
@@ -104,7 +105,9 @@ export type GitWorkspaceState = {
   patchPreview: string | null;
   workspaceNotification: { level: "info" | "warning" | "error"; message: string } | null;
   logSnapshot: LogSnapshot | null;
+  logDag: LogDagSnapshot | null;
   logLoading: boolean;
+  logLoadingMore: boolean;
   logError: string | null;
   logSelectedSha: string | null;
   logSelectedShas: string[];
@@ -195,8 +198,10 @@ export type GitWorkspaceActions = {
   clearWorkspaceNotification: () => void;
   selectedFileConflicted: () => boolean;
   applyLogSnapshot: (snapshot: LogSnapshot) => void;
+  applyLogDag: (snapshot: LogDagSnapshot) => void;
   applyLogCommitDetail: (repoId: string, commit: LogCommitEntry) => void;
   setLogLoading: (loading: boolean) => void;
+  setLogLoadingMore: (loading: boolean) => void;
   setLogError: (error: string | null) => void;
   selectLogCommit: (sha: string | null) => void;
   toggleLogCommitSelection: (sha: string, multi?: boolean) => void;

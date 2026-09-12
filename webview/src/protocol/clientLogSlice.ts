@@ -8,6 +8,8 @@ export function createProtocolClientLogMethods(request: ProtocolRequestFn) {
   return {
     queryLog: (repoId: string, opts?: LogQueryFilters) =>
       request("log.query", { repoId, ...opts }, 60_000),
+    queryLogDag: (repoId: string) =>
+      request("log.dag", { repoId }, 60_000),
     logFileDiff: (
       repoId: string,
       sha: string,

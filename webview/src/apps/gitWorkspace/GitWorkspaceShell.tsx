@@ -1,5 +1,6 @@
 import { SelectField } from "../../components/ui/SelectField";
 import { Button } from "../../components/ui/Button";
+import { useDelayedFlag } from "../../hooks/useDelayedFlag";
 import type { GitWorkspaceController } from "./gitWorkspaceControllerTypes";
 import { GitBottomPanelHeader } from "./GitBottomPanelHeader";
 import { GitCommitSidebarHeader } from "./GitCommitSidebarHeader";
@@ -81,6 +82,10 @@ function ShellStateBanner({
   );
 }
 
+/**
+ * Avoids a one-frame "Loading repository" flash when the host answers quickly
+ * (each webview surface boots independently, so every mount would flicker).
+ */
 export function GitWorkspaceShell({
   ctx,
   surface = "workspace",
@@ -103,8 +108,9 @@ export function GitWorkspaceShell({
     runMutation,
     refresh,
   } = ctx;
+  const showBootLoading = useDelayedFlag(loading && !repoSnapshot, 200);
 
-  if (loading && !repoSnapshot) {
+  if (showBootLoading) {
     return (
       <ShellStateBanner
         testId="repository-state-loading"
@@ -168,12 +174,6 @@ export function GitWorkspaceShell({
         <GitCommitSidebarHeader ctx={ctx} onHideSidebar={onHideSidebar} />
       ) : (
         <GitBottomPanelHeader ctx={ctx} />
-      )}
-
-      {loading && (
-        <div className="px-pad-x py-1 text-ui-sm text-vscode-description">
-          Loading repository…
-        </div>
       )}
 
       {error && (

@@ -156,6 +156,7 @@ export type WebviewToHostCore =
       "log.query",
       { repoId: string } & LogQueryFilters
     >
+  | WebviewRequest<"log.dag", { repoId: string }>
   | WebviewRequest<
       "log.fileDiff",
       { repoId: string; sha: string; path: string; status?: string }

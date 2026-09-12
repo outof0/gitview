@@ -8,11 +8,15 @@ export function logSnapshotToStorePayload(snapshot: LogSnapshot): {
   path?: string;
   branch?: string;
   commits: LogSnapshot["commits"];
+  hasMore?: boolean;
+  skip?: number;
 } {
   return {
     path: snapshot.filters?.path,
     branch: snapshot.branch ?? snapshot.filters?.branch,
     commits: snapshot.commits,
+    hasMore: snapshot.hasMore,
+    skip: snapshot.filters?.skip,
   };
 }
 

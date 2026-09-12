@@ -79,6 +79,13 @@ export function GitHistoryApp() {
         return;
       }
       if (isLogSnapshot(data)) {
+        // Workspace log pagination shares the host event channel. The
+        // standalone history loader consumes older-page responses through the
+        // request promise, so never let a workspace page event replace its
+        // own scoped history.
+        if ((data.payload.filters?.skip ?? 0) > 0) {
+          return;
+        }
         if (client.isCurrentEvent("log.snapshot", eventRequestId(data))) {
           store.getState().setLogResult(logSnapshotToStorePayload(data.payload));
         }

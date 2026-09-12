@@ -18,7 +18,7 @@ import type {
   FileAtRevisionResult,
   HistoryInitPayload,
 } from "../types/history";
-import type { LogSnapshot } from "../types/log";
+import type { LogDagSnapshot, LogSnapshot } from "../types/log";
 import type { PatchPreview } from "../types/patch";
 import type { RepositorySnapshot } from "../types/repository";
 import type { ShelfListSnapshot } from "../types/shelf";
@@ -74,6 +74,7 @@ export type HostToWebview =
   | HostEvent<"branch.snapshot", BranchListSnapshot>
   | HostEvent<"branch.compare.snapshot", BranchCompareSnapshot>
   | HostEvent<"log.snapshot", LogSnapshot>
+  | HostEvent<"log.dag", LogDagSnapshot>
   | HostEvent<"blame.snapshot", BlameSnapshot>
   | HostEvent<"stash.snapshot", StashListSnapshot>
   | HostEvent<"shelf.snapshot", ShelfListSnapshot>
@@ -221,6 +222,7 @@ export type HostToWebview =
   | HostResponse<"changelist.activate", { changelists: ChangeList[] }>
   | HostResponse<"changelist.moveFiles", { changelists: ChangeList[] }>
   | HostResponse<"log.query", LogSnapshot>
+  | HostResponse<"log.dag", LogDagSnapshot>
   | HostResponse<"log.fileDiff", WorkspaceDiffDocument>
   | HostResponse<"log.commitDetail", CommitDetailResult>
   | HostResponse<"log.fileAtRevision", FileAtRevisionResult>
@@ -388,6 +390,7 @@ export const HOST_EVENT_TYPES = [
   "branch.snapshot",
   "branch.compare.snapshot",
   "log.snapshot",
+  "log.dag",
   "blame.snapshot",
   "stash.snapshot",
   "shelf.snapshot",

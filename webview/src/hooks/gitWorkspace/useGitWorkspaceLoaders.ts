@@ -1,5 +1,6 @@
 import { useCallback, useRef } from "react";
 import type { WorkspaceDiffDocument } from "@gitview/shared/types/diff";
+import { logQueryFiltersEqual } from "@gitview/shared/types/log";
 import { useGitWorkspaceStore } from "../../stores/gitWorkspaceStore";
 import type { GitWorkspaceLoaderApi } from "../../apps/gitWorkspace/gitWorkspaceControllerTypes";
 import type { GitWorkspaceDeps } from "./gitWorkspaceDeps";
@@ -17,7 +18,9 @@ export function useGitWorkspaceLoaders(deps: GitWorkspaceDeps): GitWorkspaceLoad
     setDiffLoading,
     setDiffError,
     setLogLoading,
+    setLogLoadingMore,
     setLogError,
+    applyLogDag,
     selectFile,
   } = deps.store;
 
@@ -100,15 +103,37 @@ export function useGitWorkspaceLoaders(deps: GitWorkspaceDeps): GitWorkspaceLoad
     [activeRepo, diffStagedView, setDiffDocument, setDiffError, setDiffLoading],
   );
 
+  const loadLogDag = useCallback(async () => {
+    if (!activeRepo) {
+      return;
+    }
+    const token = begin(activeRepo.id, "log-dag");
+    try {
+      const snapshot = await clientRef.current.queryLogDag(activeRepo.id);
+      if (!isCurrent(token)) {
+        return;
+      }
+      applyLogDag(snapshot);
+    } catch {
+      if (!isCurrent(token)) {
+        return;
+      }
+    }
+  }, [activeRepo, applyLogDag, begin, isCurrent]);
+
   const loadLog = useCallback(async () => {
     if (!activeRepo) {
       return;
     }
+    // A fresh query supersedes any page request that may still be in flight.
+    begin(activeRepo.id, "log-more");
     const token = begin(activeRepo.id, "log");
     const filters = useGitWorkspaceStore.getState().logFilters;
     setLogLoading(true);
+    setLogLoadingMore(false);
     setLogError(null);
     try {
+      void loadLogDag();
       await clientRef.current.queryLog(activeRepo.id, filters);
     } catch (err) {
       if (!isCurrent(token)) {
@@ -120,7 +145,67 @@ export function useGitWorkspaceLoaders(deps: GitWorkspaceDeps): GitWorkspaceLoad
         setLogLoading(false);
       }
     }
-  }, [activeRepo, begin, isCurrent, setLogError, setLogLoading]);
+  }, [
+    activeRepo,
+    begin,
+    isCurrent,
+    loadLogDag,
+    setLogError,
+    setLogLoading,
+    setLogLoadingMore,
+  ]);
+
+  const loadMoreLog = useCallback(async () => {
+    if (!activeRepo) {
+      return;
+    }
+    const state = useGitWorkspaceStore.getState();
+    const snapshot = state.logSnapshot;
+    const filters = state.logFilters;
+    const pageSize = filters.limit ?? 200;
+    const hasMore = snapshot?.hasMore ?? Boolean(snapshot && snapshot.commits.length >= pageSize);
+    if (
+      !snapshot ||
+      snapshot.repoId !== activeRepo.id ||
+      state.logLoading ||
+      state.logLoadingMore ||
+      !hasMore ||
+      snapshot.commits.length === 0
+    ) {
+      return;
+    }
+
+    if (!logQueryFiltersEqual(snapshot.filters, filters)) {
+      return;
+    }
+
+    const token = begin(activeRepo.id, "log-more");
+    setLogLoadingMore(true);
+    setLogError(null);
+    try {
+      await clientRef.current.queryLog(activeRepo.id, {
+        ...filters,
+        limit: pageSize,
+        skip: snapshot.commits.length,
+      });
+    } catch (err) {
+      if (!isCurrent(token)) {
+        return;
+      }
+      setLogError(err instanceof Error ? err.message : "Failed to load older commits");
+    } finally {
+      if (isCurrent(token)) {
+        setLogLoadingMore(false);
+      }
+    }
+  }, [
+    activeRepo,
+    begin,
+    clientRef,
+    isCurrent,
+    setLogError,
+    setLogLoadingMore,
+  ]);
 
   const loadLogFileDiff = useCallback(
     async (sha: string, path: string, status: string) => {
@@ -191,5 +276,14 @@ export function useGitWorkspaceLoaders(deps: GitWorkspaceDeps): GitWorkspaceLoad
     },
     [selectFile, setDiffDocument],
   );
-  return { loadBranches, openBranches, loadDiff, loadLog, loadLogFileDiff, handleSelectFile };
+  return {
+    loadBranches,
+    openBranches,
+    loadDiff,
+    loadLog,
+    loadLogDag,
+    loadMoreLog,
+    loadLogFileDiff,
+    handleSelectFile,
+  };
 }
