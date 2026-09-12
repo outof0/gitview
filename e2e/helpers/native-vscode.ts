@@ -383,6 +383,11 @@ async function launchNativeVsCodeOnce(
         "chat.disableAIFeatures": true,
         "chat.agentsControl.enabled": "hidden",
         "workbench.secondarySideBar.defaultVisibility": "hidden",
+        // The Linux test build otherwise falls back to the custom workbench
+        // context menu, which never emits vscode:contextmenu to the main
+        // process hook used by the native-menu assertions.
+        "window.titleBarStyle": "native",
+        "window.menuStyle": "native",
         "window.restoreWindows": "none",
         "git.enabled": true,
         "git.autoRepositoryDetection": true,
