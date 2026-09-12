@@ -33,7 +33,7 @@ export type { DiffPreviewPoster };
  * If the cursor is at line 1 but the viewport is scrolled elsewhere (common when
  * focus is on Explorer), use the middle of the visible range instead.
  */
-export function captureEditorFocusLine(fileUri: vscode.Uri): number | undefined {
+function captureEditorFocusLine(fileUri: vscode.Uri): number | undefined {
   const isFileEditor = (editor: vscode.TextEditor): boolean =>
     editor.document.uri.scheme === "file" &&
     editor.document.uri.fsPath === fileUri.fsPath;
@@ -219,6 +219,21 @@ export async function gitCompareWithBranch(
   );
 }
 
+function activeEditorFileUri(): vscode.Uri | undefined {
+  const editorUri = vscode.window.activeTextEditor?.document.uri;
+  if (editorUri?.scheme === "file") {
+    return editorUri;
+  }
+  const input = vscode.window.tabGroups?.activeTabGroup?.activeTab?.input;
+  if (input && typeof input === "object" && "uri" in input) {
+    const uri = (input as { uri?: vscode.Uri }).uri;
+    if (uri?.scheme === "file") {
+      return uri;
+    }
+  }
+  return undefined;
+}
+
 export async function gitShowDiff(
   _context: vscode.ExtensionContext,
   resource?: vscode.Uri,
@@ -231,7 +246,9 @@ export async function gitShowDiff(
   runtime?: GitCommandRuntime,
   presentation?: GitMenuPresentation,
 ): Promise<void> {
-  const uri = resolveResourceUri(undefined, resource, workspaceRoot);
+  const uri =
+    resolveResourceUri(undefined, resource, workspaceRoot) ??
+    activeEditorFileUri();
   if (!uri || uri.scheme !== "file") {
     void vscode.window.showWarningMessage("Show Diff requires a file.");
     return;
@@ -337,6 +354,8 @@ export async function gitRollback(
   resource?: vscode.Uri,
   workspaceRoot?: string,
   runtime?: GitCommandRuntime,
+  presentation?: GitMenuPresentation,
+  selectedPaths?: string[],
 ): Promise<void> {
   const uri = resolveResourceUri(undefined, resource, workspaceRoot);
   if (!uri || uri.scheme !== "file") {
@@ -360,6 +379,20 @@ export async function gitRollback(
     return;
   }
 
+  // Keep native Explorer/editor actions in the same Git workspace content as
+  // the sidebar and webview context menu. The panel owns the confirmation
+  // dialog; the warning-message fallback below remains for callers that do
+  // not provide a presentation adapter (tests and legacy integrations).
+  if (presentation?.openRollbackConfirmation) {
+    await presentation.openRollbackConfirmation({
+      relativePath: rel,
+      workspaceRoot,
+      repoRoot,
+      ...(selectedPaths ? { selectedPaths } : {}),
+    });
+    return;
+  }
+
   const name = vscode.workspace.asRelativePath(uri, false);
   const choice = await vscode.window.showWarningMessage(
     `Rollback local changes in ${name}? Uncommitted edits will be lost.`,
@@ -372,12 +405,13 @@ export async function gitRollback(
   try {
     await execGitInRepo(
       repoRoot,
-      ["restore", "--worktree", "--", rel],
+      ["restore", "--staged", "--worktree", "--", rel],
       runtime,
     );
     await getGitCommandRuntime(runtime).refresh?.();
   } catch {
     try {
+      await execGitInRepo(repoRoot, ["reset", "HEAD", "--", rel], runtime);
       await execGitInRepo(repoRoot, ["checkout", "--", rel], runtime);
       await getGitCommandRuntime(runtime).refresh?.();
     } catch {

@@ -18,12 +18,13 @@ import type {
   FileAtRevisionResult,
   HistoryInitPayload,
 } from "../types/history";
-import type { LogSnapshot } from "../types/log";
+import type { LogDagSnapshot, LogSnapshot } from "../types/log";
 import type { PatchPreview } from "../types/patch";
 import type { RepositorySnapshot } from "../types/repository";
 import type { ShelfListSnapshot } from "../types/shelf";
 import type { StashDetail, StashListSnapshot } from "../types/stash";
 import type { ChangeList, StatusSnapshot } from "../types/status";
+import type { SyncCancelResult, SyncOperationEvent } from "../types/sync";
 import type { TagListSnapshot } from "../types/tag";
 import type { WorktreeListSnapshot } from "../types/worktree";
 import type { CommitCheckResult } from "../types/commitCheck";
@@ -35,7 +36,6 @@ import type { HostErrorResponse, HostEvent, HostResponse } from "./base";
 export const GIT_PANEL_DIALOGS = [
   "stash",
   "unstash",
-  "createBranch",
   "merge",
   "rebase",
   "commit",
@@ -70,9 +70,11 @@ export type HostToWebview =
   | HostEvent<"repo.snapshot", RepositorySnapshot>
   | HostEvent<"status.snapshot", StatusSnapshot>
   | HostEvent<"git.settings", GitWorkspaceSettings>
+  | HostEvent<"sync.operation", SyncOperationEvent>
   | HostEvent<"branch.snapshot", BranchListSnapshot>
   | HostEvent<"branch.compare.snapshot", BranchCompareSnapshot>
   | HostEvent<"log.snapshot", LogSnapshot>
+  | HostEvent<"log.dag", LogDagSnapshot>
   | HostEvent<"blame.snapshot", BlameSnapshot>
   | HostEvent<"stash.snapshot", StashListSnapshot>
   | HostEvent<"shelf.snapshot", ShelfListSnapshot>
@@ -94,7 +96,32 @@ export type HostToWebview =
   /** Native Git submenu asks the panel to open a JetBrains-style dialog. */
   | HostEvent<
       "git.openDialog",
-      { dialog: GitPanelSurface; relativePath?: string }
+      {
+        dialog: GitPanelSurface;
+        relativePath?: string;
+        index?: number | null;
+        repoId?: string;
+      }
+    >
+  | HostEvent<
+      "git.openHistory",
+      { repoId: string; path: string; isFolder: boolean; showDiff?: boolean }
+    >
+  | HostEvent<"git.selectCommit", { repoId: string; sha: string }>
+  | HostEvent<
+      "git.requestRollback",
+      { repoId: string; path: string; selectedPaths?: string[] }
+    >
+  /** Activity-bar Git icon asks the bottom panel to return to its root Log tab. */
+  | HostEvent<"git.focusRoot", Record<string, never>>
+  /**
+   * Native Git submenu asks the currently active GitView editor-area tab
+   * (diff/compare or blame) to render New Branch / Branches as an overlay
+   * instead of opening a new tab.
+   */
+  | HostEvent<
+      "git.openOverlay",
+      { surface: "createBranch" | "branches"; repoId: string; startPoint?: string }
     >
   | HostEvent<
       "notification",
@@ -104,6 +131,12 @@ export type HostToWebview =
       "webview.ready",
       { surface: string; settings: GitWorkspaceSettings }
     >
+  | HostResponse<"workspace.openFolder", { opened: boolean }>
+  | HostResponse<"workspace.clone", { opened: boolean }>
+  | HostResponse<"workspace.manageTrust", { opened: boolean }>
+  | HostResponse<"workspace.collapsePanel", { collapsed: boolean }>
+  | HostResponse<"workspace.toggleSidebar", { toggled: boolean }>
+  | HostResponse<"repository.addRemote", { opened: boolean }>
   | HostResponse<"repo.refresh", { refreshed: boolean }>
   | HostResponse<"status.list", StatusSnapshot>
   | HostResponse<"changes.stage", { staged: string[] }>
@@ -116,6 +149,8 @@ export type HostToWebview =
         pushed?: boolean;
         pushRejected?: boolean;
         upstreamRequired?: boolean;
+        /** Sanitized push-phase failure; the commit itself landed. */
+        pushError?: string;
       }
     >
   | HostResponse<"sync.fetch", { ok: boolean }>
@@ -142,6 +177,7 @@ export type HostToWebview =
         }>;
       }
     >
+  | HostResponse<"sync.cancel", SyncCancelResult>
   | HostResponse<"branch.list", BranchListSnapshot>
   | HostResponse<"branch.checkout", { ref: string }>
   | HostResponse<
@@ -180,15 +216,18 @@ export type HostToWebview =
   | HostResponse<"operation.skip", { ok: boolean }>
   | HostResponse<"operation.abort", { ok: boolean }>
   | HostResponse<"diff.open", WorkspaceDiffDocument>
+  | HostResponse<"diff.numstat", { additions: number; deletions: number }>
   | HostResponse<"diff.annotate", { ok: true }>
   | HostResponse<"changelist.create", { changelists: ChangeList[] }>
   | HostResponse<"changelist.activate", { changelists: ChangeList[] }>
   | HostResponse<"changelist.moveFiles", { changelists: ChangeList[] }>
   | HostResponse<"log.query", LogSnapshot>
+  | HostResponse<"log.dag", LogDagSnapshot>
   | HostResponse<"log.fileDiff", WorkspaceDiffDocument>
   | HostResponse<"log.commitDetail", CommitDetailResult>
   | HostResponse<"log.fileAtRevision", FileAtRevisionResult>
   | HostResponse<"git.menuAction", { ok: true }>
+  | HostResponse<"rollback.openPanel", { opened: true }>
   | HostResponse<"diff.stageHunk", { path: string; hunkIndex: number }>
   | HostResponse<"diff.unstageHunk", { path: string; hunkIndex: number }>
   | HostResponse<"diff.stageLines", { path: string; lines: DiffLineSelection[] }>
@@ -322,6 +361,8 @@ export type HostToWebview =
   | HostResponse<"review.checkoutBranch", { branch: string }>
   | HostResponse<"review.create", ReviewItem>
   | HostResponse<"review.createLineComment", { commentId: string }>
+  | HostResponse<"diff.openInEditor", { ok: boolean }>
+  | HostResponse<"git.openContentDialog", { opened: boolean }>
   | HostErrorResponse;
 
 /**
@@ -345,9 +386,11 @@ export const HOST_EVENT_TYPES = [
   "repo.snapshot",
   "status.snapshot",
   "git.settings",
+  "sync.operation",
   "branch.snapshot",
   "branch.compare.snapshot",
   "log.snapshot",
+  "log.dag",
   "blame.snapshot",
   "stash.snapshot",
   "shelf.snapshot",
@@ -366,6 +409,11 @@ export const HOST_EVENT_TYPES = [
   "merge.showConflictList",
   "blame.annotateRequest",
   "git.openDialog",
+  "git.openHistory",
+  "git.selectCommit",
+  "git.requestRollback",
+  "git.focusRoot",
+  "git.openOverlay",
   "notification",
 ] as const satisfies readonly HostToWebviewEventType[];
 

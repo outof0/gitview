@@ -65,4 +65,92 @@ describe("history integration", () => {
       ),
     ).rejects.toThrow();
   });
+
+  it("runs a cherry-pick batch as one sequencer so abort restores pre-batch HEAD", async () => {
+    repo = await createTempGitRepo();
+    const history = createHistoryApi(execGit);
+    const fs = await import("fs/promises");
+
+    await writeRepoFile(repo.root, "file.txt", "line1\n");
+    await execGit(repo.root, ["add", "file.txt"]);
+    await execGit(repo.root, ["commit", "-m", "Base"]);
+    await execGit(repo.root, ["checkout", "-b", "side"]);
+    await writeRepoFile(repo.root, "picked.txt", "picked\n");
+    await execGit(repo.root, ["add", "picked.txt"]);
+    await execGit(repo.root, ["commit", "-m", "Side clean pick"]);
+    const { stdout: cleanSha } = await execGit(repo.root, ["rev-parse", "HEAD"]);
+    await writeRepoFile(repo.root, "file.txt", "side\n");
+    await execGit(repo.root, ["add", "file.txt"]);
+    await execGit(repo.root, ["commit", "-m", "Side conflicting pick"]);
+    const { stdout: conflictSha } = await execGit(repo.root, [
+      "rev-parse",
+      "HEAD",
+    ]);
+
+    await execGit(repo.root, ["checkout", "main"]);
+    await writeRepoFile(repo.root, "file.txt", "main\n");
+    await execGit(repo.root, ["add", "file.txt"]);
+    await execGit(repo.root, ["commit", "-m", "Main conflicting change"]);
+    const { stdout: preBatchHead } = await execGit(repo.root, [
+      "rev-parse",
+      "HEAD",
+    ]);
+
+    await expect(
+      history.cherryPickMultiple(repo.root, [
+        cleanSha.trim(),
+        conflictSha.trim(),
+      ]),
+    ).rejects.toThrow();
+    // The second pick conflicted inside the same sequencer: abort must unwind
+    // the clean first pick as well, back to the pre-batch HEAD.
+    await history.cherryPickAbort(repo.root);
+    const { stdout: postAbortHead } = await execGit(repo.root, [
+      "rev-parse",
+      "HEAD",
+    ]);
+    expect(postAbortHead.trim()).toBe(preBatchHead.trim());
+    await expect(fs.access(`${repo.root}/picked.txt`)).rejects.toThrow();
+    expect(await fs.readFile(`${repo.root}/file.txt`, "utf8")).toBe("main\n");
+  });
+
+  it("runs a revert batch as one sequencer so abort restores pre-batch HEAD", async () => {
+    repo = await createTempGitRepo();
+    const history = createHistoryApi(execGit);
+    const fs = await import("fs/promises");
+
+    await writeRepoFile(repo.root, "file.txt", "base\n");
+    await execGit(repo.root, ["add", "file.txt"]);
+    await execGit(repo.root, ["commit", "-m", "Base"]);
+    await execGit(repo.root, ["checkout", "-b", "side"]);
+    await writeRepoFile(repo.root, "file.txt", "side\n");
+    await execGit(repo.root, ["add", "file.txt"]);
+    await execGit(repo.root, ["commit", "-m", "Side change"]);
+    const { stdout: sideSha } = await execGit(repo.root, ["rev-parse", "HEAD"]);
+    await execGit(repo.root, ["checkout", "main"]);
+    await writeRepoFile(repo.root, "file.txt", "one\n");
+    await execGit(repo.root, ["add", "file.txt"]);
+    await execGit(repo.root, ["commit", "-m", "Main change"]);
+    const { stdout: mainSha } = await execGit(repo.root, ["rev-parse", "HEAD"]);
+    const { stdout: preBatchHead } = await execGit(repo.root, [
+      "rev-parse",
+      "HEAD",
+    ]);
+
+    // Newest-first input: the batch reverts the main change cleanly, then the
+    // side revert conflicts inside the same sequencer. Aborting must unwind
+    // the clean first revert as well — per-SHA commands would leave it behind.
+    await expect(
+      history.revertMultiple(repo.root, [sideSha.trim(), mainSha.trim()]),
+    ).rejects.toThrow();
+    await history.revertAbort(repo.root);
+    const { stdout: postAbortHead } = await execGit(repo.root, [
+      "rev-parse",
+      "HEAD",
+    ]);
+    expect(postAbortHead.trim()).toBe(preBatchHead.trim());
+    const { stdout: log } = await execGit(repo.root, ["log", "--oneline"]);
+    expect(log.toLowerCase()).not.toContain("revert");
+    expect(await fs.readFile(`${repo.root}/file.txt`, "utf8")).toBe("one\n");
+  });
 });

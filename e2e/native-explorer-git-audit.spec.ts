@@ -6,6 +6,7 @@ import { test, expect } from "@playwright/test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { GIT_SUBMENU_AUDIT } from "../src/types/gitSubmenuAudit";
+import { GIT_SUBMENU_ITEMS } from "../src/types/gitSubmenu";
 import {
   acceptQuickPick,
   clickNativeGitMenu,
@@ -22,16 +23,16 @@ import {
   remoteCommit,
   setupRemote,
   TEST_WORKSPACE,
+  waitForNoWebview,
   waitForWebviewFrame,
 } from "./helpers/native-vscode";
 import {
   expectGitViewBlameScreen,
   expectGitViewScreen,
-  expectGitViewHistoryScreen,
   openExplorerGitAction,
   waitForGitViewBlameFrame,
-  waitForGitViewFrame,
   waitForGitViewHistoryFrame,
+  waitForGitViewFrame,
 } from "./helpers/git-screen-parity";
 
 const RESOURCE = "README.md";
@@ -57,8 +58,14 @@ async function cachedNames(): Promise<string[]> {
 }
 
 test.describe("Native Explorer Git — audit matrix", () => {
-  test("audit manifest covers all 23 submenu commands", () => {
-    expect(GIT_SUBMENU_AUDIT).toHaveLength(23);
+  test("audit manifest covers every submenu command", () => {
+    expect(GIT_SUBMENU_AUDIT).toHaveLength(GIT_SUBMENU_ITEMS.length);
+    const audited = new Set(GIT_SUBMENU_AUDIT.map((row) => row.command));
+    for (const item of GIT_SUBMENU_ITEMS) {
+      expect(audited.has(item.command), `${item.command} needs an audit row`).toBe(
+        true,
+      );
+    }
     const commands = GIT_SUBMENU_AUDIT.map((row) => row.command).sort();
     expect(commands).toContain("gitView.showGitHistory");
     expect(commands).toContain("gitView.gitRebase");
@@ -70,8 +77,9 @@ test.describe("Native Explorer Git — audit matrix", () => {
     const session = await launchNativeVsCode();
     try {
       await openExplorerGitAction(session, RESOURCE, "Show History");
-      const frame = await waitForGitViewHistoryFrame(session.app);
-      await expectGitViewHistoryScreen(frame, RESOURCE);
+      const frame = await waitForWebviewFrame(session.app, "git-workspace-app");
+      await expect(frame.getByText(`History · ${RESOURCE}`)).toBeVisible();
+      await expect(frame.getByTestId("workspace-log-panel")).toBeVisible();
     } finally {
       await closeNativeVsCode(session);
     }
@@ -153,6 +161,9 @@ test.describe("Native Explorer Git — audit matrix", () => {
       await openExplorerGitAction(session, RESOURCE, "Annotate with Git Blame");
       const frame = await waitForGitViewBlameFrame(session.app);
       await expectGitViewBlameScreen(frame, { relativePath: RESOURCE });
+      const workspace = await waitForGitViewHistoryFrame(session.app);
+      await expect(workspace.getByTestId("workspace-log-panel")).toBeVisible();
+      await expect(workspace.getByTestId("workspace-log-files-pane")).toBeVisible();
     } finally {
       await closeNativeVsCode(session);
     }
@@ -212,7 +223,11 @@ test.describe("Native Explorer Git — audit matrix", () => {
     const session = await launchNativeVsCode();
     try {
       await clickNativeGitMenu(session, RESOURCE, "Rollback");
-      await session.page
+      const rollbackFrame = await waitForWebviewFrame(
+        session.app,
+        "rollback-changes-dialog",
+      );
+      await rollbackFrame
         .getByRole("button", { name: /^Rollback$/ })
         .click({ timeout: 10_000 });
       await expect
@@ -510,9 +525,7 @@ test.describe("Native Explorer Git — audit matrix", () => {
         .getByTestId("stash-changes-message")
         .fill("audit stash message");
       await frame.getByTestId("stash-changes-confirm").click();
-      await expect(frame.getByTestId("stash-changes-dialog")).toHaveCount(0, {
-        timeout: 15_000,
-      });
+      await waitForNoWebview(session.app, "stash-changes-dialog");
       await expect
         .poll(
           async () => {

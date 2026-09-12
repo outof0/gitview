@@ -1,8 +1,6 @@
-import type { GitViewStructuredError } from "../shared/errors/codes";
 import type { Logger } from "../observability/logger";
 import { NOOP_LOGGER, errorLogFields } from "../observability/logger";
 import {
-  createHostError,
   createHostResponse,
   isExtensionRequestType,
   type ExtensionRequestType,
@@ -123,12 +121,4 @@ export function createProtocolExtensionRegistry(
   }
 
   return { register, getPayloadValidators, dispatch };
-}
-
-export function postProtocolExtensionError(
-  requestId: string,
-  error: GitViewStructuredError,
-  postMessage: (message: HostToWebview) => void,
-): void {
-  postMessage(createHostError(requestId, error));
 }

@@ -30,7 +30,7 @@ const ignoreTheirs = (id: string) =>
 
 function PaneHeaderBase() {
   return (
-    <div className="flex items-center gap-1.5 px-2.5 h-[26px] text-[11.5px] border-b border-[var(--vscode-panel-border)] bg-[var(--vscode-editorGroupHeader-tabsBackground,var(--vscode-editor-background))] text-[var(--vscode-descriptionForeground)]">
+    <div className="flex items-center gap-1.5 px-2.5 h-control text-status border-b border-vscode-panel-border bg-tabs-bg text-vscode-description">
       <span>Base Revision</span>
       <span className="flex-1" />
     </div>

@@ -35,6 +35,7 @@ describe("RepositoryService", () => {
         "rev-parse --show-toplevel": { stdout: "/repo\n", stderr: "" },
         "rev-parse --git-dir": { stdout: ".git\n", stderr: "" },
         "rev-parse HEAD": { stdout: "abc123\n", stderr: "" },
+        remote: { stdout: "origin\n", stderr: "" },
         "status --porcelain=v1 -z -b": {
           stdout: "## main...origin/main [ahead 1]\0 M src/a.ts\0",
           stderr: "",
@@ -64,10 +65,121 @@ describe("RepositoryService", () => {
     expect(repos[0]?.protectedBranch).toBe(true);
     expect(repos[0]?.ahead).toBe(1);
     expect(repos[0]?.dirty).toBe(true);
+    expect(repos[0]?.headState).toEqual({
+      kind: "attached",
+      branch: "main",
+      sha: "abc123",
+    });
+    expect(repos[0]?.remoteState).toEqual({
+      kind: "available",
+      remotes: ["origin"],
+      upstream: "origin/main",
+    });
 
     const snapshot = svc.buildSnapshot(repos, repos[0]?.id ?? null);
     expect(snapshot.repositories).toHaveLength(1);
     expect(snapshot.multiRootDiverged).toBe(false);
+    expect(snapshot.shellState?.kind).toBe("repository");
+  });
+
+  it("builds explicit unborn and no-remote repository truth", async () => {
+    const execGit = makeExecGit(
+      {
+        "rev-parse --git-dir": { stdout: ".git\n", stderr: "" },
+        "status --porcelain=v1 -z -b": {
+          stdout: "## No commits yet on main\0",
+          stderr: "",
+        },
+        remote: { stdout: "", stderr: "" },
+      },
+      ["rev-parse HEAD"],
+    );
+    const svc = createRepositoryService({
+      execGit,
+      discoverGitRoots: async () => ["/repo"],
+    });
+
+    const repos = await svc.discoverRepositories({
+      workspaceFolders: [{ uriPath: "/repo", name: "repo" }],
+      trusted: true,
+    });
+
+    expect(repos[0]?.currentBranch).toBe("main");
+    expect(repos[0]?.headState).toEqual({ kind: "unborn", branch: "main" });
+    expect(repos[0]?.remoteState).toEqual({ kind: "none" });
+  });
+
+  it("normalizes an invalid active repository id", () => {
+    const svc = createRepositoryService({ execGit: makeExecGit({}) });
+    const repository = {
+      id: "repo",
+      rootPath: "/repo",
+      workspaceFolderPath: "/repo",
+      gitDirPath: "/repo/.git",
+      name: "repo",
+      currentBranch: "main",
+      headSha: "abc",
+      upstream: null,
+      isDetached: false,
+      isBare: false,
+      isWorktree: false,
+      operation: { type: "none" as const },
+      ahead: null,
+      behind: null,
+      conflictCount: 0,
+      changeDigest: null,
+      dirty: false,
+      trusted: true,
+      protectedBranch: false,
+      lastRefreshAt: 0,
+    };
+
+    const snapshot = svc.buildSnapshot([repository], "missing");
+    expect(snapshot.activeRepoId).toBe("repo");
+    expect(snapshot.shellState?.kind).toBe("repository");
+    expect(svc.buildSnapshot([], "missing").shellState).toEqual({
+      kind: "no_repository",
+    });
+  });
+
+  it("does not serve a cached repoId after its folder leaves the workspace", async () => {
+    const execGit = makeExecGit(
+      {
+        "rev-parse --show-toplevel": { stdout: "/repo\n", stderr: "" },
+        "rev-parse --git-dir": { stdout: ".git\n", stderr: "" },
+        "rev-parse HEAD": { stdout: "abc123\n", stderr: "" },
+        remote: { stdout: "origin\n", stderr: "" },
+        "status --porcelain=v1 -z -b": {
+          stdout: "## main...origin/main\0",
+          stderr: "",
+        },
+      },
+      [
+        "rev-parse --verify MERGE_HEAD",
+        "rev-parse --verify REBASE_HEAD",
+        "rev-parse --verify CHERRY_PICK_HEAD",
+        "rev-parse --verify REVERT_HEAD",
+      ],
+    );
+    const svc = createRepositoryService({
+      execGit,
+      discoverGitRoots: async () => ["/repo"],
+    });
+
+    const repos = await svc.discoverRepositories({
+      workspaceFolders: [{ uriPath: "/repo", name: "repo" }],
+      trusted: true,
+    });
+    expect(repos).toHaveLength(1);
+    const repoId = repos[0]?.id ?? "";
+
+    const stale = await svc.discoverRepositories({
+      workspaceFolders: [],
+      explicitRepoId: repoId,
+      trusted: true,
+    });
+    expect(stale).toHaveLength(0);
+    expect(svc.getCached(repoId)).toBeNull();
   });
 
   it("resolves nested repository as deepest match", () => {
@@ -90,6 +202,7 @@ describe("RepositoryService", () => {
       ahead: null,
       behind: null,
       conflictCount: 0,
+      changeDigest: null,
       dirty: false,
       trusted: true,
       protectedBranch: true,
@@ -128,6 +241,7 @@ describe("RepositoryService", () => {
         ahead: null,
         behind: null,
         conflictCount: 0,
+        changeDigest: null,
         dirty: false,
         trusted: true,
         protectedBranch: false,
@@ -149,6 +263,7 @@ describe("RepositoryService", () => {
         ahead: null,
         behind: null,
         conflictCount: 0,
+        changeDigest: null,
         dirty: false,
         trusted: true,
         protectedBranch: false,
@@ -213,6 +328,7 @@ describe("RepositoryService", () => {
       ahead: null,
       behind: null,
       conflictCount: 0,
+      changeDigest: null,
       dirty: false,
       trusted: true,
       protectedBranch: false,

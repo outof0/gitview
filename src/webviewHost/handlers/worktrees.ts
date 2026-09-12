@@ -1,6 +1,9 @@
 import * as path from "path";
 import * as vscode from "vscode";
-import { validateMutationPreconditions } from "../../application/mutationPreconditions";
+import {
+  requireDirtyWorktreeRemovalConfirmation,
+  validateMutationPreconditions,
+} from "../../application/mutationPreconditions";
 import { createWorktreeApi } from "../../services/git/worktree";
 import { createError } from "../../shared/errors/codes";
 import {
@@ -13,9 +16,8 @@ import type { ProtectionService } from "../../services/protectionService";
 import type { RepositoryService } from "../../services/repositoryService";
 import type { RefreshCoordinator } from "../../services/watchers/refreshCoordinator";
 import type { GitExecFn } from "../../services/git/types";
+import type { ConfirmationSubmission } from "../../shared/types/confirmation";
 import { gitCommandError } from "../../util/safeLog";
-import { isGitErrorCode } from "../../shared/errors/classifyGitError";
-
 
 export type WorktreeHandlerDeps = {
   execGit: GitExecFn;
@@ -30,11 +32,12 @@ export type WorktreeHandlerDeps = {
 export function createWorktreeHandlers(deps: WorktreeHandlerDeps) {
   const worktrees = createWorktreeApi(deps.execGit);
 
-  async function resolveRepo(repoId: string) {
+  async function resolveRepo(repoId: string, freshChangeDigest = false) {
     const repos = await deps.repositoryService.discoverRepositories({
       workspaceFolders: deps.workspaceFolders,
       explicitRepoId: repoId,
       trusted: deps.trusted,
+      freshChangeDigest,
     });
     return deps.repositoryService.resolveRepositoryForResource(
       repos,
@@ -43,8 +46,12 @@ export function createWorktreeHandlers(deps: WorktreeHandlerDeps) {
     );
   }
 
-  async function validateRepo(requestId: string, repoId: string) {
-    const repo = await resolveRepo(repoId);
+  async function validateRepo(
+    requestId: string,
+    repoId: string,
+    freshChangeDigest = false,
+  ) {
+    const repo = await resolveRepo(repoId, freshChangeDigest);
     const check = validateMutationPreconditions({
       trusted: deps.trusted,
       repository: repo,
@@ -56,7 +63,10 @@ export function createWorktreeHandlers(deps: WorktreeHandlerDeps) {
     return check.repository;
   }
 
-  async function emitWorktreeSnapshot(repo: { id: string; rootPath: string }) {
+  async function emitWorktreeSnapshot(
+    repo: { id: string; rootPath: string },
+    requestId?: string,
+  ) {
     const entries = await worktrees.listWorktrees(repo.rootPath, repo.rootPath);
     const snapshot = {
       repoId: repo.id,
@@ -67,6 +77,7 @@ export function createWorktreeHandlers(deps: WorktreeHandlerDeps) {
       protocolVersion: PROTOCOL_VERSION,
       type: "worktree.snapshot",
       payload: snapshot,
+      requestId,
     });
     return snapshot;
   }
@@ -83,7 +94,7 @@ export function createWorktreeHandlers(deps: WorktreeHandlerDeps) {
         );
         return;
       }
-      const snapshot = await emitWorktreeSnapshot(repo);
+      const snapshot = await emitWorktreeSnapshot(repo, requestId);
       deps.postMessage(
         createHostResponse(requestId, "worktree.list", snapshot),
       );
@@ -95,7 +106,7 @@ export function createWorktreeHandlers(deps: WorktreeHandlerDeps) {
       worktreePath: string,
       opts?: { branch?: string; newBranch?: string },
     ) {
-      const repo = await validateRepo(requestId, repoId);
+      const repo = await validateRepo(requestId, repoId, true);
       if (!repo) {
         return;
       }
@@ -110,7 +121,7 @@ export function createWorktreeHandlers(deps: WorktreeHandlerDeps) {
       }
       try {
         await worktrees.addWorktree(repo.rootPath, worktreePath.trim(), opts);
-        const snapshot = await emitWorktreeSnapshot(repo);
+        const snapshot = await emitWorktreeSnapshot(repo, requestId);
         deps.postMessage(
           createHostResponse(requestId, "worktree.add", {
             path: worktreePath.trim(),
@@ -131,14 +142,14 @@ export function createWorktreeHandlers(deps: WorktreeHandlerDeps) {
       requestId: string,
       repoId: string,
       worktreePath: string,
-      force = false,
-      confirmed = false,
+      confirmation?: ConfirmationSubmission,
     ) {
-      const repo = await validateRepo(requestId, repoId);
+      const repo = await validateRepo(requestId, repoId, true);
       if (!repo) {
         return;
       }
-      if (!worktreePath.trim()) {
+      const requestedPath = worktreePath;
+      if (!requestedPath.trim()) {
         deps.postMessage(
           createHostError(
             requestId,
@@ -147,53 +158,77 @@ export function createWorktreeHandlers(deps: WorktreeHandlerDeps) {
         );
         return;
       }
-      if (force && !confirmed) {
-        const protectedCheck = deps.protectionService.checkDestructiveAction(
-          repo.currentBranch,
-          "worktree_delete_dirty",
-        );
-        if (!protectedCheck.allowed) {
-          deps.postMessage(
-            createHostError(
-              requestId,
-              createError("PROTECTED_BRANCH", protectedCheck.reason),
-            ),
-          );
-          return;
-        }
-        deps.postMessage(
-          createHostError(
-            requestId,
-            createError(
-              "CONFIRMATION_REQUIRED",
-              "Force remove worktree requires confirmation.",
-            ),
-          ),
-        );
-        return;
-      }
+
       try {
-        await worktrees.removeWorktree(repo.rootPath, worktreePath.trim(), force);
-        const snapshot = await emitWorktreeSnapshot(repo);
-        deps.postMessage(
-          createHostResponse(requestId, "worktree.remove", {
-            path: worktreePath.trim(),
-            snapshot,
-          }),
+        const target = await worktrees.resolveWorktreeRemovalTarget(
+          repo.rootPath,
+          requestedPath,
+          repo.rootPath,
         );
-      } catch (err) {
-        if (!force && isGitErrorCode(err, "WORKTREE_DIRTY")) {
+        if (!target) {
           deps.postMessage(
             createHostError(
               requestId,
               createError(
-                "CONFIRMATION_REQUIRED",
-                "Worktree has local changes. Use force remove to delete anyway.",
+                "INVALID_PATH",
+                "Path is not a worktree of this repository.",
               ),
             ),
           );
           return;
         }
+        if (target.isMain) {
+          deps.postMessage(
+            createHostError(
+              requestId,
+              createError("INVALID_REQUEST", "The main worktree cannot be removed."),
+            ),
+          );
+          return;
+        }
+
+        if (target.dirty) {
+          const protectedCheck = deps.protectionService.checkDestructiveAction(
+            target.branch,
+            "worktree_delete_dirty",
+          );
+          if (!protectedCheck.allowed) {
+            deps.postMessage(
+              createHostError(
+                requestId,
+                createError("PROTECTED_BRANCH", protectedCheck.reason),
+              ),
+            );
+            return;
+          }
+        }
+
+        if (target.dirty || confirmation) {
+          const confirmationCheck = requireDirtyWorktreeRemovalConfirmation(
+            repo,
+            {
+              path: target.path,
+              headSha: target.headSha,
+              branch: target.branch,
+              dirty: target.dirty,
+            },
+            confirmation,
+          );
+          if (!confirmationCheck.ok) {
+            deps.postMessage(createHostError(requestId, confirmationCheck.error));
+            return;
+          }
+        }
+
+        await worktrees.removeWorktree(repo.rootPath, target.path, target.dirty);
+        const snapshot = await emitWorktreeSnapshot(repo, requestId);
+        deps.postMessage(
+          createHostResponse(requestId, "worktree.remove", {
+            path: target.path,
+            snapshot,
+          }),
+        );
+      } catch (err) {
         deps.postMessage(
           createHostError(
             requestId,

@@ -7,6 +7,7 @@ import {
 import { createRepositoryService } from "./services/repositoryService";
 import { createProtectionService } from "./services/protectionService";
 import { createRefreshCoordinator } from "./services/watchers/refreshCoordinator";
+import { createSyncOperationCoordinator } from "./services/syncOperationCoordinator";
 import { createBranchFavoriteStorage } from "./storage/branchFavoriteStorage";
 import { createChangelistStorage } from "./storage/changelistStorage";
 import { createShelfStorage } from "./storage/shelfStorage";
@@ -19,6 +20,7 @@ import { subscribeToGitRepositoryChanges } from "./util/vscodeGit";
 import { createReviewAuthService } from "./services/review/reviewAuth";
 import { createReviewProviderRegistry } from "./services/review/providerRegistry";
 import { createProtocolExtensionRegistry } from "./webviewHost/protocolExtensionRegistry";
+import { createRepositoryMutationSerializer } from "./services/repositoryMutationSerializer";
 import type { BlameCacheEntry } from "./services/git/types";
 import { readGitWorkspaceSettings } from "./config/readGitWorkspaceSettings";
 import { createOutputChannelLogger } from "./observability/vscodeLogger";
@@ -123,6 +125,7 @@ export function activateGitView(
         .get<string>("gitlabApiBaseUrl", "https://gitlab.com/api/v4") ?? "",
   });
   const protocolExtensionRegistry = createProtocolExtensionRegistry({ logger });
+  const repositoryMutationSerializer = createRepositoryMutationSerializer();
 
   const refreshCoordinator = createRefreshCoordinator({
     execGit: git.execGit,
@@ -133,6 +136,7 @@ export function activateGitView(
     getTrusted: () => vscode.workspace.isTrusted,
     getSettings: readGitWorkspaceSettings,
   });
+  const syncOperationCoordinator = createSyncOperationCoordinator({ logger });
   const commandRuntime: GitCommandRuntime = {
     gitService: git,
     shelfStorage,
@@ -231,6 +235,7 @@ export function activateGitView(
     repositoryService,
     protectionService,
     refreshCoordinator,
+    syncOperationCoordinator,
     changelistStorage,
     branchFavoriteStorage,
     shelfStorage,
@@ -240,6 +245,7 @@ export function activateGitView(
     reviewProviderRegistry,
     protocolExtensionRegistry,
     blameCache,
+    repositoryMutationSerializer,
     dispose: () => {
       if (disposed) {
         return;
@@ -254,6 +260,7 @@ export function activateGitView(
       gitChangeSubscription?.dispose();
       folderListener.dispose();
       unsubscribeBlameInvalidation();
+      syncOperationCoordinator.dispose();
       refreshCoordinator.dispose();
       logger.info("extension.activation.disposed");
       outputChannel.dispose();

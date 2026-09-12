@@ -10,19 +10,14 @@ describe("blameFormat", () => {
     expect(formatBlameAnnotationDate(1_633_353_600)).toBe("4/10/21");
   });
 
-  it("builds per-line annotate labels with commit message", () => {
+  it("builds compact date and author labels", () => {
     const line = {
       author: "Jane",
       authorTime: 1_633_353_600,
       sha: "abc1234567890abcdef1234567890abcdef1234",
       summary: "feat: add presets",
     };
-    expect(formatBlameAnnotationLabel(line, line.sha)).toBe(
-      "4/10/21 Jane feat: add presets *",
-    );
-    expect(formatBlameAnnotationLabel(line, null)).toBe(
-      "4/10/21 Jane feat: add presets",
-    );
+    expect(formatBlameAnnotationLabel(line)).toBe("4/10/21 – Jane");
   });
 
   it("detects current revision lines by full or short sha", () => {

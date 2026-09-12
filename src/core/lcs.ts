@@ -36,7 +36,7 @@ type PrimitiveDiffOp = Exclude<DiffOp, { type: "replace" }>;
 
 export const MAX_DIFF_LINES = 12_000;
 /** Maximum diagonal/snake steps before degrading the remaining range to replace. */
-export const MAX_DIFF_WORK = 20_000_000;
+const MAX_DIFF_WORK = 20_000_000;
 
 export class DiffTooLargeError extends Error {
   readonly code = "DIFF_TOO_LARGE" as const;

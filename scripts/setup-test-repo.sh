@@ -34,6 +34,11 @@ line2
 line3
 EOF
 
+# Same-line conflict whose word-level edits do not overlap (Magic Merge).
+cat > magic-merge.txt <<'EOF'
+This is a simple conflict that can be resolved.
+EOF
+
 # 2. JavaScript file with function
 cat > utils.js <<'EOF'
 function greet(name) {
@@ -240,6 +245,10 @@ cat > file.txt <<'EOF'
 line1
 ours change
 line3
+EOF
+
+cat > magic-merge.txt <<'EOF'
+This is a simple conflict that can be resolved automatically.
 EOF
 
 # 2. JS function modified
@@ -449,6 +458,10 @@ cat > file.txt <<'EOF'
 line1
 theirs change
 line3
+EOF
+
+cat > magic-merge.txt <<'EOF'
+Below is a simple conflict that can be resolved.
 EOF
 
 # 2. JS - different modification

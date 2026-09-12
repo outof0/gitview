@@ -7,11 +7,11 @@ type OverviewRulerProps = {
 };
 
 const tickColor: Record<string, string> = {
-  added: "bg-[var(--vscode-gitDecoration-addedResourceForeground,#4ba85a)]",
+  added: "bg-status-added",
   modified:
-    "bg-[var(--vscode-gitDecoration-modifiedResourceForeground,#3887c7)]",
-  conflict: "bg-[var(--vscode-editorError-foreground,#cf5c56)]",
-  deleted: "bg-[var(--vscode-descriptionForeground,#6b6c6e)]",
+    "bg-status-modified",
+  conflict: "bg-editor-error-fg",
+  deleted: "bg-vscode-description",
 };
 
 export function OverviewRuler({ blocks, onJump }: OverviewRulerProps) {
@@ -29,7 +29,7 @@ export function OverviewRuler({ blocks, onJump }: OverviewRulerProps) {
 
   return (
     <div
-      className="w-3.5 bg-[var(--vscode-editorOverviewRuler-background,rgba(0,0,0,0.1))] border-l border-vscode-panel-border relative cursor-pointer shrink-0 h-full self-stretch"
+      className="w-3.5 bg-overview-ruler-bg border-l border-vscode-panel-border relative cursor-pointer shrink-0 h-full self-stretch"
       data-testid="overview-ruler"
     >
       {ticks
@@ -40,9 +40,9 @@ export function OverviewRuler({ blocks, onJump }: OverviewRulerProps) {
             role="button"
             tabIndex={0}
             className={cn(
-              "absolute left-0.5 w-2.5 h-0.5 rounded-sm",
+              "absolute left-0.5 w-2.5 h-0.5 rounded-vscode",
               tickColor[t.block.changeType] ??
-                "bg-[var(--vscode-descriptionForeground,#6b6c6e)]",
+                "bg-vscode-description",
             )}
             data-testid="overview-ruler-tick"
             style={{ top: `${t.top}%` }}

@@ -30,7 +30,7 @@ jobs:
 
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
 
       - name: Install dependencies
@@ -38,6 +38,11 @@ jobs:
 
       - name: Package VSIX
         run: pnpm run package
+
+      - name: Verify tag matches package version
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          test "$GITHUB_REF_NAME" = "v$PACKAGE_VERSION"
 
       - name: Publish to VS Code Marketplace
         run: |
@@ -53,7 +58,6 @@ jobs:
       - name: Create GitHub Release
         run: |
           PACKAGE_VERSION=$(node -p "require('./package.json').version")
-          test "$GITHUB_REF_NAME" = "v$PACKAGE_VERSION"
           gh release create "$GITHUB_REF_NAME" "gitview-$PACKAGE_VERSION.vsix" --verify-tag --generate-notes --title "$GITHUB_REF_NAME"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

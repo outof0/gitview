@@ -37,6 +37,7 @@ function asRepo(root: string): Repository {
     ahead: null,
     behind: null,
     conflictCount: 0,
+    changeDigest: null,
     dirty: false,
     trusted: true,
     protectedBranch: false,
@@ -233,5 +234,75 @@ describe("review provider integration", () => {
         errorMessage: "service unavailable",
       }),
     );
+  });
+
+  // Regression: the remote URL is repository data, so a repository that points
+  // its origin at a lookalike host used to receive the stored token in an
+  // `Authorization: Bearer` / `PRIVATE-TOKEN` header. Nothing may be fetched.
+  describe("token is never sent to a spoofed host", () => {
+    const spoofedOrigins = [
+      "https://github.com.attacker.invalid/acme/app.git",
+      "https://evil.example/github.com/app.git",
+      "https://github.com@evil.example/app.git",
+      "https://gitlab.com.attacker.invalid/acme/app.git",
+      "https://evil.example/gitlab.com/app.git",
+    ];
+
+    for (const origin of spoofedOrigins) {
+      it(`sends nothing for ${origin}`, async () => {
+        repo = await createTempGitRepo();
+        await exec("git", ["remote", "add", "origin", origin], {
+          cwd: repo.root,
+          env: gitEnv,
+        });
+
+        const fetchFn = vi.fn(async () => new Response("{}", { status: 200 }));
+        const registry = createReviewProviderRegistry({
+          execGit,
+          getAccessToken: async () => "fake-token-do-not-send",
+          fetchFn,
+        });
+
+        const providers = await registry.listProviders(asRepo(repo.root));
+        const claimed = providers.filter((provider) => provider.available);
+        expect(claimed).toEqual([]);
+
+        await registry.listReviews(asRepo(repo.root), "github", {
+          state: "open",
+        });
+        await registry.listReviews(asRepo(repo.root), "gitlab", {
+          state: "open",
+        });
+
+        expect(fetchFn).not.toHaveBeenCalled();
+      }, 15_000);
+    }
+
+    it("still uses the real host for a genuine GitHub origin", async () => {
+      repo = await createTempGitRepo();
+      await exec(
+        "git",
+        ["remote", "add", "origin", "https://github.com/acme/app.git"],
+        { cwd: repo.root, env: gitEnv },
+      );
+
+      const urls: string[] = [];
+      const fetchFn = vi.fn(async (url: string) => {
+        urls.push(url);
+        return new Response("[]", { status: 200 });
+      });
+      const registry = createReviewProviderRegistry({
+        execGit,
+        getAccessToken: async () => "fake-token",
+        fetchFn,
+      });
+
+      await registry.listReviews(asRepo(repo.root), "github", { state: "open" });
+
+      expect(fetchFn).toHaveBeenCalled();
+      expect(urls.every((url) => url.startsWith("https://api.github.com/"))).toBe(
+        true,
+      );
+    }, 15_000);
   });
 });

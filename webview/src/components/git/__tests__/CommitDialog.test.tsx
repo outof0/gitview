@@ -137,4 +137,40 @@ describe("CommitDialog", () => {
 
     expect(screen.queryByTestId("commit-dialog")).toBeNull();
   });
+
+  /**
+   * Footer actions used to be raw `<button className={gitDialogBtn*}>` strings.
+   * Those class strings lost to the unlayered `.btn-vscode*` rules in base.css,
+   * so the dialog mixed a 28px primary/secondary with a 22px danger button.
+   * They now go through the shared Button primitive at one size.
+   */
+  it("renders footer actions through the shared Button primitive", () => {
+    renderDialog();
+
+    const cancel = screen.getByTestId("commit-dialog-cancel");
+    const commit = screen.getByTestId("commit-dialog-commit");
+    const commitAndPush = screen.getByTestId("commit-dialog-commit-and-push");
+
+    for (const el of [cancel, commit, commitAndPush]) {
+      expect(el.tagName).toBe("BUTTON");
+      const classes = new Set((el.getAttribute("class") ?? "").split(/\s+/));
+      expect(classes.has("border-solid")).toBe(true);
+      expect(classes.has("h-row")).toBe(true);
+      expect(classes.has("text-ui-sm")).toBe(true);
+    }
+
+    expect(cancel.className).toContain("bg-secondary");
+    expect(commit.className).toContain("bg-primary");
+    expect(commitAndPush.className).toContain("bg-secondary");
+  });
+
+  it("keeps footer actions wired to their handlers after the migration", () => {
+    const props = renderDialog();
+
+    fireEvent.click(screen.getByTestId("commit-dialog-cancel"));
+    fireEvent.click(screen.getByTestId("commit-dialog-commit"));
+
+    expect(props.onCancel).toHaveBeenCalledOnce();
+    expect(props.onCommit).toHaveBeenCalledOnce();
+  });
 });

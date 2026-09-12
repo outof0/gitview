@@ -25,17 +25,17 @@ export function ToolEmptyState({
     <div
       className={cn(
         "nx-tool-empty flex flex-col items-start justify-start gap-1",
-        "px-[var(--nx-pad-x)] py-2 text-left",
-        "font-[family-name:var(--nx-font-ui)]",
+        "px-pad-x py-2 text-left",
+        "font-ui",
         className,
       )}
       data-testid={testId ?? "tool-empty-state"}
     >
-      <div className="text-[length:var(--nx-font-size-ui)] font-medium text-foreground">
+      <div className="text-ui font-medium text-foreground">
         {title}
       </div>
       {hint ? (
-        <div className="text-[length:var(--nx-font-size-ui-sm)] text-vscode-description max-w-[42rem] leading-snug">
+        <div className="text-ui-sm text-vscode-description max-w-[42rem] leading-snug">
           {hint}
         </div>
       ) : null}

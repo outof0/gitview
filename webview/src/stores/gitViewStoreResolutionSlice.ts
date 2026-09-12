@@ -1,4 +1,4 @@
-import type { ConflictSide } from "../../../src/core/types";
+import type { ChangeBlock, ConflictSide } from "../../../src/core/types";
 import {
   acceptOurs,
   acceptTheirs,
@@ -9,6 +9,8 @@ import {
   resetBlock,
   revertAppliedChange,
   reflowResultRanges,
+  isMagicMergeResolvable,
+  resolveMagicMergeBlock,
   serializeResult,
 } from "../../../src/core";
 import type { StoreApi } from "zustand";
@@ -22,6 +24,19 @@ import type { GitViewState } from "./gitViewStoreTypes";
 
 type Set = StoreApi<GitViewState>["setState"];
 type Get = StoreApi<GitViewState>["getState"];
+
+function isUntouchedMagicMergeCandidate(block: ChangeBlock): boolean {
+  const conflict = block.metadata.conflict;
+  return (
+    block.kind === "conflict" &&
+    block.status === "unresolved" &&
+    !block.metadata.hasManualEdit &&
+    conflict?.ours === "pending" &&
+    conflict.theirs === "pending" &&
+    conflict.acceptedOrder.length === 0 &&
+    isMagicMergeResolvable(block)
+  );
+}
 
 export function createGitViewStoreResolutionSlice(set: Set, get: Get) {
   return {
@@ -90,7 +105,11 @@ export function createGitViewStoreResolutionSlice(set: Set, get: Get) {
         return;
       }
       const block = doc.blocks.find((b) => b.id === id);
-      if (!block || block.kind !== "conflict" || block.status !== "unresolved") {
+      if (
+        !block ||
+        block.kind !== "conflict" ||
+        block.status !== "unresolved"
+      ) {
         return;
       }
       if (conflictSideStatus(block, side) !== "pending") {
@@ -254,20 +273,41 @@ export function createGitViewStoreResolutionSlice(set: Set, get: Get) {
       get().commitActiveDocument(recomputeDocument({ ...doc, blocks }));
     },
 
-    // "Resolve simple conflicts": auto-resolve only blocks where ours === theirs
-    // (both_same) — the unambiguous case. Real conflicts are left untouched.
     resolveSimpleConflicts: () => {
       const doc = get().activeDocument;
-      if (!doc) {
+      if (
+        !doc ||
+        doc.special !== "none" ||
+        doc.base === null ||
+        doc.ours === null ||
+        doc.theirs === null
+      ) {
         return;
       }
-      let blocks = doc.blocks;
-      for (const block of blocks) {
-        if (block.kind === "both_same" && block.status !== "resolved") {
-          blocks = blocks.map((b) => (b.id === block.id ? acceptOurs(b) : b));
+
+      let resolvedCount = 0;
+      const blocks = doc.blocks.map((block) => {
+        if (!isUntouchedMagicMergeCandidate(block)) {
+          return block;
         }
+
+        const resolved = resolveMagicMergeBlock(block);
+        if (resolved === block) {
+          return block;
+        }
+        resolvedCount += 1;
+        return resolved;
+      });
+
+      if (resolvedCount === 0) {
+        return;
       }
+
       get().commitActiveDocument(recomputeDocument({ ...doc, blocks }));
+      get().showToast(
+        `Magic Merge resolved ${resolvedCount} simple conflict${resolvedCount === 1 ? "" : "s"}.`,
+        "success",
+      );
     },
 
     acceptAndNext: (id: string, side: "ours" | "theirs") => {

@@ -1,6 +1,8 @@
+import { Button } from "../components/ui/Button";
 import { useGitViewStore } from "../stores/gitViewStore";
 import { useMergeClientContext } from "../hooks/merge/mergeClientContext";
 import { ToolEmptyState } from "../components/ui/ToolEmptyState";
+import { ScrollArea } from "../components/ui/ScrollArea";
 
 export function ConflictListScreen() {
   const { conflictFiles, branchInfo, loading, error, backToList } =
@@ -21,21 +23,21 @@ export function ConflictListScreen() {
   };
 
   return (
-    <div className="flex flex-col h-full font-[family-name:var(--nx-font-ui)] text-foreground text-[length:var(--nx-font-size-ui)]">
-      <div className="flex items-center justify-between px-[var(--nx-pad-x)] h-[var(--nx-toolbar-h)] min-h-[var(--nx-toolbar-h)] border-b border-border bg-[var(--vscode-editorWidget-background,var(--background))]">
-        <h1 className="text-[length:var(--nx-font-size-ui)] font-semibold m-0">
+    <div className="flex flex-col h-full font-ui text-foreground text-ui">
+      <div className="flex items-center justify-between px-pad-x h-toolbar min-h-toolbar border-b border-border bg-vscode-widget-bg">
+        <h1 className="text-ui font-semibold m-0">
           Conflicts
         </h1>
-        <button
+        <Button variant="primary" size="content"
           type="button"
           onClick={handleRefresh}
-          className="h-[var(--nx-row-h)] px-2 text-[length:var(--nx-font-size-ui-sm)] rounded-vscode bg-primary hover:bg-primary-hover text-primary-foreground border border-[var(--vscode-button-border,transparent)] font-semibold cursor-pointer outline-none"
+          className="h-row px-2 text-ui-sm rounded-vscode bg-primary hover:bg-primary-hover text-primary-foreground border border-button-border font-semibold cursor-pointer outline-none"
         >
           Refresh
-        </button>
+        </Button>
       </div>
 
-      <div className="px-[var(--nx-pad-x)] py-1 text-[length:var(--nx-font-size-ui-sm)] text-vscode-description">
+      <div className="px-pad-x py-1 text-ui-sm text-vscode-description">
         {branchInfo && (
           <p className="m-0">
             Branch: <strong className="text-foreground">{branchInfo.currentBranch}</strong>
@@ -44,13 +46,13 @@ export function ConflictListScreen() {
         )}
         {loading && <p className="m-0">Loading conflicts…</p>}
         {error && (
-          <p className="m-0 text-[var(--vscode-editorError-foreground,#cf5c56)]">
+          <p className="m-0 text-editor-error-fg">
             {error}
           </p>
         )}
       </div>
 
-      <div className="flex-1 overflow-auto bg-background">
+      <ScrollArea axis="vertical" className="flex-1 bg-background">
         {conflictFiles.length === 0 && !loading && !error ? (
           <ToolEmptyState
             title="No unresolved Git conflicts."
@@ -62,45 +64,45 @@ export function ConflictListScreen() {
             {conflictFiles.map((file) => (
               <div
                 key={file.relativePath}
-                className="flex items-center justify-between px-[var(--nx-pad-x)] h-[var(--nx-row-h)] min-h-[var(--nx-row-h)] hover:bg-list-hover cursor-pointer"
+                className="flex items-center justify-between px-pad-x h-row min-h-row hover:bg-list-hover cursor-pointer"
                 onClick={() => handleOpenFile(file.relativePath)}
               >
                 <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="text-[length:var(--nx-font-size-ui)] text-foreground truncate">
+                  <span className="text-ui text-foreground truncate">
                     {file.relativePath}
                   </span>
-                  <span className="text-[length:var(--nx-font-size-section)] px-1 py-0 rounded bg-[var(--vscode-badge-background,rgba(127,127,127,0.2))] text-[var(--vscode-badge-foreground,var(--foreground))] shrink-0">
+                  <span className="text-section px-1 py-0 rounded-vscode bg-badge-bg text-badge-fg shrink-0">
                     {file.stageCode}
                   </span>
                 </div>
-                <button
+                <Button variant="ghost" size="content"
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleOpenFile(file.relativePath);
                   }}
-                  className="h-[var(--nx-row-h)] px-2 text-[length:var(--nx-font-size-ui-sm)] rounded-vscode bg-primary hover:bg-primary-hover text-primary-foreground border border-[var(--vscode-button-border,transparent)] font-semibold cursor-pointer outline-none shrink-0"
+                  className="h-row px-2 text-ui-sm rounded-vscode bg-primary hover:bg-primary-hover text-primary-foreground border border-button-border font-semibold cursor-pointer outline-none shrink-0"
                 >
                   Resolve
-                </button>
+                </Button>
               </div>
             ))}
           </div>
         )}
-      </div>
+      </ScrollArea>
 
-      <div className="flex items-center justify-between px-[var(--nx-pad-x)] h-[var(--nx-toolbar-h)] min-h-[var(--nx-toolbar-h)] border-t border-border text-[length:var(--nx-font-size-ui-sm)] text-vscode-description bg-background">
+      <div className="flex items-center justify-between px-pad-x h-toolbar min-h-toolbar border-t border-border text-ui-sm text-vscode-description bg-background">
         <span>
           {conflictFiles.length} file{conflictFiles.length !== 1 ? "s" : ""} need
           resolution
         </span>
-        <button
+        <Button variant="secondary" size="content"
           type="button"
           onClick={backToList}
-          className="h-[var(--nx-row-h)] px-2 text-[length:var(--nx-font-size-ui-sm)] rounded-vscode bg-secondary hover:bg-secondary-hover text-secondary-foreground border border-[var(--vscode-button-border,var(--border))] cursor-pointer font-medium outline-none"
+          className="h-row px-2 text-ui-sm rounded-vscode bg-secondary hover:bg-secondary-hover text-secondary-foreground border border-button-border cursor-pointer font-medium outline-none"
         >
           Close
-        </button>
+        </Button>
       </div>
     </div>
   );

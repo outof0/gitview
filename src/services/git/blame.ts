@@ -134,7 +134,11 @@ export function createBlameApi(
     }
 
     try {
-      const args = ["blame", "--line-porcelain", "-M", "-C"];
+      // Keep annotate interactive: cross-file copy detection makes Git scan
+      // much more history than the file being opened. Move detection still
+      // preserves useful line attribution without putting the whole repo on
+      // the critical path.
+      const args = ["blame", "--line-porcelain", "-M"];
       if (ref) {
         args.push(ref);
       }

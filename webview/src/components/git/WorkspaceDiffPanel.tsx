@@ -1,6 +1,10 @@
-import { useEffect, useState } from "react";
+import { SelectField } from "../ui/SelectField";
+import { Button } from "../ui/Button";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ExternalLink } from "lucide-react";
 import type { DiffLineSelection, WorkspaceDiffDocument } from "@gitview/shared/types/diff";
 import { changedFileStatusLabel } from "./changedFileStatus";
+import { splitWorkspacePath } from "../../lib/fileStatusTheme";
 import {
   lineSelectionKey,
 } from "../../lib/diffLineSelection";
@@ -10,6 +14,9 @@ import { WHITESPACE_LABELS, toFileDiffView } from "./workspaceDiffPanel/workspac
 import { SplitWithHunks } from "./workspaceDiffPanel/WorkspaceDiffSplitView";
 import { UnifiedWithHunks } from "./workspaceDiffPanel/WorkspaceDiffUnifiedView";
 import { MonacoDiffViewer } from "./MonacoDiffViewer";
+import { useVsCodeApi } from "../../hooks/useVsCodeApi";
+import { createProtocolClient } from "../../protocol/client";
+import { reportDiffOpenError } from "../../lib/userError";
 
 type WorkspaceDiffPanelProps = {
   document: WorkspaceDiffDocument | null;
@@ -26,8 +33,6 @@ type WorkspaceDiffPanelProps = {
   onShelveHunk?: (hunkIndex: number) => void;
   showLogActions?: boolean;
   canDropSelected?: boolean;
-  onCherryPickHunk?: (hunkIndex: number) => void;
-  onRevertHunk?: (hunkIndex: number) => void;
   onDropHunk?: (hunkIndex: number) => void;
   onCherryPickLines?: (lines: DiffLineSelection[]) => void;
   onRevertLines?: (lines: DiffLineSelection[]) => void;
@@ -59,8 +64,6 @@ export function WorkspaceDiffPanel({
   onShelveHunk,
   showLogActions = false,
   canDropSelected = false,
-  onCherryPickHunk,
-  onRevertHunk,
   onDropHunk,
   onCherryPickLines,
   onRevertLines,
@@ -73,6 +76,30 @@ export function WorkspaceDiffPanel({
   const setDiffViewMode = useGitWorkspaceStore((s) => s.setDiffViewMode);
   const setWhitespacePolicy = useGitWorkspaceStore((s) => s.setWhitespacePolicy);
   const diff = document ? toFileDiffView(document) : null;
+  const monacoOptions = useMemo(
+    () => ({
+      sideBySide: diffViewMode === "side_by_side",
+      trimWhitespace: whitespacePolicy !== "doNotIgnore",
+      collapseUnchanged: false,
+      softWrap: false,
+    }),
+    [diffViewMode, whitespacePolicy],
+  );
+  const { postMessage } = useVsCodeApi();
+  const client = useMemo(() => createProtocolClient(postMessage), [postMessage]);
+  const handleOpenInEditor = useCallback(() => {
+    if (!document || !filePath || !diff || diff.binary) {
+      return;
+    }
+    const preview = {
+      relativePath: document.filePath,
+      title: document.filePath,
+      diff,
+      repoId: document.repoId,
+    } as const;
+    void client.openDiffInEditor(preview).catch(reportDiffOpenError);
+  }, [document, filePath, diff, client]);
+  const fileIdentity = filePath ? splitWorkspacePath(filePath) : null;
   const [selectedLineKeys, setSelectedLineKeys] = useState<Set<string>>(
     () => new Set(),
   );
@@ -107,9 +134,14 @@ export function WorkspaceDiffPanel({
     }
   };
 
+  const hasHunkActions =
+    Boolean(showHunkActions) &&
+    Boolean(onStageHunk || onUnstageHunk || onShelveHunk) ||
+    Boolean(showLogActions && canDropSelected && onDropHunk);
+
   const hunkPanelProps = {
     whitespacePolicy,
-    showHunkActions: showHunkActions || showLogActions,
+    showHunkActions: hasHunkActions,
     showLineActions: showHunkActions || showLogActions,
     stagedView,
     busy,
@@ -134,8 +166,6 @@ export function WorkspaceDiffPanel({
     onShelveHunk,
     showLogActions,
     canDropSelected,
-    onCherryPickHunk,
-    onRevertHunk,
     onDropHunk,
     onCherryPickLines: onCherryPickLines
       ? (lines: DiffLineSelection[]) => {
@@ -162,15 +192,24 @@ export function WorkspaceDiffPanel({
       className={`flex-1 min-h-0 flex flex-col ${borderless ? "" : "border-l border-border"}`}
       data-testid="workspace-diff-panel"
     >
-      <div className="shrink-0 flex items-center gap-2 px-3 py-1.5 border-b border-border min-h-[32px]">
-        {filePath && (
-          <span className="text-[11px] font-mono truncate flex-1">{filePath}</span>
+      <div className="shrink-0 flex items-center gap-2 px-2.5 h-header min-h-header border-b border-border bg-tabs-bg">
+        {fileIdentity && (
+          <span className="min-w-0 flex-1 flex items-baseline gap-2" data-testid="diff-file-identity">
+            <span className="truncate text-ui font-semibold">
+              {fileIdentity.name}
+            </span>
+            {fileIdentity.dir ? (
+              <span className="truncate text-micro text-vscode-description">
+                {fileIdentity.dir}
+              </span>
+            ) : null}
+          </span>
         )}
         {diff && !diff.binary && diff.layout === "split" && (
           <>
-            <button
+            <Button variant="ghost" size="content"
               type="button"
-              className="h-6 px-2 text-[10px] rounded-vscode border border-border hover:bg-list-hover"
+              className="h-6 px-2 text-section rounded-vscode border border-border hover:bg-list-hover"
               onClick={() =>
                 setDiffViewMode(
                   diffViewMode === "side_by_side" ? "unified" : "side_by_side",
@@ -179,9 +218,9 @@ export function WorkspaceDiffPanel({
               data-testid="diff-view-mode-toggle"
             >
               {diffViewMode === "side_by_side" ? "Unified" : "Side-by-side"}
-            </button>
-            <select
-              className="h-6 px-1 text-[10px] rounded-vscode border border-border bg-[var(--vscode-input-background)]"
+            </Button>
+            <SelectField
+              className="h-6 px-1 text-section rounded-vscode border border-border bg-input"
               value={whitespacePolicy}
               onChange={(event) =>
                 setWhitespacePolicy(event.target.value as WhitespacePolicy)
@@ -196,66 +235,96 @@ export function WorkspaceDiffPanel({
                   </option>
                 ),
               )}
-            </select>
+            </SelectField>
           </>
         )}
         {showHunkActions && onToggleStagedView && (
-          <button
+          <Button variant="ghost" size="content"
             type="button"
-            className="h-6 px-2 text-[10px] rounded-vscode border border-border hover:bg-list-hover"
+            className="h-6 px-2 text-section rounded-vscode border border-border hover:bg-list-hover"
             onClick={onToggleStagedView}
             data-testid="diff-staged-toggle"
           >
             {stagedView ? "Staged" : "Working tree"}
-          </button>
+          </Button>
+        )}
+        {document && filePath && diff && !diff.binary && (
+          <Button variant="ghost" size="content"
+            type="button"
+            className="h-6 px-2 text-section rounded-vscode border border-border hover:bg-list-hover flex items-center gap-1"
+            onClick={handleOpenInEditor}
+            data-testid="diff-open-in-editor"
+            title="Open in Editor"
+            aria-label="Open in Editor"
+          >
+            <ExternalLink size={12} strokeWidth={1.75} aria-hidden />
+            Open in Editor
+          </Button>
         )}
       </div>
       <div className="flex-1 min-h-0 overflow-hidden">
         {loading && (
-          <div className="p-3 text-[12px] text-[var(--vscode-descriptionForeground)]">
+          <div className="p-3 text-ui text-vscode-description">
             Loading diff preview…
           </div>
         )}
         {!loading && error && (
-          <div className="p-3 text-[12px] text-[var(--vscode-errorForeground,#f48771)]">
+          <div className="p-3 text-ui text-danger-fg">
             {error}
           </div>
         )}
         {!loading && !error && !diff && (
-          <div className="p-3 text-[12px] text-[var(--vscode-descriptionForeground)]">
+          <div className="p-3 text-ui text-vscode-description">
             Select a changed file to preview its diff.
           </div>
         )}
         {!loading && !error && diff?.binary && (
-          <div className="p-3 text-[12px] text-[var(--vscode-descriptionForeground)]">
+          <div className="p-3 text-ui text-vscode-description">
             Binary file ({changedFileStatusLabel(diff.status)}) — preview not
             available.
           </div>
         )}
-        {!loading && !error && diff && !diff.binary && diff.layout === "split" && diff.left && diff.right && (
+        {!loading && !error && diff && !diff.binary && diff.left && diff.right && (
           <div className="h-full min-h-0 flex flex-col" data-testid="git-diff-preview">
-            {diffViewMode === "unified" ? (
+            {diff.layout === "split" && diffViewMode === "unified" && !showLogActions ? (
               <UnifiedWithHunks
                 left={diff.left}
                 right={diff.right}
                 {...hunkPanelProps}
               />
-            ) : showHunkActions || showLogActions ? (
+            ) : diff.layout === "split" && showHunkActions ? (
               <SplitWithHunks
                 left={diff.left}
                 right={diff.right}
                 {...hunkPanelProps}
               />
             ) : (
-              // Compare / branch-compare: full Monaco (syntax + native scroll sync)
+              // History/compare views share the same Monaco renderer as the
+              // standalone content tab, so fonts, syntax tokens and diff
+              // highlighting stay identical. The hunk renderer remains only
+              // where staging actions need line-level controls.
               <MonacoDiffViewer
                 leftText={diff.left.text}
                 rightText={diff.right.text}
                 leftLabel={diff.left.label}
                 rightLabel={diff.right.label}
                 filePath={filePath}
+                options={monacoOptions}
+                revealFirstChange={showLogActions}
               />
             )}
+          </div>
+        )}
+        {!loading && !error && diff && !diff.binary && diff.layout === "single" && ((diff.left && !diff.right) || (!diff.left && diff.right)) && (
+          <div className="h-full min-h-0 flex flex-col" data-testid="git-diff-preview">
+            <MonacoDiffViewer
+              leftText={diff.left?.text ?? ""}
+              rightText={diff.right?.text ?? ""}
+              leftLabel={diff.left?.label ?? "Empty"}
+              rightLabel={diff.right?.label ?? "Deleted"}
+              filePath={filePath}
+              options={monacoOptions}
+            />
           </div>
         )}
       </div>

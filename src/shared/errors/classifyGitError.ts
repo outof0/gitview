@@ -34,6 +34,18 @@ const RULES: readonly Rule[] = [
     needsUserAction: false,
   },
   {
+    code: "CERTIFICATE_ERROR",
+    pattern:
+      /SSL certificate problem|certificate verify failed|self[- ]signed certificate|unable to get local issuer certificate|server certificate verification failed|schannel.*certificate/i,
+    needsUserAction: true,
+  },
+  {
+    code: "NETWORK_OFFLINE",
+    pattern:
+      /Could not resolve host|Could not resolve hostname|Network is unreachable|Connection timed out|Failed to connect|Connection refused|No route to host|Temporary failure in name resolution/i,
+    needsUserAction: false,
+  },
+  {
     code: "AUTH_REQUIRED",
     pattern:
       /could not read Username|Authentication failed|Permission denied \(publickey\)|terminal prompts disabled|invalid username or password/i,
@@ -42,7 +54,7 @@ const RULES: readonly Rule[] = [
   {
     code: "UNRESOLVED_CONFLICTS",
     pattern:
-      /could not write index|needs merge|unmerged paths|You have unmerged paths|index contains unmerged entries/i,
+      /could not write index|needs merge|unmerged paths|You have unmerged paths|index contains unmerged entries|\bCONFLICT \(|Automatic merge failed|fix conflicts and then commit/i,
     needsUserAction: true,
   },
   {
@@ -97,9 +109,11 @@ const RULES: readonly Rule[] = [
 function toText(error: unknown): string {
   if (error instanceof Error) {
     const withStreams = error as Error & { stderr?: unknown; stdout?: unknown };
+    const stdout =
+      typeof withStreams.stdout === "string" ? withStreams.stdout : "";
     const stderr =
       typeof withStreams.stderr === "string" ? withStreams.stderr : "";
-    return `${error.message}\n${stderr}`;
+    return `${error.message}\n${stdout}\n${stderr}`;
   }
   return String(error);
 }

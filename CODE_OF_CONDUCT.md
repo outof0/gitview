@@ -49,7 +49,7 @@ an individual is officially representing the community in public spaces.
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported to the maintainers by opening a confidential report through
-[GitHub Security Advisories](https://github.com/gitview/gitview/security/advisories/new)
+[GitHub Security Advisories](https://github.com/outof0/gitview/security/advisories/new)
 or by contacting a maintainer directly. All complaints will be reviewed and
 investigated promptly and fairly.
 

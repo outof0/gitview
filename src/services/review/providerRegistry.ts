@@ -19,7 +19,6 @@ import {
   openGithubReview,
   reopenGithubReview,
   submitGithubReview,
-  type ReviewProviderContext,
 } from "./githubProvider";
 import {
   applyGitlabSuggestion,
@@ -35,6 +34,7 @@ import {
   reopenGitlabReview,
   submitGitlabReview,
 } from "./gitlabProvider";
+import type { ReviewProviderContext } from "./providerShared";
 import { NOOP_LOGGER, errorLogFields } from "../../observability/logger";
 import { sanitizeLogMessage } from "../../util/safeLog";
 

@@ -49,9 +49,12 @@ export function createGitService(deps?: GitServiceDeps) {
   const repo = createRepoApi(execGit);
   const merge = createMergeApi(execGit);
   const blame = createBlameApi(execGit, blameCache, merge.isBinaryFile);
-  const log = createLogApi(execGit);
-  const diff = createDiffApi(execGit, merge.isBinaryFile);
   const capabilities = createCapabilitiesApi(execGit);
+  const log = createLogApi(execGit, {
+    supportsDiffMerges: async (repoRoot) =>
+      (await capabilities.detectCapabilities(repoRoot)).supportsDiffMerges,
+  });
+  const diff = createDiffApi(execGit, merge.isBinaryFile);
   const status = createStatusApi(execGit);
   const staging = createStagingApi(execGit);
   const commit = createCommitApi(execGit);

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "rules": {
+    "raw-interactive": 0,
+    "unstyled-button-variant": 0,
+    "direct-vscode-token": 0,
+    "literal-color": 0,
+    "literal-pixel-class": 0,
+    "non-system-radius": 0,
+    "ad-hoc-horizontal-scroll": 0
+  }
+}

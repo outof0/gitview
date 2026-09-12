@@ -250,13 +250,6 @@ export function ignoreSide(
   );
 }
 
-export function resolveUsingSide(
-  block: ChangeBlock,
-  side: ConflictSide,
-): ChangeBlock {
-  return side === "ours" ? acceptOurs(block) : acceptTheirs(block);
-}
-
 // desktop-IDE-style Revert on an applied non-conflicting hunk: restore base and
 // mark the block unresolved so Apply stays disabled until re-resolved.
 export function revertAppliedChange(block: ChangeBlock): ChangeBlock {
@@ -304,6 +297,17 @@ export function manualEdit(block: ChangeBlock, text: string): ChangeBlock {
     true,
     block.kind === "conflict" ? null : undefined,
   );
+}
+
+/** Apply a deterministic synthesized result without attributing it to a side. */
+export function resolveAutomatically(
+  block: ChangeBlock,
+  text: string,
+): ChangeBlock {
+  if (block.kind !== "conflict" || block.status !== "unresolved") {
+    return block;
+  }
+  return withResult(block, text, "resolved", false, null);
 }
 
 // True when every conflict block has been resolved.

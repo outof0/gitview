@@ -7,10 +7,15 @@ export async function dispatchLog(
 ): Promise<boolean> {
   const { logHandlers } = ctx;
   switch (request.type) {
+      case "log.dag":
+        await logHandlers.dag(request.requestId, request.payload.repoId);
+        return true;
+
       case "log.query":
         await logHandlers.query(request.requestId, request.payload.repoId, {
           branch: request.payload.branch,
           limit: request.payload.limit,
+          skip: request.payload.skip,
           author: request.payload.author,
           since: request.payload.since,
           until: request.payload.until,
@@ -119,7 +124,7 @@ export async function dispatchLog(
           request.payload.path,
           request.payload.hunkIndexes,
           request.payload.lines,
-          request.payload.confirmed,
+          request.payload.confirmation,
         );
         return true;
 
@@ -130,6 +135,7 @@ export async function dispatchLog(
           request.payload.sha,
           request.payload.mode,
           request.payload.confirmed,
+          request.payload.confirmation,
         );
         return true;
 
@@ -155,7 +161,7 @@ export async function dispatchLog(
           request.requestId,
           request.payload.repoId,
           request.payload.sha,
-          request.payload.confirmed,
+          request.payload.confirmation,
         );
         return true;
 
@@ -176,6 +182,7 @@ export async function dispatchLog(
           request.payload.sha,
           request.payload.action,
           request.payload.confirmed,
+          request.payload.confirmation,
         );
         return true;
 

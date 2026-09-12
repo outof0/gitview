@@ -18,7 +18,9 @@ export function GitWorkspacePopups({ ctx }: { ctx: GitWorkspaceController }) {
         onClose={() => ctx.setBranchesOpen(false)}
         onRefresh={() => void ctx.loadBranches()}
         onRequestForceCheckout={(ref, opts) =>
-          ctx.openDialog("forceCheckout", { ref, opts })
+          void ctx.runMutation(() =>
+            ctx.handleBranchCheckout(ref, { ...opts, force: true }),
+          )
         }
         onCheckout={(ref, opts) =>
           ctx.activeRepo &&

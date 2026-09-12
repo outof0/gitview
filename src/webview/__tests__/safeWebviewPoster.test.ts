@@ -63,4 +63,22 @@ describe("createSafeWebviewPoster", () => {
 
     expect(log.warn).not.toHaveBeenCalled();
   });
+
+  it("logs a synchronous postMessage throw while the view is live", () => {
+    const log = logger();
+    const target = {
+      postMessage: (): Promise<boolean> => {
+        throw new Error("sync throw");
+      },
+    };
+    const poster = createSafeWebviewPoster(target, log, "history");
+
+    poster.postMessage({ type: "test" });
+
+    expect(log.warn).toHaveBeenCalledWith("webview.post-message.failed", {
+      surface: "history",
+      errorName: "Error",
+      errorMessage: "sync throw",
+    });
+  });
 });

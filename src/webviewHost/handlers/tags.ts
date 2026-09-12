@@ -53,7 +53,10 @@ export function createTagHandlers(deps: TagHandlerDeps) {
     return check.repository;
   }
 
-  async function emitTagSnapshot(repo: { id: string; rootPath: string }) {
+  async function emitTagSnapshot(
+    repo: { id: string; rootPath: string },
+    requestId?: string,
+  ) {
     const entries = await tags.listTagEntries(repo.rootPath, repo.id);
     const snapshot = {
       repoId: repo.id,
@@ -64,6 +67,7 @@ export function createTagHandlers(deps: TagHandlerDeps) {
       protocolVersion: PROTOCOL_VERSION,
       type: "tag.snapshot",
       payload: snapshot,
+      requestId,
     });
     return snapshot;
   }
@@ -80,7 +84,7 @@ export function createTagHandlers(deps: TagHandlerDeps) {
         );
         return;
       }
-      const snapshot = await emitTagSnapshot(repo);
+      const snapshot = await emitTagSnapshot(repo, requestId);
       deps.postMessage(createHostResponse(requestId, "tag.list", snapshot));
     },
 
@@ -112,7 +116,7 @@ export function createTagHandlers(deps: TagHandlerDeps) {
           sha,
         );
         await deps.refreshCoordinator.refreshNow(repo.id);
-        const snapshot = await emitTagSnapshot(repo);
+        const snapshot = await emitTagSnapshot(repo, requestId);
         deps.postMessage(
           createHostResponse(requestId, "tag.createAnnotated", {
             name: name.trim(),
@@ -182,7 +186,7 @@ export function createTagHandlers(deps: TagHandlerDeps) {
       }
       try {
         await tags.deleteTag(repo.rootPath, name.trim());
-        const snapshot = await emitTagSnapshot(repo);
+        const snapshot = await emitTagSnapshot(repo, requestId);
         deps.postMessage(
           createHostResponse(requestId, "tag.delete", {
             name: name.trim(),

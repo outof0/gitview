@@ -22,7 +22,7 @@ export const LOG_FORMAT = [
 ].join("%n");
 
 /** Parse `git log %D` (e.g. "HEAD -> master, origin/master, tag: v1"). */
-export function parseLogDecorations(raw: string): string[] {
+function parseLogDecorations(raw: string): string[] {
   if (!raw.trim()) {
     return [];
   }
@@ -73,6 +73,17 @@ function parseChangedFile(line: string): GitChangedFile | null {
   return { path, status };
 }
 
+function parseChangedFiles(lines: Iterable<string>): GitChangedFile[] {
+  const filesByPath = new Map<string, GitChangedFile>();
+  for (const line of lines) {
+    const file = parseChangedFile(line.trim());
+    if (file && !filesByPath.has(file.path)) {
+      filesByPath.set(file.path, file);
+    }
+  }
+  return [...filesByPath.values()];
+}
+
 export function parseGitLogWithNameStatus(output: string): GitCommitEntry[] {
   const commits: GitCommitEntry[] = [];
   const chunks = output.split(`${LOG_RECORD_MARKER}\n`).filter((c) => c.trim());
@@ -106,18 +117,12 @@ export function parseGitLogWithNameStatus(output: string): GitCommitEntry[] {
     const refs = parseLogDecorations(decorateLine);
     const body = bodyParts.join("\n").trim() || undefined;
 
-    const changedFiles: GitChangedFile[] = [];
     const statusBlock = chunk.slice(endIdx + `\n${LOG_RECORD_END}\n`.length);
-    for (const line of statusBlock.split("\n")) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith(LOG_RECORD_MARKER)) {
-        continue;
-      }
-      const file = parseChangedFile(trimmed);
-      if (file) {
-        changedFiles.push(file);
-      }
-    }
+    const changedFiles = parseChangedFiles(
+      statusBlock
+        .split("\n")
+        .filter((line) => line.trim() && !line.trim().startsWith(LOG_RECORD_MARKER)),
+    );
 
     commits.push({
       sha,
@@ -135,49 +140,4 @@ export function parseGitLogWithNameStatus(output: string): GitCommitEntry[] {
   }
 
   return commits;
-}
-
-export function parseShowCommitOutput(
-  metaOutput: string,
-  bodyOutput: string,
-  nameStatusOutput: string,
-  authorTimeStr?: string,
-): GitCommitEntry | null {
-  const shaMatch = metaOutput.match(/^commit\s+([0-9a-f]{40})/m);
-  const shortShaMatch = metaOutput.match(
-    /^commit\s+([0-9a-f]{40})\s+\((.+)\)/m,
-  );
-  const authorMatch = metaOutput.match(/^Author:\s+(.+?)\s+<([^>]+)>/m);
-  const subjectMatch = metaOutput.match(/^ {4}(.+)$/m);
-
-  if (!shaMatch || !authorMatch) {
-    return null;
-  }
-
-  const sha = shaMatch[1]!;
-  const changedFiles: GitChangedFile[] = [];
-  for (const line of nameStatusOutput.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed) {
-      continue;
-    }
-    const file = parseChangedFile(trimmed);
-    if (file) {
-      changedFiles.push(file);
-    }
-  }
-
-  const body = bodyOutput.trim() || undefined;
-  const authorTime = authorTimeStr ? Number.parseInt(authorTimeStr, 10) : 0;
-
-  return {
-    sha,
-    shortSha: shortShaMatch?.[2] ?? sha.slice(0, 7),
-    author: authorMatch[1]!,
-    authorEmail: authorMatch[2]!,
-    authorTime,
-    subject: subjectMatch?.[1] ?? "",
-    body,
-    changedFiles,
-  };
 }

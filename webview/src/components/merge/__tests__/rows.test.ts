@@ -119,14 +119,80 @@ describe("countChanges", () => {
     expect(counts.totalChanges).toBeGreaterThanOrEqual(1);
   });
 
-  it("counts both_same only in simple conflicts, not non-conflicting apply", () => {
-    const doc = makeDoc("top\nmid\n", "top\nboth\n", "top\nboth\n");
-    const blocks = doc.blocks.map((b) =>
-      b.kind === "both_same" ? { ...b, status: "unresolved" as const } : b,
+  it("counts a genuine conflict with non-overlapping word edits as simple", () => {
+    const doc = makeDoc(
+      "This is a simple conflict that can be resolved.\n",
+      "Below is a simple conflict that can be resolved.\n",
+      "This is a simple conflict that can be resolved automatically.\n",
     );
-    const counts = countChanges({ ...doc, blocks });
-    expect(counts.unresolvedSimpleConflicts).toBeGreaterThanOrEqual(1);
+    const counts = countChanges(doc);
+    expect(counts.unresolvedSimpleConflicts).toBe(1);
     expect(counts.unresolvedNonConflicting).toBe(0);
+  });
+
+  it("does not count overlapping edits as simple", () => {
+    const doc = makeDoc(
+      "The color is blue.\n",
+      "The color is red.\n",
+      "The color is green.\n",
+    );
+    expect(countChanges(doc).unresolvedSimpleConflicts).toBe(0);
+  });
+
+  it("does not count partially accepted or manually resolved conflicts", () => {
+    const doc = makeDoc(
+      "This is a simple conflict that can be resolved.\n",
+      "Below is a simple conflict that can be resolved.\n",
+      "This is a simple conflict that can be resolved automatically.\n",
+    );
+    const conflict = doc.blocks.find((block) => block.kind === "conflict")!;
+    const partiallyAccepted = {
+      ...doc,
+      blocks: doc.blocks.map((block) =>
+        block.id === conflict.id
+          ? {
+              ...block,
+              metadata: {
+                ...block.metadata,
+                conflict: {
+                  ours: "accepted" as const,
+                  theirs: "pending" as const,
+                  acceptedOrder: ["ours" as const],
+                },
+              },
+            }
+          : block,
+      ),
+    };
+    expect(countChanges(partiallyAccepted).unresolvedSimpleConflicts).toBe(0);
+
+    const manual = {
+      ...doc,
+      blocks: doc.blocks.map((block) =>
+        block.id === conflict.id
+          ? {
+              ...block,
+              status: "manual" as const,
+              metadata: { ...block.metadata, hasManualEdit: true },
+            }
+          : block,
+      ),
+    };
+    expect(countChanges(manual).unresolvedSimpleConflicts).toBe(0);
+  });
+
+  it("does not offer Magic Merge for special or incomplete documents", () => {
+    const doc = makeDoc(
+      "This is a simple conflict that can be resolved.\n",
+      "Below is a simple conflict that can be resolved.\n",
+      "This is a simple conflict that can be resolved automatically.\n",
+    );
+    expect(
+      countChanges({ ...doc, special: "add_add" }).unresolvedSimpleConflicts,
+    ).toBe(0);
+    expect(countChanges({ ...doc, base: null }).unresolvedSimpleConflicts).toBe(
+      0,
+    );
   });
 });
 

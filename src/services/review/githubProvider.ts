@@ -1,26 +1,27 @@
-import type { GitExecFn } from "../git/types";
 import type { Repository } from "../../shared/types/repository";
 import type {
   ReviewDetailsSnapshot,
   ReviewFilters,
   ReviewItem,
-  ReviewProviderInfo,
   ReviewSuggestion,
 } from "../../shared/types/review";
 import { applySuggestionToFile } from "./applySuggestion";
 import { createGithubApi } from "./githubApi";
 import { detectHostedRemote, readOriginRemoteUrl } from "./remoteDetect";
 import { githubApiBaseUrl, parseGithubRemoteUrl } from "./githubRemote";
-import type { ReviewFetch } from "./reviewFetch";
-import type { Logger } from "../../observability/logger";
+import {
+  describeReviewProvider,
+  requireReviewApi,
+  type ReviewProviderContext,
+  type ReviewProviderSpec,
+} from "./providerShared";
 
-export type ReviewProviderContext = {
-  execGit: GitExecFn;
-  logger?: Logger;
-  getAccessToken?: (providerId: string) => Promise<string | null>;
-  getGithubApiBaseUrl?: () => string;
-  getGitlabApiBaseUrl?: () => string;
-  fetchFn?: ReviewFetch;
+const GITHUB_SPEC: ReviewProviderSpec = {
+  id: "github",
+  displayName: "GitHub",
+  noRemoteReason: "No GitHub remote configured for this repository.",
+  tokenHintReason:
+    "Connect a GitHub token via Command Palette: GitView: Set GitHub Review Token…",
 };
 
 async function resolveGithubApi(ctx: ReviewProviderContext, repo: Repository) {
@@ -36,9 +37,18 @@ async function resolveGithubApi(ctx: ReviewProviderContext, repo: Repository) {
   if (!token) {
     return { coords, api: null, token: null };
   }
+  // `null` means the remote host is not one the token may be sent to, so no
+  // client is built at all — see `githubApiBaseUrl`.
+  const apiBaseUrl = githubApiBaseUrl(
+    coords.host,
+    ctx.getGithubApiBaseUrl?.(),
+  );
+  if (!apiBaseUrl) {
+    return null;
+  }
   const api = createGithubApi({
     token,
-    apiBaseUrl: githubApiBaseUrl(coords.host, ctx.getGithubApiBaseUrl?.()),
+    apiBaseUrl,
     fetchFn: ctx.fetchFn,
   });
   return { coords, api, token };
@@ -47,33 +57,8 @@ async function resolveGithubApi(ctx: ReviewProviderContext, repo: Repository) {
 export async function describeGithubProvider(
   ctx: ReviewProviderContext,
   repo: Repository,
-): Promise<ReviewProviderInfo> {
-  const resolved = await resolveGithubApi(ctx, repo);
-  if (!resolved) {
-    return {
-      id: "github",
-      displayName: "GitHub",
-      available: false,
-      authRequired: false,
-      unavailableReason: "No GitHub remote configured for this repository.",
-    };
-  }
-  if (!resolved.token || !resolved.api) {
-    return {
-      id: "github",
-      displayName: "GitHub",
-      available: true,
-      authRequired: true,
-      unavailableReason:
-        "Connect a GitHub token via Command Palette: GitView: Set GitHub Review Token…",
-    };
-  }
-  return {
-    id: "github",
-    displayName: "GitHub",
-    available: true,
-    authRequired: false,
-  };
+) {
+  return describeReviewProvider(await resolveGithubApi(ctx, repo), GITHUB_SPEC);
 }
 
 export async function listGithubReviews(
@@ -184,11 +169,8 @@ export async function createGithubReview(
     draft?: boolean;
   },
 ): Promise<ReviewItem> {
-  const resolved = await resolveGithubApi(ctx, repo);
-  if (!resolved?.api || !resolved.coords) {
-    throw new Error("GitHub provider is not authenticated.");
-  }
-  return resolved.api.createPullRequest(resolved.coords, opts);
+  const { coords, api } = requireReviewApi(await resolveGithubApi(ctx, repo), GITHUB_SPEC);
+  return api.createPullRequest(coords, opts);
 }
 
 export async function createGithubLineComment(
@@ -202,17 +184,14 @@ export async function createGithubLineComment(
     side?: "LEFT" | "RIGHT";
   },
 ): Promise<{ commentId: string }> {
-  const resolved = await resolveGithubApi(ctx, repo);
-  if (!resolved?.api || !resolved.coords) {
-    throw new Error("GitHub provider is not authenticated.");
-  }
+  const { coords, api } = requireReviewApi(await resolveGithubApi(ctx, repo), GITHUB_SPEC);
   const number = Number.parseInt(reviewId, 10);
-  const pr = await resolved.api.getPullRequestRaw(resolved.coords, number);
+  const pr = await api.getPullRequestRaw(coords, number);
   const commitId = pr.head?.sha;
   if (!commitId) {
     throw new Error("Pull request head commit is unavailable for line comments.");
   }
-  return resolved.api.createPullReviewComment(resolved.coords, number, {
+  return api.createPullReviewComment(coords, number, {
     ...opts,
     commitId,
   });
@@ -225,12 +204,9 @@ export async function submitGithubReview(
   event: "APPROVE" | "REQUEST_CHANGES" | "COMMENT",
   body?: string,
 ): Promise<void> {
-  const resolved = await resolveGithubApi(ctx, repo);
-  if (!resolved?.api || !resolved.coords) {
-    throw new Error("GitHub provider is not authenticated.");
-  }
+  const { coords, api } = requireReviewApi(await resolveGithubApi(ctx, repo), GITHUB_SPEC);
   const number = Number.parseInt(reviewId, 10);
-  await resolved.api.submitReview(resolved.coords, number, event, body);
+  await api.submitReview(coords, number, event, body);
 }
 
 export async function applyGithubSuggestion(
@@ -240,17 +216,11 @@ export async function applyGithubSuggestion(
   suggestionId: string,
   cachedSuggestions?: ReviewSuggestion[],
 ): Promise<{ path: string }> {
-  const resolved = await resolveGithubApi(ctx, repo);
-  if (!resolved?.api || !resolved.coords) {
-    throw new Error("GitHub provider is not authenticated.");
-  }
+  const { coords, api } = requireReviewApi(await resolveGithubApi(ctx, repo), GITHUB_SPEC);
   const number = Number.parseInt(reviewId, 10);
   let suggestions = cachedSuggestions;
   if (!suggestions) {
-    const fetched = await resolved.api.getPullRequestReviewComments(
-      resolved.coords,
-      number,
-    );
+    const fetched = await api.getPullRequestReviewComments(coords, number);
     suggestions = fetched.suggestions;
   }
   const suggestion = suggestions.find((entry) => entry.id === suggestionId);
@@ -273,12 +243,9 @@ export async function mergeGithubReview(
   reviewId: string,
   method: "merge" | "squash" | "rebase" = "merge",
 ): Promise<void> {
-  const resolved = await resolveGithubApi(ctx, repo);
-  if (!resolved?.api || !resolved.coords) {
-    throw new Error("GitHub provider is not authenticated.");
-  }
+  const { coords, api } = requireReviewApi(await resolveGithubApi(ctx, repo), GITHUB_SPEC);
   const number = Number.parseInt(reviewId, 10);
-  await resolved.api.mergePullRequest(resolved.coords, number, method);
+  await api.mergePullRequest(coords, number, method);
 }
 
 export async function closeGithubReview(
@@ -286,12 +253,9 @@ export async function closeGithubReview(
   repo: Repository,
   reviewId: string,
 ): Promise<void> {
-  const resolved = await resolveGithubApi(ctx, repo);
-  if (!resolved?.api || !resolved.coords) {
-    throw new Error("GitHub provider is not authenticated.");
-  }
+  const { coords, api } = requireReviewApi(await resolveGithubApi(ctx, repo), GITHUB_SPEC);
   const number = Number.parseInt(reviewId, 10);
-  await resolved.api.closePullRequest(resolved.coords, number);
+  await api.closePullRequest(coords, number);
 }
 
 export async function reopenGithubReview(
@@ -299,12 +263,9 @@ export async function reopenGithubReview(
   repo: Repository,
   reviewId: string,
 ): Promise<void> {
-  const resolved = await resolveGithubApi(ctx, repo);
-  if (!resolved?.api || !resolved.coords) {
-    throw new Error("GitHub provider is not authenticated.");
-  }
+  const { coords, api } = requireReviewApi(await resolveGithubApi(ctx, repo), GITHUB_SPEC);
   const number = Number.parseInt(reviewId, 10);
-  await resolved.api.reopenPullRequest(resolved.coords, number);
+  await api.reopenPullRequest(coords, number);
 }
 
 export async function deleteGithubMergedSourceBranch(
@@ -312,13 +273,10 @@ export async function deleteGithubMergedSourceBranch(
   repo: Repository,
   reviewId: string,
 ): Promise<{ branch: string }> {
-  const resolved = await resolveGithubApi(ctx, repo);
-  if (!resolved?.api || !resolved.coords) {
-    throw new Error("GitHub provider is not authenticated.");
-  }
+  const { coords, api } = requireReviewApi(await resolveGithubApi(ctx, repo), GITHUB_SPEC);
   const number = Number.parseInt(reviewId, 10);
-  const pr = await resolved.api.getPullRequestRaw(resolved.coords, number);
-  const capabilities = resolved.api.getPullRequestCapabilities(pr);
+  const pr = await api.getPullRequestRaw(coords, number);
+  const capabilities = api.getPullRequestCapabilities(pr);
   if (!capabilities.canDeleteSourceBranch) {
     throw new Error(
       capabilities.deleteSourceBranchBlockedReason ??
@@ -329,7 +287,7 @@ export async function deleteGithubMergedSourceBranch(
   if (!branch) {
     throw new Error("Pull request has no source branch to delete.");
   }
-  await resolved.api.deletePullRequestHeadBranch(resolved.coords, branch);
+  await api.deletePullRequestHeadBranch(coords, branch);
   return { branch };
 }
 
@@ -338,13 +296,10 @@ export async function checkoutGithubReviewBranch(
   repo: Repository,
   reviewId: string,
 ): Promise<{ branch: string }> {
-  const resolved = await resolveGithubApi(ctx, repo);
-  if (!resolved?.api || !resolved.coords) {
-    throw new Error("GitHub provider is not authenticated.");
-  }
+  const { coords, api } = requireReviewApi(await resolveGithubApi(ctx, repo), GITHUB_SPEC);
   const number = Number.parseInt(reviewId, 10);
-  const pr = await resolved.api.getPullRequestRaw(resolved.coords, number);
-  const capabilities = resolved.api.getPullRequestCapabilities(pr);
+  const pr = await api.getPullRequestRaw(coords, number);
+  const capabilities = api.getPullRequestCapabilities(pr);
   if (!capabilities.canCheckoutBranch) {
     throw new Error(
       capabilities.checkoutBranchBlockedReason ??

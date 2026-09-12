@@ -1,55 +1,68 @@
+import type {
+  ConfirmationSubmission,
+  RemoveDirtyWorktreeConfirmationEvidence,
+} from "@gitview/shared/types/confirmation";
+import { TypedDestructiveConfirmDialog } from "./TypedDestructiveConfirmDialog";
+
 type WorktreeRemoveDialogProps = {
   open: boolean;
-  path: string;
-  forceRequired?: boolean;
-  onConfirm: (force: boolean) => void;
+  confirmation: RemoveDirtyWorktreeConfirmationEvidence;
+  busy?: boolean;
+  onConfirm: (confirmation: ConfirmationSubmission) => void;
   onCancel: () => void;
 };
 
 export function WorktreeRemoveDialog({
   open,
-  path,
-  forceRequired = false,
+  confirmation,
+  busy = false,
   onConfirm,
   onCancel,
 }: WorktreeRemoveDialogProps) {
-  if (!open) {
-    return null;
-  }
-
+  const target = confirmation.target;
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40"
-      data-testid="worktree-remove-dialog"
-    >
-      <div className="w-[min(420px,90vw)] rounded-vscode border border-border bg-[var(--vscode-editor-background)] p-4 shadow-lg">
-        <h3 className="text-[13px] font-semibold mb-2">Remove worktree?</h3>
-        <p className="text-[12px] text-[var(--vscode-descriptionForeground)] mb-4">
-          {forceRequired ? (
-            <>
-              Worktree <span className="font-mono">{path}</span> has local changes.
-              Force remove will discard uncommitted work.
-            </>
-          ) : (
-            <>
-              Remove worktree at <span className="font-mono">{path}</span>?
-            </>
-          )}
-        </p>
-        <div className="flex justify-end gap-2">
-          <button type="button" className="h-7 px-3 text-[12px] rounded-vscode hover:bg-list-hover" onClick={onCancel}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="h-7 px-3 text-[12px] rounded-vscode bg-[var(--vscode-inputValidation-errorBackground)] text-[var(--vscode-inputValidation-errorForeground)] hover:opacity-90"
-            onClick={() => onConfirm(forceRequired)}
-            data-testid="worktree-remove-confirm"
-          >
-            {forceRequired ? "Force remove" : "Remove"}
-          </button>
-        </div>
-      </div>
-    </div>
+    <TypedDestructiveConfirmDialog
+      open={open}
+      title="Remove worktree?"
+      description={
+        target.dirty ? (
+          <>
+            Worktree <span className="font-mono break-all">{target.path}</span> has
+            local changes. Force remove will permanently discard them.
+          </>
+        ) : (
+          <>
+            Worktree <span className="font-mono break-all">{target.path}</span> no
+            longer reports local changes. Confirm its current state before removal.
+          </>
+        )
+      }
+      expectedTypedValue={confirmation.expectedTypedValue}
+      confirmationKey={JSON.stringify(confirmation)}
+      confirmLabel={target.dirty ? "Force remove" : "Remove"}
+      testId="worktree-remove-dialog"
+      cancelTestId="worktree-remove-cancel"
+      confirmTestId="worktree-remove-confirm"
+      inputTestId="worktree-remove-typed-value"
+      busy={busy}
+      warning={
+        target.branch ? (
+          <>
+            Branch <span className="font-mono">{target.branch}</span> at{" "}
+            <span className="font-mono">{target.headSha?.slice(0, 7)}</span> is
+            checked out in this worktree.
+          </>
+        ) : (
+          <>
+            Detached HEAD at{" "}
+            <span className="font-mono">{target.headSha?.slice(0, 7)}</span>.
+          </>
+        )
+      }
+      onCancel={onCancel}
+      onConfirm={(typedValue) =>
+        onConfirm({ evidence: confirmation, typedValue })
+      }
+    />
   );
 }

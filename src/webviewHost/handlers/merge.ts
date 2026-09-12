@@ -12,6 +12,10 @@ import {
 } from "../../shared/protocol";
 import type { ConflictSnapshot } from "../../shared/types/merge";
 import { createMergeApi } from "../../services/git/merge";
+import {
+  encodeFileContent,
+  writeBufferAtomically,
+} from "../../services/fileService";
 import { deriveSpecialKind } from "../../services/git/porcelain";
 import { createRepoApi } from "../../services/git/repo";
 import { createLogApi } from "../../services/git/log";
@@ -306,10 +310,14 @@ export function createMergeHandlers(deps: MergeHandlerDeps) {
 
       try {
         const fileInfo = await mergePanel.fileService.readFile(target.absolutePath);
-        await mergePanel.fileService.writeFile(target.absolutePath, content, {
-          eol: fileInfo.eol,
-          hasFinalNewline: fileInfo.hasFinalNewline,
-        });
+        await writeBufferAtomically(
+          repo.rootPath,
+          target.absolutePath,
+          encodeFileContent(content, {
+            eol: fileInfo.eol,
+            hasFinalNewline: fileInfo.hasFinalNewline,
+          }),
+        );
         deps.postMessage(
           createHostResponse(requestId, "merge.saved", {
             path: target.relativePath,
@@ -390,10 +398,14 @@ export function createMergeHandlers(deps: MergeHandlerDeps) {
 
       try {
         const fileInfo = await mergePanel.fileService.readFile(target.absolutePath);
-        await mergePanel.fileService.writeFile(target.absolutePath, content, {
-          eol: fileInfo.eol,
-          hasFinalNewline: fileInfo.hasFinalNewline,
-        });
+        await writeBufferAtomically(
+          repo.rootPath,
+          target.absolutePath,
+          encodeFileContent(content, {
+            eol: fileInfo.eol,
+            hasFinalNewline: fileInfo.hasFinalNewline,
+          }),
+        );
         const settings = mergePanel.getSettings();
         const autoStage = settings.autoStageOnResolved !== false;
         if (autoStage) {

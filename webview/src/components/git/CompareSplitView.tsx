@@ -1,3 +1,4 @@
+import { Button } from "../ui/Button";
 /**
  * Side-by-side Compare with an optional per-line Annotate column.
  * Annotated panes mirror around the centre, and each side toggles on its own.
@@ -13,6 +14,7 @@ import {
 import { HighlightedCodeLine } from "./HighlightedCodeLine";
 import { useScrollSync } from "../../hooks/useScrollSync";
 import { ResizableSplit } from "../ui/ResizableSplit";
+import { ScrollArea } from "../ui/ScrollArea";
 import { cn } from "../../lib/cn";
 import {
   blameBlockBackground,
@@ -76,7 +78,7 @@ const BLAME_WIDTH = 120;
 const LINE_WIDTH = 40;
 
 const BLAME_CELL_BASE =
-  "nx-blame nx-diff-gutter shrink-0 w-[120px] bg-[var(--vscode-editorGutter-background,var(--vscode-editor-background))]";
+  "nx-blame nx-diff-gutter shrink-0 w-blame-column bg-gutter-bg";
 
 function BlameCell({
   entry,
@@ -101,7 +103,7 @@ function BlameCell({
         className={cn(
           BLAME_CELL_BASE,
           border,
-          "px-1.5 text-[10px] text-vscode-description truncate border-vscode-panel-border",
+          "px-1.5 text-section text-vscode-description truncate border-vscode-panel-border",
         )}
         style={pin}
         data-testid="compare-blame-loading"
@@ -121,12 +123,12 @@ function BlameCell({
   const stripe = blameBlockBackground(entry.sha);
   const label = formatBlameAnnotationLabel(entry);
   return (
-    <button
+    <Button variant="ghost" size="content"
       type="button"
       className={cn(
         BLAME_CELL_BASE,
         border,
-        "px-1.5 text-left text-[10px] leading-5 truncate border-vscode-panel-border cursor-pointer",
+        "px-1.5 text-left text-section leading-5 truncate border-vscode-panel-border cursor-pointer",
         "text-vscode-description hover:bg-toolbar-hover hover:text-vscode-editor-fg",
         selected && "bg-list-active text-vscode-editor-fg",
       )}
@@ -143,7 +145,7 @@ function BlameCell({
       onClick={onClick}
     >
       {label}
-    </button>
+    </Button>
   );
 }
 
@@ -329,13 +331,14 @@ export function CompareSplitView({
       <div className="flex-1 min-h-0 grid grid-cols-2 divide-x divide-vscode-panel-border overflow-hidden">
         <div className="min-h-0 flex flex-col overflow-hidden">
           {!hideHeaders && (
-            <div className="h-7 px-3 flex items-center text-[11px] font-semibold text-vscode-description border-b border-vscode-panel-border shrink-0">
+            <div className="h-7 px-3 flex items-center text-ui-sm font-semibold text-vscode-description border-b border-vscode-panel-border shrink-0">
               {left.label}
             </div>
           )}
-          <div
+          <ScrollArea
             ref={registerContainer(0)}
-            className="flex-1 overflow-auto font-editor text-editor leading-5"
+            axis="both"
+            className="flex-1 font-editor text-editor leading-5"
             onScroll={handleScroll(0)}
             data-testid="git-diff-left-scroll"
           >
@@ -352,17 +355,18 @@ export function CompareSplitView({
                 leftBlameLoading,
               )}
             </div>
-          </div>
+          </ScrollArea>
         </div>
         <div className="min-h-0 flex flex-col overflow-hidden">
           {!hideHeaders && (
-            <div className="h-7 px-3 flex items-center text-[11px] font-semibold text-vscode-description border-b border-vscode-panel-border shrink-0">
+            <div className="h-7 px-3 flex items-center text-ui-sm font-semibold text-vscode-description border-b border-vscode-panel-border shrink-0">
               {right.label}
             </div>
           )}
-          <div
+          <ScrollArea
             ref={registerContainer(1)}
-            className="flex-1 overflow-auto font-editor text-editor leading-5"
+            axis="both"
+            className="flex-1 font-editor text-editor leading-5"
             onScroll={handleScroll(1)}
             data-testid="git-diff-right-scroll"
           >
@@ -377,7 +381,7 @@ export function CompareSplitView({
                 rightBlameLoading,
               )}
             </div>
-          </div>
+          </ScrollArea>
         </div>
       </div>
     </div>

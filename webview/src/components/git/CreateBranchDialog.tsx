@@ -1,11 +1,17 @@
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
 import { validateBranchName } from "@gitview/shared/lib/branchName";
 import type { BranchEntry } from "@gitview/shared/types/branch";
 import {
+  GitDialogField,
   GitDialogShell,
-  gitDialogBtnPrimary,
-  gitDialogBtnSecondary,
+  gitDialogError,
 } from "../ui/GitDialogShell";
+import { Button } from "../ui/Button";
+import { Checkbox } from "../ui/Checkbox";
+import { TextField } from "../ui/TextField";
 import { BranchRefSelect } from "./BranchRefSelect";
 
 type CreateBranchDialogProps = {
@@ -14,6 +20,8 @@ type CreateBranchDialogProps = {
   /** Ref the branch starts from; empty means the current HEAD. */
   startPoint?: string;
   busy?: boolean;
+  /** Editor-area webview: skip the dim overlay so the tab is not a nested modal. */
+  embedded?: boolean;
   onConfirm: (
     name: string,
     startPoint: string | undefined,
@@ -27,6 +35,7 @@ export function CreateBranchDialog({
   branches,
   startPoint = "",
   busy = false,
+  embedded = false,
   onConfirm,
   onCancel,
 }: CreateBranchDialogProps) {
@@ -68,35 +77,36 @@ export function CreateBranchDialog({
       open={open}
       title="Create New Branch"
       testId="create-branch-dialog"
+      variant={embedded ? "embedded" : "modal"}
+      onCancel={onCancel}
       footer={
         <>
-          <button
+          <Button
             type="button"
-            className={gitDialogBtnSecondary}
+            variant="secondary" size="compact"
             onClick={onCancel}
             data-testid="create-branch-cancel"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className={gitDialogBtnPrimary}
+            variant="primary" size="compact"
             disabled={busy || blocked}
             onClick={confirm}
             data-testid="create-branch-confirm"
           >
             Create
-          </button>
+          </Button>
         </>
       }
     >
       <div className="flex flex-col gap-2">
-        <label className="flex flex-col gap-1">
-          <span>New branch name</span>
-          <input
-            type="text"
+        <GitDialogField label="New branch name">
+          <TextField
+            size="compact"
+            containerClassName="w-full"
             autoFocus
-            className="w-full h-[var(--nx-row-h)] px-1.5 text-[length:var(--nx-font-size-ui)] rounded-vscode border border-border bg-[var(--vscode-input-background)] text-foreground"
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => {
@@ -107,10 +117,9 @@ export function CreateBranchDialog({
             }}
             data-testid="create-branch-name"
           />
-        </label>
+        </GitDialogField>
 
-        <label className="flex flex-col gap-1">
-          <span>Create from</span>
+        <GitDialogField label="Create from">
           <BranchRefSelect
             branches={branches}
             value={from}
@@ -118,43 +127,34 @@ export function CreateBranchDialog({
             placeholder="HEAD (current branch)"
             testId="create-branch-start-point"
           />
-        </label>
+        </GitDialogField>
 
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={checkout}
-            onChange={(e) => setCheckout(e.target.checked)}
-            data-testid="create-branch-checkout"
-          />
-          <span>Checkout branch</span>
-        </label>
+        <Checkbox
+          checked={checkout}
+          onChange={setCheckout}
+          testId="create-branch-checkout"
+        >
+          Checkout branch
+        </Checkbox>
 
         {exists ? (
-          <label className="flex items-start gap-2">
-            <input
-              type="checkbox"
-              className="mt-0.5"
-              checked={force}
-              onChange={(e) => setForce(e.target.checked)}
-              data-testid="create-branch-force"
-            />
-            <span>
-              Overwrite existing branch
-              <span className="block opacity-70">
-                Resets{" "}
-                <span className="font-mono">{trimmed}</span> to the start point.
-                Commits only on that branch are lost.
-              </span>
-            </span>
-          </label>
+          <Checkbox
+            testId="create-branch-force"
+            checked={force}
+            onChange={setForce}
+            hint={
+              <>
+                Resets <span className="font-mono text-foreground">{trimmed}</span> to
+                the start point. Commits only on that branch are lost.
+              </>
+            }
+          >
+            Overwrite existing branch
+          </Checkbox>
         ) : null}
 
         {nameError ? (
-          <p
-            className="m-0 text-[var(--vscode-inputValidation-errorForeground,var(--vscode-errorForeground))]"
-            data-testid="create-branch-error"
-          >
+          <p className={gitDialogError} data-testid="create-branch-error">
             {nameError}
           </p>
         ) : null}

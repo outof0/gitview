@@ -44,7 +44,11 @@ export function ResizableSplit({
   className = "",
 }: ResizableSplitProps) {
   const [percent, setPercent] = useState(() =>
-    readStoredPercent(storageKey, initialPercent),
+    clamp(
+      readStoredPercent(storageKey, initialPercent),
+      minFirstPercent,
+      100 - minSecondPercent,
+    ),
   );
   const containerRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
@@ -82,6 +86,9 @@ export function ResizableSplit({
     };
 
     const onUp = () => {
+      if (!dragging.current) {
+        return;
+      }
       dragging.current = false;
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
@@ -89,9 +96,13 @@ export function ResizableSplit({
 
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
+    window.addEventListener("mouseleave", onUp);
+    window.addEventListener("blur", onUp);
     return () => {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("mouseleave", onUp);
+      window.removeEventListener("blur", onUp);
     };
   }, [direction, minFirstPercent, minSecondPercent, persist]);
 
@@ -125,10 +136,10 @@ export function ResizableSplit({
         aria-orientation={isHorizontal ? "vertical" : "horizontal"}
         aria-valuenow={Math.round(percent)}
         tabIndex={0}
-        className={`shrink-0 z-10 bg-[var(--vscode-panel-border,var(--vscode-editorGroup-border,#444))] hover:bg-[var(--vscode-focusBorder,#007fd4)] transition-colors ${
+        className={`shrink-0 z-10 bg-vscode-panel-border hover:bg-ring transition-colors ${
           isHorizontal
-            ? "w-px cursor-col-resize hover:w-[3px]"
-            : "h-px cursor-row-resize hover:h-[3px] w-full"
+            ? "w-px cursor-col-resize hover:w-splitter-active"
+            : "h-px cursor-row-resize hover:h-splitter-active w-full"
         }`}
         onMouseDown={startDrag}
         data-testid={`resizable-split-handle-${direction}`}

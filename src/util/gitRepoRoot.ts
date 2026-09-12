@@ -25,14 +25,6 @@ export async function findRepoRootForTarget(
   return git.findRepoRoot(workspaceRoot);
 }
 
-/** Resolve Git toplevel starting at an absolute file or folder path. */
-export async function findRepoRootForPath(
-  git: RepoRootLookup,
-  absolutePath: string,
-): Promise<string | null> {
-  return git.findRepoRoot(absolutePath);
-}
-
 /**
  * Convert a workspace-relative path to a path relative to the Git toplevel.
  * Needed when the workspace folder is a parent of the repository (monorepos).

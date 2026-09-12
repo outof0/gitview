@@ -4,8 +4,14 @@ import * as path from "node:path";
 import type { OperationState } from "../shared/types/operation";
 import { NO_OPERATION } from "../shared/types/operation";
 import type { Repository, RepositorySnapshot } from "../shared/types/repository";
+import {
+  deriveRepositoryHeadState,
+  deriveRepositoryShellState,
+} from "../shared/types/repositoryShell";
 import type { GitFileStatus } from "../shared/types/status";
+import { computeChangeDigest } from "./git/changeDigest";
 import { createStatusApi, type ParsedBranchHeader } from "./git/status";
+import { listRemotes } from "./git/upstream";
 import type { GitExecFn } from "./git/types";
 import type { Logger } from "../observability/logger";
 import { NOOP_LOGGER, errorLogFields } from "../observability/logger";
@@ -20,6 +26,12 @@ export type RepositoryDiscoveryInput = {
   trusted: boolean;
   /** Re-scan repository roots after workspace topology changes. */
   forceTopologyRefresh?: boolean;
+  /**
+   * Recompute the working-tree content digest before returning. Mutation
+   * confirmation paths set this so a cached status cannot validate stale
+   * evidence after the user edits a dirty file.
+   */
+  freshChangeDigest?: boolean;
 };
 
 export type RepositoryStatus = {
@@ -189,7 +201,13 @@ export function createRepositoryService(
   const topologyByFolder = new Map<string, string[]>();
   const topologyInFlight = new Map<string, Promise<string[]>>();
   const gitDirByRoot = new Map<string, string>();
+  const refreshGenerationByRepo = new Map<string, number>();
   let topologyGeneration = 0;
+
+  function rememberRepository(repo: Repository): Repository {
+    cache.set(repo.id, repo);
+    return repo;
+  }
 
   async function rootsForFolder(folderPath: string): Promise<string[]> {
     const key = normalizePath(folderPath);
@@ -232,16 +250,19 @@ export function createRepositoryService(
     rootPath: string,
     workspaceFolderPath: string | null,
     trusted: boolean,
+    freshChangeDigest = false,
   ): Promise<Repository> {
     const normalizedRoot = normalizePath(rootPath);
     const id = stableRepoId(normalizedRoot);
+    const generation = (refreshGenerationByRepo.get(id) ?? 0) + 1;
+    refreshGenerationByRepo.set(id, generation);
     let gitDirPath = gitDirByRoot.get(normalizedRoot);
     if (!gitDirPath) {
       gitDirPath = await resolveGitDir(deps.execGit, normalizedRoot);
       gitDirByRoot.set(normalizedRoot, gitDirPath);
     }
 
-    const [headSha, operation, status] = await Promise.all([
+    const [headSha, operation, status, remotes] = await Promise.all([
       resolveHeadSha(deps.execGit, normalizedRoot),
       readOperation(gitDirPath),
       statusApi.getStatus(normalizedRoot, id).catch((error) => {
@@ -251,6 +272,7 @@ export function createRepositoryService(
         });
         return null;
       }),
+      listRemotes(deps.execGit, normalizedRoot),
     ]);
     if (status) {
       statusCache.set(id, status);
@@ -261,7 +283,14 @@ export function createRepositoryService(
     const statusBranch = status?.branch ?? null;
     const files = status?.files ?? [];
     const currentBranch = statusBranch?.currentBranch ?? null;
-    return {
+    const dirty = files.some((file) => file.kind !== "ignored");
+    const previous = cache.get(id);
+    const changeDigest = dirty
+      ? freshChangeDigest
+        ? await computeChangeDigest(normalizedRoot, files)
+        : (previous?.changeDigest ?? null)
+      : null;
+    const repository: Repository = {
       id,
       rootPath: normalizedRoot,
       workspaceFolderPath,
@@ -277,35 +306,85 @@ export function createRepositoryService(
       ahead: statusBranch?.ahead ?? null,
       behind: statusBranch?.behind ?? null,
       conflictCount: files.filter((file) => file.conflicted).length,
-      dirty: files.some((file) => file.kind !== "ignored"),
+      dirty,
+      changeDigest,
       trusted,
       protectedBranch: deps.isProtectedBranch?.(currentBranch) ?? false,
       lastRefreshAt: Date.now(),
+      remoteState:
+        remotes.length === 0
+          ? { kind: "none" }
+          : {
+              kind: "available",
+              remotes,
+              upstream: statusBranch?.upstream ?? null,
+            },
     };
+    const headState = deriveRepositoryHeadState(repository);
+    const resolved = headState ? { ...repository, headState } : repository;
+    if (refreshGenerationByRepo.get(id) === generation) {
+      rememberRepository(resolved);
+    }
+    if (dirty && !freshChangeDigest) {
+      void computeChangeDigest(normalizedRoot, files)
+        .then((digest) => {
+          if (refreshGenerationByRepo.get(id) !== generation) {
+            return;
+          }
+          const current = cache.get(id);
+          if (!current || current.changeDigest === digest || !current.dirty) {
+            return;
+          }
+          cache.set(id, { ...current, changeDigest: digest });
+        })
+        .catch((error) => {
+          logger.warn("repository.changeDigest.failed", {
+            repoId: id,
+            ...errorLogFields(error),
+          });
+        });
+    }
+    return resolved;
   }
 
   async function discoverRepositories(
     input: RepositoryDiscoveryInput,
   ): Promise<Repository[]> {
+    const activeFolderKeys = new Set(
+      input.workspaceFolders.map((folder) => normalizePath(folder.uriPath)),
+    );
     const explicit = input.explicitRepoId
       ? cache.get(input.explicitRepoId)
       : undefined;
     if (explicit && !input.forceTopologyRefresh) {
-      const refreshed = await buildRepository(
-        explicit.rootPath,
-        explicit.workspaceFolderPath,
-        input.trusted,
+      // A cached repoId must still be validated against the current workspace
+      // topology: after its folder is removed, a late panel request carrying
+      // the stale id must not rebuild and mutate the detached repository.
+      const folderKey =
+        explicit.workspaceFolderPath ?
+          normalizePath(explicit.workspaceFolderPath)
+        : null;
+      const folderActive = folderKey ? activeFolderKeys.has(folderKey) : false;
+      const rootInsideActiveFolder = [...activeFolderKeys].some((folder) =>
+        isPathWithin(explicit.rootPath, folder),
       );
-      cache.set(refreshed.id, refreshed);
-      return [refreshed];
+      if (!folderActive && !rootInsideActiveFolder) {
+        cache.delete(explicit.id);
+        statusCache.delete(explicit.id);
+      } else {
+        const refreshed = await buildRepository(
+          explicit.rootPath,
+          explicit.workspaceFolderPath,
+          input.trusted,
+          input.freshChangeDigest,
+        );
+        return [refreshed];
+      }
     }
     if (input.forceTopologyRefresh) {
       invalidateTopology();
     }
 
-    const activeFolderKeys = new Set(
-      input.workspaceFolders.map((folder) => normalizePath(folder.uriPath)),
-    );
     for (const folderKey of topologyByFolder.keys()) {
       if (!activeFolderKeys.has(folderKey)) {
         topologyByFolder.delete(folderKey);
@@ -350,6 +429,7 @@ export function createRepositoryService(
               rootPath,
               workspaceFolderForRoot(rootPath, input.workspaceFolders),
               input.trusted,
+              input.freshChangeDigest,
             ),
           );
         } catch (error) {
@@ -373,9 +453,6 @@ export function createRepositoryService(
         statusCache.delete(repoId);
       }
     }
-    for (const repo of repos) {
-      cache.set(repo.id, repo);
-    }
     return repos;
   }
 
@@ -384,13 +461,14 @@ export function createRepositoryService(
     if (!existing) {
       return null;
     }
-    const repo = await buildRepository(
-      existing.rootPath,
-      existing.workspaceFolderPath,
-      existing.trusted,
+    return rememberRepository(
+      await buildRepository(
+        existing.rootPath,
+        existing.workspaceFolderPath,
+        existing.trusted,
+        true,
+      ),
     );
-    cache.set(repoId, repo);
-    return repo;
   }
 
   function resolveRepositoryForResource(
@@ -412,13 +490,18 @@ export function createRepositoryService(
     repos: Repository[],
     activeRepoId: string | null,
   ): RepositorySnapshot {
+    const resolvedActiveRepoId =
+      repos.some((repo) => repo.id === activeRepoId)
+        ? activeRepoId
+        : repos[0]?.id ?? null;
     const branches = new Set(
       repos.map((repo) => repo.currentBranch).filter((branch): branch is string => Boolean(branch)),
     );
     return {
       repositories: repos,
-      activeRepoId,
+      activeRepoId: resolvedActiveRepoId,
       multiRootDiverged: repos.length > 1 && branches.size > 1,
+      shellState: deriveRepositoryShellState(repos, resolvedActiveRepoId),
     };
   }
 

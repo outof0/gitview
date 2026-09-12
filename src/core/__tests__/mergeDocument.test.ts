@@ -112,6 +112,26 @@ describe("resolve actions + serialize round-trip", () => {
     });
   });
 
+  it("infers the order for legacy accepted-both conflicts", () => {
+    const d = doc();
+    const cid = d.conflictOrder[0];
+    const block = d.blocks.find((b) => b.id === cid)!;
+    const legacy = {
+      ...block,
+      status: "accepted_both" as const,
+      resultText: "Y\nX",
+      metadata: { ...block.metadata, conflict: undefined },
+    };
+
+    const restored = appendSide(legacy, "ours");
+
+    expect(restored.resultText).toBe("Y\nX");
+    expect(restored.metadata.conflict?.acceptedOrder).toEqual([
+      "theirs",
+      "ours",
+    ]);
+  });
+
   it("ignore after accepting one side finalizes the selected side", () => {
     const d = doc();
     const cid = d.conflictOrder[0];

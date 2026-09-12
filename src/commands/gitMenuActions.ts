@@ -5,9 +5,7 @@ export {
   gitShowDiff,
   gitAnnotateBlame,
   gitRollback,
-  gitCompareWithLocal,
   gitShowRevisionDiff,
-  type DiffPreviewPoster,
 } from "./gitMenuDiffActions";
 export {
   gitAdd,
@@ -25,11 +23,15 @@ export {
 } from "./gitMenuBranchActions";
 export {
   gitCherryPick,
-  gitRevertCommit,
   gitCheckoutRevision,
   gitCopyCommitId,
   gitCopyCommitMessage,
   gitGetFromRevision,
   gitOpenFile,
 } from "./gitMenuHistoryActions";
+export {
+  gitOpenOnRemote,
+  gitCopyRemoteLink,
+  gitCopyRemoteLinkMarkdown,
+} from "./gitMenuRemoteLinkActions";
 export { runGitMenuAction } from "./gitMenuActionDispatcher";

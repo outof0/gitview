@@ -7,17 +7,33 @@ import type {
   LogOptions,
   LogResult,
 } from "../../types/blame";
-import { changesFromSideRevisionRange, resolveMergeRefs } from "../mergeHistory";
+import {
+  changesFromSideRevisionRange,
+  resolveMergeRefs,
+} from "../mergeHistory";
 import {
   LOG_FORMAT,
   parseGitLogWithNameStatus,
-  parseShowCommitOutput,
 } from "../logParser";
 import { isValidRepoRelativePath } from "../blameRefs";
 import { DEFAULT_LOG_LIMIT, type GitExecFn } from "./types";
 import { isFileNotAtRefError } from "./exec";
+import { createLogDagApi } from "./logDag";
 
-export function createLogApi(execGit: GitExecFn) {
+function appendLogSkip(args: string[], skip: number | undefined): void {
+  if (skip !== undefined && skip > 0) {
+    args.push(`--skip=${skip}`);
+  }
+}
+
+export type LogApiOptions = {
+  supportsDiffMerges?: (repoRoot: string) => Promise<boolean>;
+};
+
+export function createLogApi(
+  execGit: GitExecFn,
+  options?: LogApiOptions,
+) {
   async function resolveUpstreamRef(repoRoot: string): Promise<string | null> {
     try {
       const { stdout } = await execGit(repoRoot, [
@@ -51,11 +67,13 @@ export function createLogApi(execGit: GitExecFn) {
     try {
       const { stdout } = await execGit(repoRoot, [
         "log",
+        "--parents",
         "--follow",
         "--name-status",
         `--format=${LOG_FORMAT}`,
         `-n`,
         String(limit),
+        ...(opts?.skip && opts.skip > 0 ? [`--skip=${opts.skip}`] : []),
         ...branchArgs,
         "--",
         relativePath,
@@ -98,10 +116,12 @@ export function createLogApi(execGit: GitExecFn) {
     try {
       const { stdout } = await execGit(repoRoot, [
         "log",
+        "--parents",
         "--name-status",
         `--format=${LOG_FORMAT}`,
         `-n`,
         String(limit),
+        ...(opts?.skip && opts.skip > 0 ? [`--skip=${opts.skip}`] : []),
         ...branchArgs,
         "--",
         logPath || ".",
@@ -145,6 +165,7 @@ export function createLogApi(execGit: GitExecFn) {
 
     const args = [
       "log",
+      "--parents",
       "--name-status",
       `--format=${LOG_FORMAT}`,
       `-n`,
@@ -187,24 +208,27 @@ export function createLogApi(execGit: GitExecFn) {
     sha: string,
   ): Promise<CommitDetailResult> {
     try {
-      const [meta, body, nameStatus, atOut] = await Promise.all([
-        execGit(repoRoot, ["show", "--format=fuller", "--no-patch", sha]),
-        execGit(repoRoot, ["show", "--format=%b", "--no-patch", sha]),
+      const [meta, nameStatus] = await Promise.all([
+        execGit(repoRoot, ["show", "--no-patch", `--format=${LOG_FORMAT}`, sha]),
+        // Split merge diffs by parent so annotate can show files touched by a
+        // merge instead of presenting the misleading empty file pane. diff-tree
+        // asks Git for names/statuses directly and avoids constructing show's
+        // commit presentation for every parent.
         execGit(repoRoot, [
-          "show",
+          "diff-tree",
+          "--no-commit-id",
           "--name-status",
-          "--format=",
+          "-r",
+          "-m",
+          "--root",
           sha,
         ]),
-        execGit(repoRoot, ["show", "-s", "--format=%at", sha]),
       ]);
 
-      const commit = parseShowCommitOutput(
-        meta.stdout,
-        body.stdout,
-        nameStatus.stdout,
-        atOut.stdout.trim(),
-      );
+      const separator = meta.stdout.endsWith("\n") ? "" : "\n";
+      const commit = parseGitLogWithNameStatus(
+        `${meta.stdout}${separator}${nameStatus.stdout}`,
+      )[0];
       if (!commit) {
         return {
           ok: false,
@@ -222,20 +246,11 @@ export function createLogApi(execGit: GitExecFn) {
     }
   }
 
-  async function logRepo(
+  async function appendRepoLogQueryArgs(
     repoRoot: string,
-    opts?: LogOptions | LogQueryFilters,
-  ): Promise<LogResult> {
-    const limit = opts?.limit ?? DEFAULT_LOG_LIMIT;
-    const query = opts as LogQueryFilters | undefined;
-    const args = [
-      "log",
-      "--name-status",
-      `--format=${LOG_FORMAT}`,
-      `-n`,
-      String(limit),
-    ];
-
+    args: string[],
+    query: LogQueryFilters | undefined,
+  ): Promise<boolean> {
     if (query?.author?.trim()) {
       args.push(`--author=${query.author.trim()}`);
     }
@@ -255,10 +270,18 @@ export function createLogApi(execGit: GitExecFn) {
       args.push("--first-parent");
     }
 
+    // Include the user-facing graph refs, but not Git's entire ref namespace.
+    // `--all` also traverses refs/cline/*, refs/codex/* and other tool-owned
+    // checkpoints; those synthetic commits can have unchanged trees and crowd
+    // real history out of the bounded result.
+    if (query?.range === "all" && !query.branch?.trim()) {
+      args.push("--branches", "--remotes", "--tags", "HEAD");
+    }
+
     if (query?.range === "incoming" || query?.range === "outgoing") {
       const upstream = await resolveUpstreamRef(repoRoot);
       if (!upstream) {
-        return { ok: true, commits: [] };
+        return false;
       }
       if (query.range === "incoming") {
         args.push(`HEAD..${upstream}`);
@@ -271,6 +294,40 @@ export function createLogApi(execGit: GitExecFn) {
 
     if (query?.path?.trim()) {
       args.push("--", query.path.trim());
+    }
+    return true;
+  }
+
+  function parseShaList(stdout: string): string[] {
+    return stdout.split(/\s+/).filter(Boolean);
+  }
+
+  async function logRepo(
+    repoRoot: string,
+    opts?: LogOptions | LogQueryFilters,
+  ): Promise<LogResult> {
+    const limit = opts?.limit ?? DEFAULT_LOG_LIMIT;
+    const query = opts as LogQueryFilters | undefined;
+    const args = ["log", "--parents"];
+    // Keep the initial graph query bounded to one record/diff per commit.
+    // Empty merge diffs are resolved lazily when that node is selected. Git
+    // 2.30 and older reject this flag, so feature-detect it per repository.
+    const supportsDiffMerges = options?.supportsDiffMerges
+      ? await options.supportsDiffMerges(repoRoot)
+      : true;
+    if (supportsDiffMerges) {
+      args.push("--diff-merges=first-parent");
+    }
+    args.push(
+      "--name-status",
+      `--format=${LOG_FORMAT}`,
+      `-n`,
+      String(limit),
+    );
+    appendLogSkip(args, query?.skip);
+
+    if (!(await appendRepoLogQueryArgs(repoRoot, args, query))) {
+      return { ok: true, commits: [] };
     }
 
     try {
@@ -285,5 +342,62 @@ export function createLogApi(execGit: GitExecFn) {
     }
   }
 
-  return { logFile, logFolder, logRepo, logChangesFromSide, showCommit };
+  /**
+   * Every SHA the repo-scope query matches, without pagination. Used to tell
+   * "parent not loaded yet" apart from "parent filtered out" for filters git
+   * does not rewrite into `%P`.
+   */
+  async function listRepoShas(
+    repoRoot: string,
+    opts?: LogOptions | LogQueryFilters,
+  ): Promise<string[] | null> {
+    const query = opts as LogQueryFilters | undefined;
+    const args = ["log", "--format=%H"];
+    if (!(await appendRepoLogQueryArgs(repoRoot, args, query))) {
+      return null;
+    }
+    try {
+      const { stdout } = await execGit(repoRoot, args);
+      return parseShaList(stdout);
+    } catch {
+      return null;
+    }
+  }
+
+  async function listFileShas(
+    repoRoot: string,
+    relativePath: string,
+    opts?: LogOptions,
+  ): Promise<string[] | null> {
+    if (!isValidRepoRelativePath(relativePath)) {
+      return null;
+    }
+    const branchArgs = opts?.branch ? [opts.branch] : [];
+    try {
+      const { stdout } = await execGit(repoRoot, [
+        "log",
+        "--follow",
+        "--format=%H",
+        ...branchArgs,
+        "--",
+        relativePath,
+      ]);
+      return parseShaList(stdout);
+    } catch {
+      return null;
+    }
+  }
+
+  const { logDag } = createLogDagApi(execGit);
+
+  return {
+    logFile,
+    logFolder,
+    logRepo,
+    listRepoShas,
+    listFileShas,
+    logChangesFromSide,
+    showCommit,
+    logDag,
+  };
 }

@@ -1,3 +1,4 @@
+import { Button } from "../ui/Button";
 // Single Monaco editor for the entire Result (center) merge pane.
 // One model, continuous line numbers; decorations/edits mapped via block spans.
 
@@ -13,7 +14,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { useGitViewStore, type HighlightingMode } from "../../stores/gitViewStore";
 import type { BlockRows } from "./rows";
 import { useTheme } from "../../hooks/useTheme";
-import { applyGitViewMonacoTheme } from "../../lib/monacoTheme";
+import { applyGitViewMonacoTheme, pickMonacoTheme } from "../../lib/monacoTheme";
 import {
   monacoLineDecorationClass,
   monacoStripeDecorationClass,
@@ -65,8 +66,16 @@ export function MonacoCenterPane({
   collapsedBlockIds,
   onExpandBlock,
 }: MonacoCenterPaneProps) {
-  const [monacoApi, setMonacoApi] = useState<typeof Monaco | null>(
-    getMonacoIfLoaded(),
+  const initialMonaco = getMonacoIfLoaded();
+  const [monacoApi, setMonacoApi] = useState<typeof Monaco | null>(initialMonaco);
+  // Monaco may be ready before this pane's language contribution. Do not
+  // create a plain-text model during that gap; wait for loadMonaco(language)
+  // so the first render is tokenized correctly.
+  const [loadedLanguage, setLoadedLanguage] = useState<string | null>(
+    initialMonaco &&
+      typeof (initialMonaco as { languages?: unknown }).languages === "undefined"
+      ? language
+      : null,
   );
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -90,9 +99,9 @@ export function MonacoCenterPane({
   onExpandBlockRef.current = onExpandBlock;
 
   const themeKind = useTheme();
-  const monacoTheme = monacoApi
-    ? applyGitViewMonacoTheme(monacoApi, themeKind)
-    : "gitview-dark";
+  // Theme registration and application are side effects; keep render pure and
+  // let the loading/synchronization effects apply the active theme.
+  const monacoTheme = pickMonacoTheme(themeKind);
   const whitespacePolicy = useGitViewStore((s) => s.whitespacePolicy);
   const compareMode = useGitViewStore((s) => s.compareMode);
   const highlightCtx: RowHighlightContext = useMemo(
@@ -119,20 +128,19 @@ export function MonacoCenterPane({
   const [monacoError, setMonacoError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (monacoApi) {
-      applyGitViewMonacoTheme(monacoApi, themeKind);
-      return;
-    }
     // Monaco resolves long after a short-lived mount (tests, fast tab switches);
     // settling state then would touch a torn-down tree.
     let cancelled = false;
-    void loadMonaco()
+    void loadMonaco(language)
       .then((api) => {
         if (cancelled) {
           return;
         }
         applyGitViewMonacoTheme(api, themeKind);
-        setMonacoApi(api);
+        if (monacoApi !== api) {
+          setMonacoApi(api);
+        }
+        setLoadedLanguage(language);
       })
       .catch((err: unknown) => {
         if (cancelled) {
@@ -145,7 +153,7 @@ export function MonacoCenterPane({
     return () => {
       cancelled = true;
     };
-  }, [monacoApi, themeKind]);
+  }, [language, monacoApi, themeKind]);
 
   const setScrollEl = useCallback(
     (el: HTMLDivElement | null) => {
@@ -318,7 +326,7 @@ export function MonacoCenterPane({
 
   // Create / dispose the single editor once per language mount.
   useEffect(() => {
-    if (!monacoApi || !hostRef.current) {
+    if (!monacoApi || loadedLanguage !== language || !hostRef.current) {
       return;
     }
 
@@ -365,7 +373,7 @@ export function MonacoCenterPane({
       fontSize: 12.5,
       lineHeight: CENTER_LINE_HEIGHT,
       fontFamily:
-        "var(--vscode-editor-font-family, ui-monospace, 'Cascadia Code', Consolas, monospace)",
+        "var(--nx-font-code)",
       contextmenu: false,
       links: false,
       occurrencesHighlight: "off",
@@ -446,9 +454,10 @@ export function MonacoCenterPane({
       modelRef.current?.dispose();
       modelRef.current = null;
     };
-    // Content/theme/collapse synced in the effect below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [monacoApi, language]);
+    // The dependency list is deliberately narrow: this effect only creates and
+    // destroys the editor. Content, theme and collapse state are synced by the
+    // effect below rather than forcing a recreate on every render.
+  }, [loadedLanguage, monacoApi, language]);
 
   // Sync model text, decorations, collapse, layout from React state.
   useEffect(() => {
@@ -506,8 +515,10 @@ export function MonacoCenterPane({
     if (!monacoApi) {
       return;
     }
-    monacoApi.editor.setTheme(monacoTheme);
-  }, [monacoApi, monacoTheme]);
+    monacoApi.editor.setTheme(
+      applyGitViewMonacoTheme(monacoApi, themeKind),
+    );
+  }, [monacoApi, themeKind]);
 
   // Wheel → outer scroll container (scroll-sync with side panes)
   useEffect(() => {
@@ -624,7 +635,7 @@ export function MonacoCenterPane({
             className="nx-monaco-revert pointer-events-auto"
             style={{ top: revertTop }}
           >
-            <button
+            <Button variant="ghost" size="content"
               type="button"
               className={actBtnClass}
               title="Revert"
@@ -635,7 +646,7 @@ export function MonacoCenterPane({
               }}
             >
               Revert
-            </button>
+            </Button>
           </div>
         ) : null}
       </div>

@@ -1,8 +1,9 @@
 import { create } from "zustand";
 import { createGitWorkspaceStoreSlice } from "./gitWorkspaceStoreSlice";
+import { createRootLogFilters } from "./gitWorkspaceLogDefaults";
 import type { GitWorkspaceActions, GitWorkspaceState } from "./gitWorkspaceStoreTypes";
 
-export type { GitDiffViewMode, GitWorkspaceState } from "./gitWorkspaceStoreTypes";
+export type { GitWorkspaceState } from "./gitWorkspaceStoreTypes";
 
 export const useGitWorkspaceStore = create<GitWorkspaceState & GitWorkspaceActions>(
   (set, get) => ({
@@ -11,7 +12,9 @@ export const useGitWorkspaceStore = create<GitWorkspaceState & GitWorkspaceActio
     dialogs: {},
     nativeFocusSurface: null,
     repoSnapshot: null,
+    repoEpoch: 0,
     statusSnapshot: null,
+    syncOperations: [],
     branchSnapshot: null,
     branchCompareSnapshot: null,
     branchCompareOpen: false,
@@ -27,11 +30,12 @@ export const useGitWorkspaceStore = create<GitWorkspaceState & GitWorkspaceActio
     gpgSign: false,
     author: "",
     runChecks: true,
+    runHooks: true,
     pullStrategy: "merge",
     synchronousBranchControl: true,
     branchesOpen: false,
     branchesLoading: false,
-    workspaceTab: "changes",
+    workspaceTab: "log",
     temporarySubTab: "stash",
     stashSnapshot: null,
     shelfSnapshot: null,
@@ -42,17 +46,20 @@ export const useGitWorkspaceStore = create<GitWorkspaceState & GitWorkspaceActio
     worktreesLoading: false,
     worktreeSnapshot: null,
     patchPreview: null,
-    blameSnapshot: null,
-    blameLoading: false,
-    blameError: null,
     workspaceNotification: null,
     logSnapshot: null,
+    logDag: null,
     logLoading: false,
+    logLoadingMore: false,
     logError: null,
     logSelectedSha: null,
     logSelectedShas: [],
     logSelectedFilePath: null,
-    logFilters: { range: "all", limit: 200 },
+    logFilters: createRootLogFilters(),
+    logRootRequest: 0,
+    historyOpenRequest: null,
+    activeHistoryScope: null,
+    pendingRollback: null,
     issueTrackerBaseUrl: null,
     diffStagedView: false,
     diffViewMode: "side_by_side",

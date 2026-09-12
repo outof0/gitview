@@ -5,11 +5,9 @@ import { test, expect } from "@playwright/test";
 import { countBlameAnnotations } from "../src/shared/lib/groupBlameBlocks";
 import {
   loadBlameScreenBootstrap,
-  loadHistoryScreenBootstrap,
   openGitBlameScreen,
 } from "./helpers/git-screen-bootstrap";
 import {
-  expectBlameCommitHistoryPanel,
   expectBlameCompactBlockLayout,
   expectGitViewBlameScreen,
 } from "./helpers/git-screen-parity";
@@ -35,7 +33,11 @@ test.describe("Git Blame screen — compact layout", () => {
     });
     await expectBlameCompactBlockLayout(page, bootstrap.lines);
     await expect(page.getByTestId("blame-sha-1")).toContainText(sample.author);
-    await expect(page.getByTestId("blame-sha-1")).toContainText(
+    await expect(page.getByTestId("blame-sha-1")).not.toContainText(
+      sample.summary,
+    );
+    await page.getByTestId("blame-sha-1").hover();
+    await expect(page.getByTestId("blame-commit-hover-card")).toContainText(
       sample.summary,
     );
     await expect(page.getByTestId(/^blame-sha-/)).toHaveCount(
@@ -63,67 +65,26 @@ test.describe("Git Blame screen — compact layout", () => {
     await expect(page.getByTestId("blame-sha-2")).toContainText(
       bootstrap.lines[1]!.author,
     );
-    await expect(page.getByTestId("blame-sha-2")).toContainText(
+    await expect(page.getByTestId("blame-sha-2")).not.toContainText(
       bootstrap.lines[1]!.summary,
     );
     await expect(page.locator(".nx-blame-annotate--filler")).toHaveCount(0);
   });
 
-  test("clicking annotation loads full commit with all changed files", async ({
+  test("clicking an annotation selects its commit in the Git workspace", async ({
     page,
   }) => {
     const bootstrap = await loadBlameScreenBootstrap(TARGET);
-    const history = await loadHistoryScreenBootstrap(TARGET);
-    expect(history.commits.length).toBeGreaterThan(0);
-    const head = history.commits[0]!;
-    const fullCommit = {
-      ...head,
-      changedFiles: [
-        ...(head.changedFiles ?? []),
-        { path: "packages/other.ts", status: "M" as const },
-        { path: "README.md", status: "M" as const },
-      ],
-    };
-
-    await openGitBlameScreen(page, bootstrap, history, fullCommit);
-
+    await openGitBlameScreen(page, bootstrap);
+    const expectedSha = bootstrap.lines[0]?.sha;
     await page
       .getByTestId(/^blame-sha-/)
       .first()
       .click();
-    await expectBlameCommitHistoryPanel(page);
-    await expect(
-      page.getByTestId("changed-files-file-packages/other.ts"),
-    ).toBeVisible();
-    await expect(
-      page.getByTestId("changed-files-file-README.md"),
-    ).toBeVisible();
-  });
-
-  test("clicking a changed file opens revision diff in a new tab", async ({
-    page,
-  }) => {
-    const bootstrap = await loadBlameScreenBootstrap(TARGET);
-    const history = await loadHistoryScreenBootstrap(TARGET);
-    const head = history.commits[0]!;
-    const fullCommit = {
-      ...head,
-      changedFiles: [
-        { path: TARGET, status: "M" as const },
-        { path: "README.md", status: "M" as const },
-      ],
-    };
-
-    await openGitBlameScreen(page, bootstrap, history, fullCommit);
-    await page
-      .getByTestId(/^blame-sha-/)
-      .first()
-      .click();
-    await page.getByTestId("changed-files-file-README.md").click();
 
     await expect
       .poll(async () => {
-        const posted = await page.evaluate(() => {
+        const posted = await page.evaluate((expected) => {
           const api = (
             window as unknown as {
               __posted?: Array<{ type?: string; payload?: unknown }>;
@@ -132,18 +93,13 @@ test.describe("Git Blame screen — compact layout", () => {
           return (
             api?.some(
               (m) =>
-                m.type === "git.menuAction" &&
-                (m.payload as { action?: string })?.action ===
-                  "showRevisionDiff" &&
-                (m.payload as { relativePath?: string })?.relativePath ===
-                  "README.md" &&
-                (m.payload as { reuseDiffPanel?: boolean })?.reuseDiffPanel !==
-                  true &&
-                (m.payload as { openInActiveColumn?: boolean })
-                  ?.openInActiveColumn === true,
+                m.type === "blame.selectCommit" &&
+                (m.payload as { repoId?: string; sha?: string })?.repoId ===
+                  expected.repoId &&
+                (m.payload as { sha?: string })?.sha === expected.sha,
             ) ?? false
           );
-        });
+        }, { repoId: bootstrap.repoId, sha: expectedSha });
         return posted;
       })
       .toBe(true);

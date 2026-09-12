@@ -19,6 +19,7 @@ export async function dispatchBranches(
           {
             smart: request.payload.smart,
             force: request.payload.force,
+            confirmation: request.payload.confirmation,
           },
         );
         return true;
@@ -32,6 +33,7 @@ export async function dispatchBranches(
             smart: request.payload.smart,
             force: request.payload.force,
             confirmed: request.payload.confirmed,
+            confirmation: request.payload.confirmation,
           },
         );
         return true;

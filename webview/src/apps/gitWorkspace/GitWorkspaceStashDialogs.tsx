@@ -13,10 +13,8 @@ import type { GitWorkspaceController } from "./gitWorkspaceControllerTypes";
 function useStashList(ctx: GitWorkspaceController) {
   const { stashSnapshot, loadStashes } = ctx;
   useEffect(() => {
-    if (!stashSnapshot) {
-      void loadStashes();
-    }
-  }, [stashSnapshot, loadStashes]);
+    void loadStashes();
+  }, [loadStashes]);
   return stashSnapshot?.stashes ?? [];
 }
 
@@ -34,7 +32,6 @@ function useStashMutation(ctx: GitWorkspaceController, close: () => void) {
 }
 
 export function StashDialog({ ctx }: { ctx: GitWorkspaceController }) {
-  useStashList(ctx);
   const close = () => ctx.closeDialog("stash");
   const mutate = useStashMutation(ctx, close);
 

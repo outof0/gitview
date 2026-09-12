@@ -1,16 +1,24 @@
-import type { BlameSnapshot } from "@gitview/shared/types/blame";
 import type {
   BranchCompareSnapshot,
   BranchListSnapshot,
 } from "@gitview/shared/types/branch";
 import type { WorkspaceDiffDocument } from "@gitview/shared/types/diff";
-import type { LogQueryFilters, LogSnapshot } from "@gitview/shared/types/log";
+import type {
+  LogCommitEntry,
+  LogDagSnapshot,
+  LogQueryFilters,
+  LogSnapshot,
+} from "@gitview/shared/types/log";
 import type { Repository, RepositorySnapshot } from "@gitview/shared/types/repository";
 import type { ShelfListSnapshot } from "@gitview/shared/types/shelf";
 import type { StashListSnapshot } from "@gitview/shared/types/stash";
 import type { GitFileStatus, StatusSnapshot } from "@gitview/shared/types/status";
 import type { TagListSnapshot } from "@gitview/shared/types/tag";
 import type { WorktreeListSnapshot } from "@gitview/shared/types/worktree";
+import type {
+  SyncOperationEvent,
+  SyncOperationKind,
+} from "@gitview/shared/types/sync";
 import type {
   ReviewDetailsSnapshot,
   ReviewFilters,
@@ -23,7 +31,27 @@ import type {
   GitWorkspaceDialogState,
 } from "./gitWorkspaceDialogs";
 
-export type GitDiffViewMode = "side_by_side" | "unified";
+type GitDiffViewMode = "side_by_side" | "unified";
+
+export type GitWorkspaceSyncOperation = {
+  event: SyncOperationEvent;
+  outcomeUnknown: boolean;
+};
+
+export type GitWorkspaceHistoryScope = {
+  repoId: string;
+  path: string;
+  isFolder: boolean;
+  /** Render the changed-files tree instead of an inline file diff. */
+  showDiff?: boolean;
+};
+
+type GitWorkspaceRollbackRequest = {
+  repoId: string;
+  path: string;
+  /** Optional multi-file selection captured before the content panel opened. */
+  selectedPaths?: string[];
+};
 
 export type GitWorkspaceState = {
   loading: boolean;
@@ -36,7 +64,14 @@ export type GitWorkspaceState = {
    */
   nativeFocusSurface: GitWorkspaceDialogId | "branches" | null;
   repoSnapshot: RepositorySnapshot | null;
+  /**
+   * Monotonic repository-selection epoch, bumped on every active-repository
+   * change. Async completions capture it with their repo id so A→B→A can no
+   * longer pass a stale completion as current (ABA).
+   */
+  repoEpoch: number;
   statusSnapshot: StatusSnapshot | null;
+  syncOperations: GitWorkspaceSyncOperation[];
   branchSnapshot: BranchListSnapshot | null;
   branchCompareSnapshot: BranchCompareSnapshot | null;
   branchCompareOpen: boolean;
@@ -52,11 +87,12 @@ export type GitWorkspaceState = {
   gpgSign: boolean;
   author: string;
   runChecks: boolean;
+  runHooks: boolean;
   pullStrategy: "merge" | "rebase" | "ff_only";
   synchronousBranchControl: boolean;
   branchesOpen: boolean;
   branchesLoading: boolean;
-  workspaceTab: "changes" | "log" | "blame" | "temporary" | "review";
+  workspaceTab: "changes" | "log" | "temporary" | "review";
   temporarySubTab: "stash" | "shelf" | "patch";
   stashSnapshot: StashListSnapshot | null;
   shelfSnapshot: ShelfListSnapshot | null;
@@ -67,17 +103,21 @@ export type GitWorkspaceState = {
   worktreesLoading: boolean;
   worktreeSnapshot: WorktreeListSnapshot | null;
   patchPreview: string | null;
-  blameSnapshot: BlameSnapshot | null;
-  blameLoading: boolean;
-  blameError: string | null;
   workspaceNotification: { level: "info" | "warning" | "error"; message: string } | null;
   logSnapshot: LogSnapshot | null;
+  logDag: LogDagSnapshot | null;
   logLoading: boolean;
+  logLoadingMore: boolean;
   logError: string | null;
   logSelectedSha: string | null;
   logSelectedShas: string[];
   logSelectedFilePath: string | null;
   logFilters: LogQueryFilters;
+  /** Monotonic signal for the bottom Git icon to focus the unfiltered root log. */
+  logRootRequest: number;
+  historyOpenRequest: GitWorkspaceHistoryScope | null;
+  activeHistoryScope: GitWorkspaceHistoryScope | null;
+  pendingRollback: GitWorkspaceRollbackRequest | null;
   issueTrackerBaseUrl: string | null;
   diffStagedView: boolean;
   diffViewMode: GitDiffViewMode;
@@ -107,9 +147,18 @@ export type GitWorkspaceActions = {
   setNativeFocusSurface: (
     surface: GitWorkspaceState["nativeFocusSurface"],
   ) => void;
+  setPendingRollback: (request: GitWorkspaceRollbackRequest) => void;
+  clearPendingRollback: () => void;
   setError: (error: string | null) => void;
   applyRepoSnapshot: (snapshot: RepositorySnapshot) => void;
   applyStatusSnapshot: (snapshot: StatusSnapshot) => void;
+  applySyncOperation: (event: SyncOperationEvent) => void;
+  markSyncOperationOutcomeUnknown: (operationId: string) => void;
+  dismissSyncOperation: (operationId: string) => void;
+  syncOperationForRepository: (
+    repoId: string,
+    operation?: SyncOperationKind,
+  ) => GitWorkspaceSyncOperation | null;
   applyBranchSnapshot: (snapshot: BranchListSnapshot) => void;
   applyBranchCompareSnapshot: (snapshot: BranchCompareSnapshot | null) => void;
   setBranchCompareOpen: (open: boolean) => void;
@@ -129,6 +178,7 @@ export type GitWorkspaceActions = {
   setGpgSign: (gpgSign: boolean) => void;
   setAuthor: (author: string) => void;
   setRunChecks: (runChecks: boolean) => void;
+  setRunHooks: (runHooks: boolean) => void;
   setPullStrategy: (strategy: GitWorkspaceState["pullStrategy"]) => void;
   setSynchronousBranchControl: (enabled: boolean) => void;
   setWorkspaceTab: (tab: GitWorkspaceState["workspaceTab"]) => void;
@@ -142,22 +192,28 @@ export type GitWorkspaceActions = {
   setWorktreesLoading: (loading: boolean) => void;
   applyWorktreeSnapshot: (snapshot: WorktreeListSnapshot) => void;
   setPatchPreview: (patch: string | null) => void;
-  applyBlameSnapshot: (snapshot: BlameSnapshot) => void;
-  setBlameLoading: (loading: boolean) => void;
-  setBlameError: (error: string | null) => void;
   setWorkspaceNotification: (
     notification: GitWorkspaceState["workspaceNotification"],
   ) => void;
   clearWorkspaceNotification: () => void;
   selectedFileConflicted: () => boolean;
   applyLogSnapshot: (snapshot: LogSnapshot) => void;
+  applyLogDag: (snapshot: LogDagSnapshot) => void;
+  applyLogCommitDetail: (repoId: string, commit: LogCommitEntry) => void;
   setLogLoading: (loading: boolean) => void;
+  setLogLoadingMore: (loading: boolean) => void;
   setLogError: (error: string | null) => void;
   selectLogCommit: (sha: string | null) => void;
   toggleLogCommitSelection: (sha: string, multi?: boolean) => void;
   clearLogCommitSelection: () => void;
   selectLogFile: (path: string | null) => void;
   setLogFilters: (filters: LogQueryFilters) => void;
+  /** Reset the active log view without changing the tab selected in the header. */
+  resetLogView: () => void;
+  /** Reset the log and ask the tab header to activate its first/root tab. */
+  focusLogRoot: () => void;
+  requestHistoryOpen: (scope: GitWorkspaceHistoryScope) => void;
+  setActiveHistoryScope: (scope: GitWorkspaceHistoryScope | null) => void;
   setIssueTrackerBaseUrl: (url: string | null) => void;
   setDiffStagedView: (staged: boolean) => void;
   setDiffViewMode: (mode: GitDiffViewMode) => void;

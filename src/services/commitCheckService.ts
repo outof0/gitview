@@ -25,7 +25,7 @@ export interface CommitCheckService {
 
 const TODO_PATTERN = /\b(TODO|FIXME|HACK|XXX)\b/i;
 
-export function readCommitCheckSettings(): CommitCheckSettings {
+function readCommitCheckSettings(): CommitCheckSettings {
   const config = vscode.workspace.getConfiguration("gitView");
   return {
     todo: config.get<boolean>("commitCheckTodo", false),

@@ -34,6 +34,14 @@ export type GitHistoryPageOptions = {
   logError?: string;
   /** When true, log.fileDiff returns an error payload. */
   patchError?: string;
+  /** Force the bootstrap page to advertise an older page for pagination tests. */
+  initialHasMore?: boolean;
+  /** Optional responses keyed by the requested skip offset. */
+  logPages?: Array<{
+    skip: number;
+    commits: GitCommitEntry[];
+    hasMore?: boolean;
+  }>;
 };
 
 function buildLogSnapshot(
@@ -43,19 +51,25 @@ function buildLogSnapshot(
     branch?: string;
     isFolder?: boolean;
     scope?: "repo";
+    commits?: GitCommitEntry[];
+    hasMore?: boolean;
+    skip?: number;
   },
 ): LogSnapshot {
+  const filters = {
+    path: opts.path,
+    isFolder: opts.isFolder,
+    scope: opts.scope,
+    branch: opts.branch,
+    ...(opts.skip !== undefined ? { skip: opts.skip } : {}),
+  };
   return {
     repoId: fixtures.repoId ?? E2E_REPO_ID,
     branch: opts.branch ?? fixtures.currentBranch,
-    commits: fixtures.fileLog.commits,
+    commits: opts.commits ?? fixtures.fileLog.commits,
     refreshedAt: Date.now(),
-    filters: {
-      path: opts.path,
-      isFolder: opts.isFolder,
-      scope: opts.scope,
-      branch: opts.branch,
-    },
+    filters,
+    hasMore: opts.hasMore,
   };
 }
 
@@ -142,6 +156,7 @@ export async function installGitHistoryPage(
       const snapshot = buildLogSnapshot(fixtures, {
         path: historyPath,
         branch: fixtures.currentBranch,
+        hasMore: options.initialHasMore,
       });
       // When logError is set, skip the bootstrap snapshot so the first
       // log.query (and refresh) exercise the error path without a race.
@@ -238,6 +253,36 @@ export async function installGitHistoryPage(
     }
 
     if (
+      msg.type === "log.dag" &&
+      msg.protocolVersion === E2E_PROTOCOL_VERSION
+    ) {
+      const commits = fixtures.fileLog.commits;
+      const nodes = commits.map((commit) => ({
+        sha: commit.sha,
+        parentShas: commit.parentShas ?? [],
+        timestamp: commit.authorTime,
+      }));
+      const snapshot = {
+        repoId: fixtures.repoId ?? E2E_REPO_ID,
+        headSha: nodes[0]?.sha ?? null,
+        refTips: nodes[0] ? [nodes[0].sha] : [],
+        nodes,
+        generatedAt: Date.now(),
+      };
+      await page.evaluate(
+        (args) => {
+          window.postMessage(args.response, "*");
+          window.postMessage(args.event, "*");
+        },
+        {
+          response: v1Response(String(msg.requestId), "log.dag", snapshot),
+          event: v1Event("log.dag", snapshot),
+        },
+      );
+      return;
+    }
+
+    if (
       msg.type === "log.query" &&
       msg.protocolVersion === E2E_PROTOCOL_VERSION
     ) {
@@ -246,6 +291,7 @@ export async function installGitHistoryPage(
         branch?: string;
         isFolder?: boolean;
         scope?: "repo";
+        skip?: number;
       };
       const path =
         options.staleLogPath ?? query.path ?? historyPath;
@@ -268,11 +314,17 @@ export async function installGitHistoryPage(
         return;
       }
 
+      const pageEntry = options.logPages?.find(
+        (candidate) => candidate.skip === query.skip,
+      );
       const snapshot = buildLogSnapshot(fixtures, {
         path,
         branch,
         isFolder: query.isFolder,
         scope: query.scope,
+        skip: query.skip,
+        commits: pageEntry?.commits,
+        hasMore: pageEntry?.hasMore ?? options.initialHasMore,
       });
       await page.evaluate(
         (args) => {

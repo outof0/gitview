@@ -29,6 +29,13 @@ export type HostEvent<TType extends string, TPayload> = {
   protocolVersion: typeof PROTOCOL_VERSION;
   type: TType;
   payload: TPayload;
+  /**
+   * Originating request for request-driven emissions. Lets the webview drop
+   * a late event from a superseded request instead of letting it overwrite
+   * fresher data. Absent for spontaneous pushes (refresh, watchers), which
+   * always apply.
+   */
+  requestId?: string;
 };
 
 export type CommitCreatePayload = {

@@ -17,6 +17,7 @@ import { ContextMenu } from "../components/ui/ContextMenu";
 import { MenuItem } from "../components/ui/MenuItem";
 import { EyeOff } from "lucide-react";
 import { GitHistoryToolWindow } from "../screens/GitHistoryToolWindow";
+import { requestCommitDetail } from "./historyBlameAdapters";
 import { useGitHistoryStore } from "../stores/gitHistoryStore";
 import { useVsCodeApi } from "../hooks/useVsCodeApi";
 import { createProtocolClient } from "../protocol/client";
@@ -29,6 +30,12 @@ import {
   isDiffPreview,
   isErrorNotification,
 } from "./gitDiffHostMessageGuards";
+import {
+  isOpenOverlayEvent,
+  type BranchOverlayRequest,
+} from "./branchOverlayGuards";
+import { BranchOverlay } from "../components/git/BranchOverlay";
+import { warnHandshakeFailure } from "../lib/userError";
 
 function isDiffBootstrap(
   value: Window["__GITVIEW_BOOTSTRAP__"],
@@ -37,6 +44,46 @@ function isDiffBootstrap(
 }
 
 export const GIT_DIFF_LOAD_TIMEOUT_MS = 12_000;
+
+function estimateDiffCount(diff: StandaloneDiffPreview["diff"]): number {
+  if (diff.binary) {
+    return 0;
+  }
+  if (diff.layout === "single") {
+    const panel = diff.right ?? diff.left;
+    if (!panel || panel.text === "") {
+      return 0;
+    }
+    return 1;
+  }
+  if (!diff.left || !diff.right) {
+    return 0;
+  }
+  const left = diff.left.text;
+  const right = diff.right.text;
+  if (left === right) {
+    return 0;
+  }
+  if (left === "" || right === "") {
+    return 1;
+  }
+  const l = left.split("\n");
+  const r = right.split("\n");
+  let count = 0;
+  let i = 0;
+  const max = Math.max(l.length, r.length);
+  while (i < max) {
+    if (l[i] === r[i]) {
+      i += 1;
+      continue;
+    }
+    count += 1;
+    while (i < max && l[i] !== r[i]) {
+      i += 1;
+    }
+  }
+  return count || 1;
+}
 
 /** JetBrains-style line menu: only actions that apply on a compared file. */
 const COMPARE_LINE_MENU_ACTIONS = [
@@ -50,16 +97,16 @@ const COMPARE_LINE_MENU_ACTIONS = [
 function DiffEmptyToolbar() {
   return (
     <header
-      className="nx-tool-titlebar shrink-0 flex items-center gap-2 h-[var(--nx-toolbar-h)] min-h-[var(--nx-toolbar-h)] px-[var(--nx-pad-x)] border-b border-vscode-panel-border bg-vscode-titlebar-bg font-[family-name:var(--nx-font-ui)]"
+      className="nx-tool-titlebar shrink-0 flex items-center gap-2 h-toolbar min-h-toolbar px-pad-x border-b border-vscode-panel-border bg-vscode-titlebar-bg font-ui"
       data-testid="git-compare-toolbar-empty"
     >
       <span
-        className="text-[length:var(--nx-font-size-ui)] opacity-75 leading-none shrink-0"
+        className="text-ui opacity-75 leading-none shrink-0"
         aria-hidden
       >
         ⇄
       </span>
-      <span className="text-[length:var(--nx-font-size-ui)] font-semibold font-editor">
+      <span className="text-ui font-semibold font-editor">
         Compare
       </span>
     </header>
@@ -85,6 +132,8 @@ function openFileLog(repoId: string, relativePath: string) {
     path: relativePath,
     isFolder: false,
     loading: true,
+    hasMore: true,
+    loadingMore: false,
     error: null,
     showDiffPreview: false,
     showDetails: true,
@@ -123,6 +172,9 @@ export function GitDiffApp() {
   const [contextMenu, setContextMenu] = useState<DiffContextMenuState | null>(
     null,
   );
+  // New Branch / Branches overlay posted by the native Git submenu when this
+  // tab is the active one — no new tab is opened.
+  const [overlay, setOverlay] = useState<BranchOverlayRequest | null>(null);
 
   // Annotate column state — each side is toggled independently.
   const [annotate, setAnnotate] = useState({ left: false, right: false });
@@ -140,14 +192,26 @@ export function GitDiffApp() {
   const [viewerOptions, setViewerOptions] = useState<DiffViewerOptions>(
     DEFAULT_DIFF_VIEWER_OPTIONS,
   );
-  const [diffCount, setDiffCount] = useState<number | null>(null);
+  const [diffCount, setDiffCount] = useState<number | null>(() => {
+    const initial = window.__GITVIEW_BOOTSTRAP__;
+    if (isDiffBootstrap(initial)) {
+      return estimateDiffCount(initial.diff);
+    }
+    return null;
+  });
   const viewerRef = useRef<MonacoDiffViewerHandle | null>(null);
 
   const repoId = preview?.repoId ?? null;
   const relativePath = preview?.relativePath ?? null;
 
   useEffect(() => {
-    void client.ready("gitDiff").catch(() => {});
+    // The host pushes `diff.preview` only after it answers this handshake
+    // (src/webview/gitViewPresentation.ts). A failure is not fatal — the
+    // timeout below renders "Diff preview did not load" — but it must leave a
+    // trace, or a dead handshake looks exactly like a slow host.
+    void client
+      .ready("gitDiff")
+      .catch((error: unknown) => warnHandshakeFailure("gitDiff", error));
   }, [client]);
 
   useEffect(() => {
@@ -166,11 +230,15 @@ export function GitDiffApp() {
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
       const data = event.data;
+      if (isOpenOverlayEvent(data)) {
+        setOverlay(data.payload);
+        return;
+      }
       if (isDiffPreview(data)) {
         setPreview(data.payload);
         setError(null);
         setTimedOut(false);
-        setDiffCount(null);
+        setDiffCount(estimateDiffCount(data.payload.diff));
         // New comparison — reset annotate columns
         setAnnotate({ left: false, right: false });
         setLeftBlame(null);
@@ -255,23 +323,7 @@ export function GitDiffApp() {
       if (!repoId) {
         return;
       }
-      void client
-        .commitDetail(repoId, sha)
-        .then((payload) => {
-          const store = useGitHistoryStore.getState();
-          if (payload.error) {
-            store.setCommitDetailError(payload.error.message);
-          } else if (payload.commit) {
-            store.applyCommitDetail(payload.commit);
-          }
-        })
-        .catch((err: unknown) => {
-          useGitHistoryStore
-            .getState()
-            .setCommitDetailError(
-              err instanceof Error ? err.message : "Could not load commit",
-            );
-        });
+      requestCommitDetail(client, repoId, sha);
     },
     [client, repoId],
   );
@@ -344,7 +396,7 @@ export function GitDiffApp() {
 
   return (
     <div
-      className="h-screen flex flex-col overflow-hidden bg-vscode-editor-bg text-vscode-editor-fg font-[family-name:var(--nx-font-ui)]"
+      className="h-screen flex flex-col overflow-hidden bg-vscode-editor-bg text-vscode-editor-fg font-ui"
       data-testid="git-diff-app"
       data-annotate={annotateAny ? "true" : "false"}
     >
@@ -457,6 +509,13 @@ export function GitDiffApp() {
           </>
         )}
       </ContextMenu>
+      {overlay && (
+        <BranchOverlay
+          request={overlay}
+          client={client}
+          onClose={() => setOverlay(null)}
+        />
+      )}
     </div>
   );
 }

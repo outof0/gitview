@@ -1,6 +1,5 @@
 import type {
   AcceptBothOrder,
-  ChangeBlock,
   ConflictSide,
   MergeDocument,
 } from "../../../src/core/types";
@@ -10,7 +9,7 @@ import type {
   GitViewSettings,
 } from "@gitview/types";
 
-export type Screen = "conflictList" | "mergeResolver";
+type Screen = "conflictList" | "mergeResolver";
 
 export type WhitespacePolicy =
   | "doNotIgnore"
@@ -161,5 +160,3 @@ export type GitViewState = {
   isFullyResolved: () => boolean;
   getResultText: () => string;
 };
-
-export type ChangeBlockUpdater = (block: ChangeBlock) => ChangeBlock;

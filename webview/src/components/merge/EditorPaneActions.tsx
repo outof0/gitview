@@ -1,3 +1,4 @@
+import { Button } from "../ui/Button";
 import type { BlockRows } from "./rows";
 import { AcceptIcon, AppendIcon, IgnoreIcon } from "./EditorPaneIcons";
 import { actBtnClass } from "./editorPaneClasses";
@@ -23,7 +24,7 @@ export function EditorPaneActions({
   return (
     <>
       {onAccept && (
-        <button
+        <Button variant="ghost" size="content"
           className={actBtnClass}
           title={
             appendMode
@@ -37,10 +38,10 @@ export function EditorPaneActions({
           }}
         >
           {appendMode ? <AppendIcon side={side} /> : <AcceptIcon side={side} />}
-        </button>
+        </Button>
       )}
       {onIgnore && (
-        <button
+        <Button variant="ghost" size="content"
           className={actBtnClass}
           title={`Ignore ${side === "left" ? "Left" : "Right"} Side`}
           aria-label="ignore"
@@ -50,7 +51,7 @@ export function EditorPaneActions({
           }}
         >
           <IgnoreIcon />
-        </button>
+        </Button>
       )}
     </>
   );

@@ -41,7 +41,6 @@ function sendPreview() {
     }),
   );
 }
-
 function diffOptions(): Record<string, unknown> {
   const host = screen.getByTestId("monaco-diff-host");
   return JSON.parse(host.getAttribute("data-fake-diff-options") ?? "{}");
@@ -156,15 +155,65 @@ describe("GitDiffApp diff viewer toolbar", () => {
 
     const host = screen.getByTestId("monaco-diff-host");
     fireEvent.click(screen.getByTestId("git-diff-next-difference"));
-    expect(host.getAttribute("data-fake-goto-diff")).toBe("next");
+    expect(host.getAttribute("data-fake-reveal-line")).toBe("2");
 
     fireEvent.click(screen.getByTestId("git-diff-prev-difference"));
-    expect(host.getAttribute("data-fake-goto-diff")).toBe("previous");
+    expect(host.getAttribute("data-fake-reveal-line")).toBe("4");
 
     fireEvent.keyDown(window, { key: "F7" });
-    expect(host.getAttribute("data-fake-goto-diff")).toBe("next");
+    expect(host.getAttribute("data-fake-reveal-line")).toBe("2");
 
     fireEvent.keyDown(window, { key: "F7", shiftKey: true });
-    expect(host.getAttribute("data-fake-goto-diff")).toBe("previous");
+    expect(host.getAttribute("data-fake-reveal-line")).toBe("4");
+  });
+
+  it("paints diff markers and reveals the matching line hunk", async () => {
+    render(<GitDiffApp />);
+    sendPreview();
+    await screen.findByTestId("git-diff-next-difference");
+
+    const host = screen.getByTestId("monaco-diff-host");
+    expect(Number(host.getAttribute("data-fake-decorations-left") ?? "0")).toBeGreaterThan(0);
+    expect(Number(host.getAttribute("data-fake-decorations-right") ?? "0")).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByTestId("git-diff-next-difference"));
+    expect(host.getAttribute("data-fake-reveal-line")).toBe("2");
+
+    fireEvent.click(screen.getByTestId("git-diff-prev-difference"));
+    expect(host.getAttribute("data-fake-reveal-line")).toBe("4");
+  });
+
+  it("paints native-style overview markers with theme-colored gutters", async () => {
+    render(<GitDiffApp />);
+    sendPreview();
+    await screen.findByTestId("git-diff-next-difference");
+
+    const host = screen.getByTestId("monaco-diff-host");
+    type FakeDecoration = {
+      options?: {
+        linesDecorationsClassName?: string;
+        marginClassName?: string;
+        overviewRuler?: { color: string; position: number };
+      };
+    };
+    const decorations = JSON.parse(
+      host.getAttribute("data-fake-decorations-right-json") ?? "[]",
+    ) as FakeDecoration[];
+    expect(decorations.length).toBeGreaterThan(0);
+    expect(
+      decorations.some(
+        (decoration) =>
+          decoration.options?.linesDecorationsClassName ===
+            "monaco-diff-added-gutter" ||
+          decoration.options?.marginClassName === "monaco-diff-added",
+      ),
+    ).toBe(true);
+    const overview = decorations
+      .map((decoration) => decoration.options?.overviewRuler)
+      .filter(
+        (ruler): ruler is { color: string; position: number } =>
+          ruler !== undefined,
+      );
+    expect(overview.length).toBeGreaterThan(0);
   });
 });

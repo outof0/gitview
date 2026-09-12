@@ -12,10 +12,30 @@ export async function hasUpstream(
   }
 }
 
+export async function listRemotes(
+  execGit: GitExecFn,
+  repoRoot: string,
+): Promise<string[]> {
+  try {
+    const { stdout } = await execGit(repoRoot, ["remote"]);
+    return stdout
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
 export async function resolveDefaultRemote(
   execGit: GitExecFn,
   repoRoot: string,
-): Promise<string> {
+): Promise<string | null> {
+  const remotes = await listRemotes(execGit, repoRoot);
+  if (remotes.length === 0) {
+    return null;
+  }
+
   try {
     const { stdout } = await execGit(repoRoot, [
       "rev-parse",
@@ -24,21 +44,14 @@ export async function resolveDefaultRemote(
       "@{u}",
     ]);
     const upstream = stdout.trim();
-    const slash = upstream.indexOf("/");
-    if (slash > 0) {
-      return upstream.slice(0, slash);
+    const remote = [...remotes]
+      .sort((left, right) => right.length - left.length)
+      .find((candidate) => upstream.startsWith(`${candidate}/`));
+    if (remote) {
+      return remote;
     }
   } catch {
     // no upstream
   }
-  try {
-    const { stdout } = await execGit(repoRoot, ["remote"]);
-    const first = stdout
-      .split("\n")
-      .map((line) => line.trim())
-      .find(Boolean);
-    return first ?? "origin";
-  } catch {
-    return "origin";
-  }
+  return remotes[0] ?? null;
 }

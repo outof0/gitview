@@ -16,12 +16,14 @@ export function GitWorkspaceCommitPanel({ ctx }: { ctx: GitWorkspaceController }
     gpgSign,
     author,
     runChecks,
+    runHooks,
     setCommitMessage,
     setAmend,
     setSignoff,
     setGpgSign,
     setAuthor,
     setRunChecks,
+    setRunHooks,
     setWorkspaceNotification,
     committableFiles,
     activeRepo,
@@ -30,7 +32,7 @@ export function GitWorkspaceCommitPanel({ ctx }: { ctx: GitWorkspaceController }
   } = ctx;
 
   return (
-    <>
+    <div className="max-bottom-panel-xs:hidden">
         <CommitPanel
         files={committableFiles()}
         commitScope={commitScope}
@@ -40,6 +42,7 @@ export function GitWorkspaceCommitPanel({ ctx }: { ctx: GitWorkspaceController }
         gpgSign={gpgSign}
         author={author}
         runChecks={runChecks}
+        runHooks={runHooks}
         busy={syncing}
         protectedBranch={activeRepo?.protectedBranch}
         onMessageChange={setCommitMessage}
@@ -48,6 +51,7 @@ export function GitWorkspaceCommitPanel({ ctx }: { ctx: GitWorkspaceController }
         onGpgSignChange={setGpgSign}
         onAuthorChange={setAuthor}
         onRunChecksChange={setRunChecks}
+        onRunHooksChange={setRunHooks}
         onCommit={() => void commit(false)}
         onCommitAndPush={() => void commit(true)}
         onRunChecks={() =>
@@ -72,6 +76,6 @@ export function GitWorkspaceCommitPanel({ ctx }: { ctx: GitWorkspaceController }
           })
         }
         />
-    </>
+    </div>
   );
 }

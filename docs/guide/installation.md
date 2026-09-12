@@ -2,20 +2,25 @@
 
 ## From Visual Studio Marketplace
 
-After publish, search **GitView** in the Extensions view, or:
+Search **GitView** in the Extensions view, or:
 
 ```text
 ext install gitview.gitview
 ```
 
-(Replace the publisher id if your `package.json` publisher differs.)
+<https://marketplace.visualstudio.com/items?itemName=gitview.gitview>
 
 ## From Open VSX
 
-For VSCodium, Cursor, and other Open VSX clients, install from the Open VSX listing or:
+VSCodium, Cursor, Windsurf and other Open VSX clients install from the Open VSX registry:
+
+<https://open-vsx.org/extension/gitview/gitview>
+
+If your editor's gallery has not picked the listing up yet, install the packaged VSIX from
+the GitHub release instead:
 
 ```bash
-# after packaging
+# publisher workflow
 pnpm dlx ovsx publish gitview-<version>.vsix -p <OVSX_TOKEN>
 ```
 

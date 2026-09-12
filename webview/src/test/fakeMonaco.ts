@@ -217,7 +217,8 @@ export function createFakeMonaco() {
           }
         };
         const sideOptions: Record<string, unknown> = {};
-        const sideEditor = () => ({
+        const sideEditor = (side: "left" | "right") => ({
+          onMouseDown: () => ({ dispose: () => {} }),
           onContextMenu: () => ({ dispose: () => {} }),
           onDidScrollChange: () => ({ dispose: () => {} }),
           onDidLayoutChange: () => ({ dispose: () => {} }),
@@ -229,6 +230,10 @@ export function createFakeMonaco() {
             );
           },
           getScrollTop: () => 0,
+          getPosition: () => ({ lineNumber: 1, column: 1 }),
+          revealLineInCenter: (line: number) => {
+            el.setAttribute("data-fake-reveal-line", String(line));
+          },
           getLayoutInfo: () => ({ width: 400 }),
           getVisibleRanges: () => [
             {
@@ -237,8 +242,26 @@ export function createFakeMonaco() {
             },
           ],
           getTopForLineNumber: (line: number) => (line - 1) * 20,
+          createDecorationsCollection: () => ({
+            set: (decorations: unknown[]) => {
+              el.setAttribute(
+                `data-fake-decorations-${side}`,
+                String((decorations as unknown[]).length),
+              );
+              el.setAttribute(
+                `data-fake-decorations-${side}-json`,
+                JSON.stringify(decorations),
+              );
+            },
+            clear: () => {
+              el.removeAttribute(`data-fake-decorations-${side}`);
+              el.removeAttribute(`data-fake-decorations-${side}-json`);
+            },
+            dispose: () => {},
+          }),
+          deltaDecorations: () => [],
         });
-        return {
+        const diffEditor = {
           setModel: (m: {
             original: FakeModel;
             modified: FakeModel;
@@ -251,8 +274,8 @@ export function createFakeMonaco() {
           },
           getModel: () =>
             original && modified ? { original, modified } : null,
-          getOriginalEditor: sideEditor,
-          getModifiedEditor: sideEditor,
+          getOriginalEditor: () => sideEditor("left"),
+          getModifiedEditor: () => sideEditor("right"),
           onDidUpdateDiff: (listener: () => void) => {
             diffListeners.push(listener);
             // Real Monaco computes the diff asynchronously, so subscribers that
@@ -283,6 +306,7 @@ export function createFakeMonaco() {
             publishOptions();
           },
         };
+        return diffEditor;
       },
       colorize: async (text: string) =>
         text

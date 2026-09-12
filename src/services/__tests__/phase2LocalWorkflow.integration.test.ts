@@ -1,3 +1,4 @@
+import { unlink, writeFile } from "node:fs/promises";
 import { describe, expect, it, afterEach } from "vitest";
 import { createTagApi } from "../git/tag";
 import { createWorktreeApi } from "../git/worktree";
@@ -53,6 +54,15 @@ describe("Phase 2 local workflow integration", () => {
 
     const target = listed.find((w) => w.branch === "wt-branch" && !w.isMain);
     expect(target?.path).toBeTruthy();
+    expect(
+      await worktrees.resolveWorktreeRemovalTarget(repo.root, target!.path),
+    ).toMatchObject({ path: target!.path, dirty: false });
+    const dirtyPath = path.join(target!.path, "dirty.txt");
+    await writeFile(dirtyPath, "dirty\n", "utf8");
+    expect(
+      await worktrees.resolveWorktreeRemovalTarget(repo.root, target!.path),
+    ).toMatchObject({ path: target!.path, dirty: true });
+    await unlink(dirtyPath);
     await worktrees.removeWorktree(repo.root, target!.path);
     const after = await worktrees.listWorktrees(repo.root, repo.root);
     expect(after.length).toBe(before.length);
@@ -168,5 +178,107 @@ describe("Phase 2 local workflow integration", () => {
     expect(log).toContain("First");
     expect(log).toContain("Third");
     expect(log).not.toContain("Squash me");
+  });
+
+  it("squashes the second commit into the root commit", async () => {
+    repo = await createTempGitRepo();
+    const rebase = createRebaseApi(execGit);
+
+    await writeRepoFile(repo.root, "a.txt", "a\n");
+    await execGit(repo.root, ["add", "a.txt"]);
+    await execGit(repo.root, ["commit", "-m", "First"]);
+
+    await writeRepoFile(repo.root, "b.txt", "b\n");
+    await execGit(repo.root, ["add", "b.txt"]);
+    await execGit(repo.root, ["commit", "-m", "Squash me"]);
+    const { stdout: squashSha } = await execGit(repo.root, ["rev-parse", "HEAD"]);
+
+    await writeRepoFile(repo.root, "c.txt", "c\n");
+    await execGit(repo.root, ["add", "c.txt"]);
+    await execGit(repo.root, ["commit", "-m", "Third"]);
+
+    const { stdout: before } = await execGit(repo.root, [
+      "rev-list",
+      "--count",
+      "HEAD",
+    ]);
+
+    await rebase.rewriteCommit(repo.root, squashSha.trim(), "squash");
+
+    const { stdout: count } = await execGit(repo.root, [
+      "rev-list",
+      "--count",
+      "HEAD",
+    ]);
+    expect(Number(count.trim())).toBe(Number(before.trim()) - 1);
+
+    const { stdout: log } = await execGit(repo.root, ["log", "--oneline"]);
+    expect(log).toContain("First");
+    expect(log).toContain("Third");
+    // The squashed commit is folded into its parent, and its content is kept.
+    expect(log).not.toContain("Squash me");
+    const { stdout: tracked } = await execGit(repo.root, [
+      "ls-tree",
+      "-r",
+      "--name-only",
+      "HEAD",
+    ]);
+    expect(tracked).toContain("b.txt");
+  });
+
+  it("fixup keeps the parent commit message", async () => {
+    repo = await createTempGitRepo();
+    const rebase = createRebaseApi(execGit);
+
+    await writeRepoFile(repo.root, "a.txt", "a\n");
+    await execGit(repo.root, ["add", "a.txt"]);
+    await execGit(repo.root, ["commit", "-m", "First"]);
+
+    await writeRepoFile(repo.root, "b.txt", "b\n");
+    await execGit(repo.root, ["add", "b.txt"]);
+    await execGit(repo.root, ["commit", "-m", "Second"]);
+
+    // Give the target a grandparent so the non-`--root` branch is exercised.
+    await writeRepoFile(repo.root, "c.txt", "c\n");
+    await execGit(repo.root, ["add", "c.txt"]);
+    await execGit(repo.root, ["commit", "-m", "Third"]);
+    const { stdout: fixupSha } = await execGit(repo.root, ["rev-parse", "HEAD"]);
+
+    const { stdout: before } = await execGit(repo.root, [
+      "rev-list",
+      "--count",
+      "HEAD",
+    ]);
+
+    await rebase.rewriteCommit(repo.root, fixupSha.trim(), "fixup");
+
+    const { stdout: count } = await execGit(repo.root, [
+      "rev-list",
+      "--count",
+      "HEAD",
+    ]);
+    expect(Number(count.trim())).toBe(Number(before.trim()) - 1);
+
+    const { stdout: log } = await execGit(repo.root, ["log", "--oneline"]);
+    expect(log).toContain("First");
+    expect(log).toContain("Second");
+    expect(log).not.toContain("Third");
+  });
+
+  it("refuses to squash the root commit", async () => {
+    repo = await createTempGitRepo();
+    const rebase = createRebaseApi(execGit);
+
+    // `createTempGitRepo` seeds an "Initial commit", so the real root is that
+    // one — not whatever HEAD happens to be.
+    const { stdout: rootSha } = await execGit(repo.root, [
+      "rev-list",
+      "--max-parents=0",
+      "HEAD",
+    ]);
+
+    await expect(
+      rebase.rewriteCommit(repo.root, rootSha.trim().split("\n")[0]!, "squash"),
+    ).rejects.toThrow(/root commit/i);
   });
 });

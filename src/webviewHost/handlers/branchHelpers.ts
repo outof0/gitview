@@ -43,16 +43,20 @@ export function createBranchHandlerContext(deps: BranchHandlerDeps) {
   const sync = createSyncApi(deps.execGit);
   const integration = createIntegrationApi(deps.execGit);
 
-  async function discoverRepos(explicitRepoId?: string) {
+  async function discoverRepos(
+    explicitRepoId?: string,
+    freshChangeDigest = false,
+  ) {
     return deps.repositoryService.discoverRepositories({
       workspaceFolders: deps.workspaceFolders,
       explicitRepoId,
       trusted: deps.trusted,
+      freshChangeDigest,
     });
   }
 
-  async function resolveRepo(repoId: string) {
-    const repos = await discoverRepos(repoId);
+  async function resolveRepo(repoId: string, freshChangeDigest = false) {
+    const repos = await discoverRepos(repoId, freshChangeDigest);
     return deps.repositoryService.resolveRepositoryForResource(
       repos,
       undefined,
@@ -61,7 +65,7 @@ export function createBranchHandlerContext(deps: BranchHandlerDeps) {
   }
 
   async function validateRepo(requestId: string, repoId: string, force = false) {
-    const repo = await resolveRepo(repoId);
+    const repo = await resolveRepo(repoId, force);
     const protectedCheck = force
       ? deps.protectionService.checkDestructiveAction(
           repo?.currentBranch ?? null,
@@ -115,6 +119,7 @@ export function createBranchHandlerContext(deps: BranchHandlerDeps) {
       protocolVersion: 1,
       type: "branch.snapshot",
       payload: snapshot,
+      requestId,
     });
     if (requestId && responseType) {
       deps.postMessage(createHostResponse(requestId, responseType, snapshot));

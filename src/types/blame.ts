@@ -95,6 +95,8 @@ export function isBlameSide(value: unknown): value is BlameSide {
 
 export type LogOptions = {
   limit?: number;
+  /** Number of newest matching commits to skip for a subsequent page. */
+  skip?: number;
   /** History tab branch filter — limit log to this branch ref. */
   branch?: string;
 };

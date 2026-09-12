@@ -63,7 +63,6 @@ Fixtures:
 | --- | --- |
 | `/?app=gitMenu` | `GitMenuVisualFixture` |
 | `/?app=gitHistoryVisual` | `HistoryVisualFixture` |
-| `/?app=gitBlameVisual` | `BlameVisualFixture` |
 | `/?app=gitDiffVisual` | `GitDiffVisualFixture` |
 
 Full **menu → screen inventory** and update plan: [screen-matrix.md](./screen-matrix.md).

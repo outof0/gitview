@@ -43,11 +43,16 @@ test.beforeAll(async () => {
   await setupMergeFixtures(conflictFixtures);
 });
 
-async function openConflictMerge(page: import("@playwright/test").Page) {
+async function openConflictMerge(
+  page: import("@playwright/test").Page,
+  options: { configureHighlighting?: boolean } = {},
+) {
   await setupMergeFixtures(conflictFixtures);
   await installMergeHost(page, conflictFixtures);
   await openMergeResolver(page, "src/app.ts");
-  await setHighlightingMode(page, "lines");
+  if (options.configureHighlighting !== false) {
+    await setHighlightingMode(page, "lines");
+  }
 }
 
 test.describe("Compare contents", () => {
@@ -329,7 +334,7 @@ test("three merge panes stay visible and non-overlapping at narrow width", async
   page,
 }) => {
   await page.setViewportSize({ width: 720, height: 800 });
-  await openConflictMerge(page);
+  await openConflictMerge(page, { configureHighlighting: false });
   await expectPanesNonOverlapping(page);
 });
 

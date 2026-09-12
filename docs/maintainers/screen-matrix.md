@@ -46,11 +46,11 @@ Manifest source of truth: `src/types/gitSubmenu.ts` (`GIT_SUBMENU_ITEMS`).
 | # | Menu title | Action | Destination today | UX type | Grade | Notes / update target |
 | --- | ---: | --- | --- | --- | --- | --- |
 | 1 | Resolve conflict | `openConflictResolver` | `GitViewPanel` → Merge Studio | Webview screen | B | Density polish PR-H; only when merge changes |
-| 2 | Show History | `showHistory` | `GitHistoryWebviewPanel` → `GitHistoryToolWindow` | Webview screen | B | Log layout; **branch tree closed by default** (PR-A); toggle opens |
+| 2 | Show History | `showHistory` | `GitWorkspaceViewProvider` → Git workspace Log | Webview screen | B | Log layout; **branch tree closed by default** (PR-A); toggle opens |
 | 3 | Compare with Revision… | `compareWithRevision` | QuickPick → `GitDiffApp` | QuickPick + Diff screen | B | Dense `ToolEmptyState` (PR-B); fixture `gitDiffVisual` |
 | 4 | Compare with Branch… | `compareWithBranch` | QuickPick → `GitDiffApp` | QuickPick + Diff screen | B | Same as #3 |
 | 5 | Show Diff | `showDiff` | `GitDiffApp` | Diff screen | B | Same as #3 |
-| 6 | Annotate with Git Blame | `annotateBlame` | `GitBlameApp` (annotate + history two-pane) | Webview screen | B | Polish empty/loading; fixture exists |
+| 6 | Annotate with Git Blame | `annotateBlame` | Editor tab (`GitBlameApp`) + bottom Git panel history | Webview screen | A | Blame stays in the editor area; commit click selects in the Git workspace panel |
 | 7 | Rollback | `rollback` | Native `showWarningMessage` | Confirm toast | C | Dual-UX: Workspace has `RollbackConfirmDialog` |
 | 8 | Add | `add` | Silent git | Side-effect | A | OK for Explorer |
 | 9 | Unstage | `unstage` | Silent git | Side-effect | A | OK |
@@ -94,7 +94,7 @@ Opened via **GitView: Open Git workspace** (`gitView.openGit`):
 | Changes | `WorkspaceChangesPanel` | B | E |
 | Commit panel | `CommitPanel` | B | E |
 | Log | `WorkspaceLogPanel` | B− | D — align with History Log layout |
-| Blame | `WorkspaceBlamePanel` | B | C |
+| Blame | `GitBlameEditorPanel` | B | C |
 | Temporary Work | `WorkspaceTemporaryWorkPanel` | B | F |
 | Review | `WorkspaceReviewPanel` | B | later polish |
 | Branches popup | `BranchesPopup` | B | G parity copy only |
@@ -134,7 +134,7 @@ Rules:
 | `merge` | `App` / MergeResolver | Resolve conflicts | previews `02-merge-boot` |
 | `gitHistory` | `GitHistoryApp` | File/folder/repo log | `HistoryVisualFixture`, previews `04-*` |
 | `gitDiff` | `GitDiffApp` | Compare revisions | `GitDiffVisualFixture` (`gitDiffVisual`) |
-| `gitBlame` | `GitBlameApp` | Annotate + file history | `BlameVisualFixture`, previews `05-*` |
+| `gitBlame` | `GitBlameApp` | Annotate editor; file history in Git workspace | previews `05-*` |
 | `gitWorkspace` | `GitWorkspaceApp` | Full Git tool window | No full visual e2e yet |
 | `gitMenu` | `GitMenuVisualFixture` | Menu density regression | e2e visual baseline |
 

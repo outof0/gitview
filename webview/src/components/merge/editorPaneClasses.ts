@@ -2,7 +2,7 @@ import type { EditorPaneSide } from "./EditorPaneHelpers";
 import { cn } from "../../lib/cn";
 
 const editorScroll =
-  "font-editor text-[12.5px] leading-5 overflow-auto relative [scrollbar-gutter:stable] [scrollbar-width:thin] [scrollbar-color:var(--vscode-scrollbarSlider-background,rgba(121,121,121,0.4))_transparent] [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-thumb]:rounded-[5px] [&::-webkit-scrollbar-thumb]:bg-[var(--vscode-scrollbarSlider-background,rgba(121,121,121,0.4))] [&::-webkit-scrollbar-thumb:hover]:bg-[var(--vscode-scrollbarSlider-hoverBackground,rgba(121,121,121,0.6))] [&::-webkit-scrollbar-corner]:bg-transparent";
+  "font-editor text-[12.5px] leading-5 overflow-auto relative [scrollbar-gutter:stable] [scrollbar-width:thin] [scrollbar-color:var(--vscode-scrollbarSlider-background,rgba(121,121,121,0.4))_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[var(--vscode-scrollbarSlider-background,rgba(121,121,121,0.4))] [&::-webkit-scrollbar-thumb:hover]:bg-[var(--vscode-scrollbarSlider-hoverBackground,rgba(121,121,121,0.6))] [&::-webkit-scrollbar-corner]:bg-transparent";
 
 const gutterLine =
   "before:content-[''] before:absolute before:top-0 before:bottom-0 before:w-px before:bg-vscode-panel-border before:pointer-events-none before:z-[2]";

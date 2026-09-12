@@ -47,6 +47,9 @@ Command IDs from `package.json` → `contributes.commands`. Titles appear in the
 | `gitView.gitUnshelve` | Unshelve Changes… |
 | `gitView.gitMerge` | Merge… |
 | `gitView.gitRebase` | Rebase… |
+| `gitView.gitOpenOnRemote` | Open on Remote |
+| `gitView.gitCopyRemoteLink` | Copy Remote Link |
+| `gitView.gitCopyRemoteLinkMarkdown` | Copy Remote Link as Markdown |
 
 Some items use `enablement` context keys driven by `gitSubmenuContext` refresh:
 

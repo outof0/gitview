@@ -1,4 +1,6 @@
-import { isGitMenuAction } from "../../types/gitMenu";
+import { isGitMenuAction, isRepoWideGitMenuAction } from "../../types/gitMenu";
+import { isConfirmationSubmission } from "../types/confirmation";
+import { isSafeGitOperand } from "../lib/gitOperand";
 import type { WebviewToHost } from "./webviewToHost";
 import { PROTOCOL_VERSION } from "./base";
 import type { ExtensionWebviewRequest } from "./extensions";
@@ -14,6 +16,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 const stringValue: Validator = (value) => typeof value === "string";
+const nonEmptyString: Validator = (value) =>
+  typeof value === "string" && value.length > 0;
+const gitOperand: Validator = isSafeGitOperand;
+/**
+ * A git operand, or an explicit empty string — callers use `""` to mean "no ref,
+ * use the working tree". Still rejects anything starting with `-`, so an
+ * optional ref cannot be turned into a git option.
+ */
+const optionalGitOperand: Validator = (value) =>
+  value === "" || isSafeGitOperand(value);
 const booleanValue: Validator = (value) => typeof value === "boolean";
 const nonNegativeInteger: Validator = (value) =>
   typeof value === "number" && Number.isInteger(value) && value >= 0;
@@ -30,6 +42,7 @@ function arrayOf(item: Validator): Validator {
 }
 
 const stringArray = arrayOf(stringValue);
+const gitOperandArray = arrayOf(gitOperand);
 const nonNegativeIntegerArray = arrayOf(nonNegativeInteger);
 
 function shape(
@@ -52,7 +65,10 @@ function shape(
       }
     }
     if (exact) {
-      const allowed = new Set([...Object.keys(required), ...Object.keys(optional)]);
+      const allowed = new Set([
+        ...Object.keys(required),
+        ...Object.keys(optional),
+      ]);
       return Object.keys(value).every((key) => allowed.has(key));
     }
     return true;
@@ -63,8 +79,8 @@ const emptyPayload = shape({}, {}, true);
 const repoOnly = shape({ repoId: stringValue });
 const repoPath = shape({ repoId: stringValue, path: stringValue });
 const repoPaths = shape({ repoId: stringValue, paths: stringArray });
-const repoSha = shape({ repoId: stringValue, sha: stringValue });
-const repoShas = shape({ repoId: stringValue, shas: stringArray });
+const repoSha = shape({ repoId: stringValue, sha: gitOperand });
+const repoShas = shape({ repoId: stringValue, shas: gitOperandArray });
 const repoName = shape({ repoId: stringValue, name: stringValue });
 const repoIndex = shape({ repoId: stringValue, index: nonNegativeInteger });
 
@@ -85,6 +101,181 @@ const reviewFilters = shape(
     search: stringValue,
   },
 );
+/**
+ * Lexical repo-relative path check (protocol layer cannot resolve the repo
+ * root, so containment against the real repository happens at the
+ * command/service boundary). Rejects absolute paths, `..` segments, and
+ * empty/current-dir segments — the shapes that become option injection or
+ * cross-repository resolution downstream.
+ */
+function isRepoContainedRelativePath(value: unknown): value is string {
+  if (typeof value !== "string" || value.length === 0) {
+    return false;
+  }
+  if (value.startsWith("/") || value.startsWith("\\")) {
+    return false;
+  }
+  if (value.includes("\0") || value.includes("\r") || value.includes("\n")) {
+    return false;
+  }
+  const normalized = value.replace(/\\/g, "/");
+  if (
+    normalized === "." ||
+    normalized === "./" ||
+    normalized.endsWith("/")
+  ) {
+    return false;
+  }
+  const segments = normalized.split("/");
+  return segments.every((seg) => seg !== "" && seg !== "." && seg !== "..");
+}
+
+const repoContainedPath: Validator = isRepoContainedRelativePath;
+const repoContainedPathArray: Validator = (value) =>
+  Array.isArray(value) &&
+  value.length > 0 &&
+  value.every(isRepoContainedRelativePath);
+
+const MENU_SHA_ACTIONS = new Set([
+  "cherryPick",
+  "revertCommit",
+  "checkoutRevision",
+  "copyCommitId",
+  "getFromRevision",
+  "compareWithLocal",
+  "showRevisionDiff",
+  "openOnRemote",
+  "copyRemoteLink",
+  "copyRemoteLinkMarkdown",
+]);
+
+const MENU_PATH_REQUIRED_ACTIONS = new Set([
+  "getFromRevision",
+  "openFile",
+  "compareWithLocal",
+  "showRevisionDiff",
+]);
+
+/**
+ * Actions that silently no-op in the dispatcher without a SHA (each is
+ * guarded by `if (commitSha)`). Accepting them sha-less would acknowledge
+ * `{ok: true}` for work that never happened.
+ */
+const MENU_SHA_REQUIRED_ACTIONS = new Set([
+  "cherryPick",
+  "revertCommit",
+  "checkoutRevision",
+  "getFromRevision",
+  "compareWithLocal",
+  "showRevisionDiff",
+]);
+
+const MENU_MESSAGE_ACTIONS = new Set(["copyCommitMessage"]);
+
+function isValidGitMenuActionPayload(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const { repoId, action } = value;
+  if (typeof repoId !== "string" || repoId.length === 0) {
+    return false;
+  }
+  if (typeof action !== "string" || !isGitMenuAction(action)) {
+    return false;
+  }
+  const allowed = new Set([
+    "repoId",
+    "action",
+    "relativePath",
+    "selectedPaths",
+    "commitSha",
+    "commitMessage",
+    "isFolder",
+    "reuseDiffPanel",
+    "openInActiveColumn",
+  ]);
+  if (!Object.keys(value).every((key) => allowed.has(key))) {
+    return false;
+  }
+  const { relativePath, selectedPaths, commitSha, commitMessage, isFolder } = value as Record<
+    string,
+    unknown
+  >;
+  if (
+    selectedPaths !== undefined &&
+    (!Array.isArray(selectedPaths) ||
+      selectedPaths.length === 0 ||
+      !selectedPaths.every(isRepoContainedRelativePath) ||
+      action !== "rollback")
+  ) {
+    return false;
+  }
+  if (
+    value.reuseDiffPanel !== undefined &&
+    typeof value.reuseDiffPanel !== "boolean"
+  ) {
+    return false;
+  }
+  if (
+    value.openInActiveColumn !== undefined &&
+    typeof value.openInActiveColumn !== "boolean"
+  ) {
+    return false;
+  }
+  if (isFolder !== undefined && typeof isFolder !== "boolean") {
+    return false;
+  }
+  if (isRepoWideGitMenuAction(action)) {
+    // Command-only actions carry no file/commit operands over the protocol;
+    // anything else is a trust-boundary escape.
+    return (
+      relativePath === undefined &&
+      selectedPaths === undefined &&
+      commitSha === undefined &&
+      commitMessage === undefined
+    );
+  }
+  if (relativePath !== undefined && !isRepoContainedRelativePath(relativePath)) {
+    return false;
+  }
+  if (commitSha !== undefined && !isSafeGitOperand(commitSha)) {
+    return false;
+  }
+  if (commitMessage !== undefined) {
+    if (!MENU_MESSAGE_ACTIONS.has(action)) {
+      return false;
+    }
+    if (typeof commitMessage !== "string") {
+      return false;
+    }
+  }
+  if (commitSha !== undefined && !MENU_SHA_ACTIONS.has(action)) {
+    return false;
+  }
+  if (MENU_PATH_REQUIRED_ACTIONS.has(action)) {
+    if (!isRepoContainedRelativePath(relativePath)) {
+      return false;
+    }
+    // getFromRevision / compareWithLocal / showRevisionDiff require BOTH a
+    // path and a SHA. Returning after the path check alone accepts a valid
+    // path with a missing SHA, which the dispatcher then silently no-ops on
+    // while acknowledging success.
+    if (MENU_SHA_REQUIRED_ACTIONS.has(action)) {
+      return typeof commitSha === "string" && isSafeGitOperand(commitSha);
+    }
+    return true;
+  }
+  if (action === "copyCommitId") {
+    return typeof commitSha === "string";
+  }
+  if (MENU_SHA_REQUIRED_ACTIONS.has(action)) {
+    return typeof commitSha === "string";
+  }
+  if (action === "copyCommitMessage") {
+    return typeof commitMessage === "string";
+  }
+  return true;
+}
 const discardAction: Validator = (value) => {
   if (!isRecord(value)) {
     return false;
@@ -102,12 +293,21 @@ const commitCheckKinds = arrayOf(
   oneOf("hooks", "todo", "analyze", "reformat", "optimizeImports"),
 );
 const selectedChanges = shape(
-  { repoId: stringValue, sha: stringValue, path: stringValue },
+  { repoId: stringValue, sha: gitOperand, path: stringValue },
   {
     hunkIndexes: nonNegativeIntegerArray,
     lines: lineSelections,
     checkOnly: booleanValue,
     confirmed: booleanValue,
+  },
+);
+const dropSelectedChanges = shape(
+  { repoId: stringValue, sha: gitOperand, path: stringValue },
+  {
+    hunkIndexes: nonNegativeIntegerArray,
+    lines: lineSelections,
+    confirmed: booleanValue,
+    confirmation: isConfirmationSubmission,
   },
 );
 const reviewTarget = shape({
@@ -118,6 +318,12 @@ const reviewTarget = shape({
 
 const requestValidators = {
   "webview.ready": shape({ surface: stringValue }),
+  "workspace.openFolder": shape({}),
+  "workspace.clone": shape({}),
+  "workspace.manageTrust": shape({}),
+  "workspace.collapsePanel": emptyPayload,
+  "workspace.toggleSidebar": emptyPayload,
+  "repository.addRemote": shape({ repoId: stringValue }),
   "repo.refresh": shape({}, { repoId: stringValue }),
   "status.list": shape(
     { repoId: stringValue },
@@ -127,7 +333,10 @@ const requestValidators = {
   "changes.unstage": repoPaths,
   "changes.rollback": shape(
     { repoId: stringValue, paths: stringArray },
-    { confirmed: booleanValue },
+    {
+      confirmed: booleanValue,
+      confirmation: isConfirmationSubmission,
+    },
   ),
   "commit.create": shape(
     { repoId: stringValue, message: stringValue },
@@ -151,61 +360,71 @@ const requestValidators = {
   ),
   "sync.push": shape(
     { repoId: stringValue },
-    { setUpstream: booleanValue, remote: stringValue },
+    { setUpstream: booleanValue, remote: gitOperand },
   ),
   "sync.updateAllRoots": shape(
     {},
     { strategy: oneOf("merge", "rebase", "ff_only") },
   ),
+  "sync.cancel": shape({ operationId: nonEmptyString }, {}, true),
   "branch.list": repoOnly,
   "branch.checkout": shape(
-    { repoId: stringValue, ref: stringValue },
-    { smart: booleanValue, force: booleanValue },
+    { repoId: stringValue, ref: gitOperand },
+    {
+      smart: booleanValue,
+      force: booleanValue,
+      confirmation: isConfirmationSubmission,
+    },
   ),
   "branch.syncOperation": shape(
-    { repoId: stringValue, ref: stringValue },
-    { smart: booleanValue, force: booleanValue, confirmed: booleanValue },
+    { repoId: stringValue, ref: gitOperand },
+    {
+      smart: booleanValue,
+      force: booleanValue,
+      confirmed: booleanValue,
+      confirmation: isConfirmationSubmission,
+    },
   ),
   "branch.create": shape(
-    { repoId: stringValue, name: stringValue },
-    { startPoint: stringValue, checkout: booleanValue, force: booleanValue },
+    { repoId: stringValue, name: gitOperand },
+    { startPoint: gitOperand, checkout: booleanValue, force: booleanValue },
   ),
   "branch.rename": shape({
     repoId: stringValue,
-    oldName: stringValue,
-    newName: stringValue,
+    oldName: gitOperand,
+    newName: gitOperand,
   }),
   "branch.delete": shape(
-    { repoId: stringValue, name: stringValue },
+    { repoId: stringValue, name: gitOperand },
     { force: booleanValue },
   ),
   "branch.push": shape(
-    { repoId: stringValue, name: stringValue },
-    { remote: stringValue, setUpstream: booleanValue },
+    { repoId: stringValue, name: gitOperand },
+    { remote: gitOperand, setUpstream: booleanValue },
   ),
   "branch.favorite": repoName,
   "branch.compareCurrent": shape(
-    { repoId: stringValue, ref: stringValue },
+    { repoId: stringValue, ref: gitOperand },
     { path: stringValue },
   ),
   "branch.compareWorkingTree": shape(
-    { repoId: stringValue, ref: stringValue },
+    { repoId: stringValue, ref: gitOperand },
     { path: stringValue },
   ),
   "branch.compareFile": shape({
     repoId: stringValue,
-    ref: stringValue,
+    ref: gitOperand,
     path: stringValue,
     mode: oneOf("current", "workingTree"),
   }),
   "branch.compareApplyFile": shape({
     repoId: stringValue,
-    ref: stringValue,
+    ref: gitOperand,
     path: stringValue,
     mode: oneOf("current", "workingTree"),
   }),
   "branch.merge": shape(
-    { repoId: stringValue, ref: stringValue },
+    { repoId: stringValue, ref: gitOperand },
     {
       noFf: booleanValue,
       squash: booleanValue,
@@ -215,10 +434,10 @@ const requestValidators = {
     },
   ),
   "branch.rebaseOnto": shape(
-    { repoId: stringValue, onto: stringValue },
+    { repoId: stringValue, onto: gitOperand },
     {
       interactive: booleanValue,
-      from: stringValue,
+      from: gitOperand,
       rebaseMerges: booleanValue,
     },
   ),
@@ -228,6 +447,10 @@ const requestValidators = {
   "diff.open": shape(
     { repoId: stringValue, path: stringValue },
     { staged: booleanValue },
+  ),
+  "diff.numstat": shape(
+    { repoId: stringValue },
+    { paths: stringArray, ref: optionalGitOperand },
   ),
   "diff.annotate": shape(
     { relativePath: stringValue },
@@ -240,11 +463,13 @@ const requestValidators = {
     listId: stringValue,
     paths: stringArray,
   }),
+  "log.dag": repoOnly,
   "log.query": shape(
     { repoId: stringValue },
     {
       branch: stringValue,
       limit: positiveInteger,
+      skip: nonNegativeInteger,
       author: stringValue,
       since: stringValue,
       until: stringValue,
@@ -271,16 +496,15 @@ const requestValidators = {
     sha: stringValue,
     path: stringValue,
   }),
-  "git.menuAction": shape(
-    { repoId: stringValue, action: (value) => typeof value === "string" && isGitMenuAction(value) },
-    {
-      relativePath: stringValue,
-      commitSha: stringValue,
-      commitMessage: stringValue,
-      isFolder: booleanValue,
-      reuseDiffPanel: booleanValue,
-      openInActiveColumn: booleanValue,
-    },
+  "git.menuAction": isValidGitMenuActionPayload,
+  "rollback.openPanel": shape(
+    { repoId: stringValue, path: repoContainedPath },
+    { selectedPaths: repoContainedPathArray },
+  ),
+  "git.openContentDialog": shape(
+    { repoId: stringValue, dialog: oneOf("stash", "unstash") },
+    { index: (value) => value === null || nonNegativeInteger(value) },
+    true,
   ),
   "diff.stageHunk": shape({
     repoId: stringValue,
@@ -308,14 +532,17 @@ const requestValidators = {
   "log.revert": repoSha,
   "log.revertMultiple": repoShas,
   "log.revertSelected": selectedChanges,
-  "log.dropSelectedChanges": selectedChanges,
+  "log.dropSelectedChanges": dropSelectedChanges,
   "log.reset": shape(
     {
       repoId: stringValue,
-      sha: stringValue,
+      sha: gitOperand,
       mode: oneOf("soft", "mixed", "hard", "keep"),
     },
-    { confirmed: booleanValue },
+    {
+      confirmed: booleanValue,
+      confirmation: isConfirmationSubmission,
+    },
   ),
   "log.undoLastCommit": shape(
     { repoId: stringValue },
@@ -323,24 +550,30 @@ const requestValidators = {
   ),
   "log.createBranchFromCommit": shape({
     repoId: stringValue,
-    name: stringValue,
-    sha: stringValue,
+    name: gitOperand,
+    sha: gitOperand,
   }),
   "log.dropCommit": shape(
-    { repoId: stringValue, sha: stringValue },
-    { confirmed: booleanValue },
+    { repoId: stringValue, sha: gitOperand },
+    {
+      confirmed: booleanValue,
+      confirmation: isConfirmationSubmission,
+    },
   ),
   "log.editMessage": shape(
-    { repoId: stringValue, sha: stringValue, message: stringValue },
+    { repoId: stringValue, sha: gitOperand, message: stringValue },
     { confirmed: booleanValue },
   ),
   "log.rewrite": shape(
     {
       repoId: stringValue,
-      sha: stringValue,
+      sha: gitOperand,
       action: oneOf("squash", "fixup", "drop"),
     },
-    { confirmed: booleanValue },
+    {
+      confirmed: booleanValue,
+      confirmation: isConfirmationSubmission,
+    },
   ),
   "log.extractChanges": shape(
     { repoId: stringValue, sha: stringValue },
@@ -355,7 +588,7 @@ const requestValidators = {
   ),
   "blame.query": shape(
     { repoId: stringValue, path: stringValue },
-    { ref: stringValue },
+    { ref: optionalGitOperand },
   ),
   "file.write": shape({
     repoId: stringValue,
@@ -461,15 +694,15 @@ const requestValidators = {
   ),
   "tag.list": repoOnly,
   "tag.createAnnotated": shape(
-    { repoId: stringValue, name: stringValue },
-    { message: stringValue, sha: stringValue },
+    { repoId: stringValue, name: gitOperand },
+    { message: stringValue, sha: gitOperand },
   ),
-  "tag.checkout": repoName,
+  "tag.checkout": shape({ repoId: stringValue, name: gitOperand }),
   "tag.push": shape(
-    { repoId: stringValue, name: stringValue },
-    { remote: stringValue },
+    { repoId: stringValue, name: gitOperand },
+    { remote: gitOperand },
   ),
-  "tag.delete": repoName,
+  "tag.delete": shape({ repoId: stringValue, name: gitOperand }),
   "worktree.list": repoOnly,
   "worktree.add": shape(
     { repoId: stringValue, path: stringValue },
@@ -477,7 +710,11 @@ const requestValidators = {
   ),
   "worktree.remove": shape(
     { repoId: stringValue, path: stringValue },
-    { force: booleanValue, confirmed: booleanValue },
+    {
+      force: booleanValue,
+      confirmed: booleanValue,
+      confirmation: isConfirmationSubmission,
+    },
   ),
   "worktree.open": repoPath,
   "review.list": shape(
@@ -533,6 +770,19 @@ const requestValidators = {
     },
     { side: oneOf("LEFT", "RIGHT") },
   ),
+  "diff.openInEditor": shape(
+    {
+      preview: shape(
+        {
+          relativePath: stringValue,
+          title: stringValue,
+          diff: (value: unknown) => isRecord(value),
+        },
+        { repoId: stringValue },
+      ),
+    },
+    { workspaceRoot: stringValue },
+  ),
 } satisfies RequestValidatorMap;
 
 export const WEBVIEW_REQUEST_TYPES = Object.freeze(
@@ -564,7 +814,8 @@ export function parseWebviewRequestResult(
     };
   }
 
-  const requestId = typeof value.requestId === "string" ? value.requestId : null;
+  const requestId =
+    typeof value.requestId === "string" ? value.requestId : null;
   if (value.protocolVersion !== PROTOCOL_VERSION) {
     return {
       ok: false,
@@ -579,7 +830,8 @@ export function parseWebviewRequestResult(
       ok: false,
       requestId,
       code: "INVALID_REQUEST",
-      message: "Protocol request requires non-empty requestId and type strings.",
+      message:
+        "Protocol request requires non-empty requestId and type strings.",
     };
   }
   if (!Object.prototype.hasOwnProperty.call(requestValidators, value.type)) {

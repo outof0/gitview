@@ -1,7 +1,14 @@
 import * as vscode from "vscode";
 import { activateGitView } from "./activation";
-import { openGitWorkspace } from "./commands/openGitWorkspace";
-import { openGitView } from "./commands/openGitView";
+
+// Deliberately no process-level "uncaughtException" or "warning" handlers.
+// The extension host is one process shared with VS Code and every other
+// installed extension: registering such a handler replaces their crash and
+// warning semantics with ours, and any filter installed here decides for the
+// whole process which failures get reported. Filter dependency noise at its
+// source instead.
+import { openGitWorkspace } from "./webview/openGitWorkspace";
+import { openGitView } from "./webview/openGitView";
 import {
   gitAdd,
   gitAnnotateBlame,
@@ -10,9 +17,12 @@ import {
   gitCommitAndPush,
   gitCompareWithBranch,
   gitCompareWithRevision,
+  gitCopyRemoteLink,
+  gitCopyRemoteLinkMarkdown,
   gitCreateBranch,
   gitFetch,
   gitMerge,
+  gitOpenOnRemote,
   gitPull,
   gitPush,
   gitRebase,
@@ -27,11 +37,33 @@ import {
   gitUnstash,
 } from "./commands/gitMenuActions";
 import { registerGitMenuCommand } from "./commands/registerGitMenuCommands";
+import { resolveRepoRoot } from "./commands/gitMenuActionsHelpers";
+import { createNativeGitMutationRunner } from "./commands/nativeGitMutation";
 import {
   createReviewAuthService,
   promptAndStoreReviewToken,
 } from "./services/review/reviewAuth";
 import type { GitViewExtensionApi } from "./publicApi";
+
+const NATIVE_MUTATING_GIT_COMMANDS = new Set([
+  "gitView.gitRollback",
+  "gitView.gitAdd",
+  "gitView.gitUnstage",
+  "gitView.gitCommit",
+  "gitView.gitCommitAndPush",
+  "gitView.gitFetch",
+  "gitView.gitPull",
+  "gitView.gitPush",
+  "gitView.gitSync",
+  "gitView.gitStash",
+  "gitView.gitUnstash",
+  "gitView.gitShelve",
+  "gitView.gitUnshelve",
+  "gitView.gitMerge",
+  "gitView.gitRebase",
+  "gitView.gitCheckoutBranch",
+  "gitView.gitCreateBranch",
+]);
 
 export type {
   Disposable,
@@ -63,6 +95,12 @@ export function activate(
     handler: Parameters<typeof vscode.commands.registerCommand>[1],
   ) => vscode.commands.registerCommand(id, handler);
 
+  const runNativeMutation = createNativeGitMutationRunner({
+    repositoryMutationSerializer: gitView.repositoryMutationSerializer,
+    syncOperationCoordinator: gitView.syncOperationCoordinator,
+    stableRepoId: gitView.repositoryService.stableRepoId,
+  });
+
   const registerGit = (
     id: string,
     handler: (
@@ -70,7 +108,24 @@ export function activate(
       workspaceRoot: string | undefined,
       ...args: unknown[]
     ) => void | Promise<void>,
-  ) => registerGitMenuCommand(register, id, handler);
+  ) =>
+    registerGitMenuCommand(register, id, async (resource, workspaceRoot, ...args) => {
+      const execute = async (): Promise<void> => {
+        await handler(resource, workspaceRoot, ...args);
+      };
+      if (!NATIVE_MUTATING_GIT_COMMANDS.has(id)) {
+        return execute();
+      }
+      const repoRoot = await resolveRepoRoot(
+        resource,
+        workspaceRoot,
+        gitView.commandRuntime,
+      );
+      if (!repoRoot) {
+        return execute();
+      }
+      await runNativeMutation(repoRoot, execute);
+    });
 
   const reviewAuth = createReviewAuthService(context.secrets);
 
@@ -157,7 +212,12 @@ export function activate(
       gitAnnotateBlame(context, gitView, resource, workspaceRoot, ...args),
     ),
     registerGit("gitView.gitRollback", (resource, workspaceRoot) =>
-      gitRollback(resource, workspaceRoot, gitView.commandRuntime),
+      gitRollback(
+        resource,
+        workspaceRoot,
+        gitView.commandRuntime,
+        gitView.gitMenuPresentation,
+      ),
     ),
     registerGit("gitView.gitAdd", (resource, workspaceRoot) =>
       gitAdd(resource, workspaceRoot, gitView.commandRuntime),
@@ -238,6 +298,21 @@ export function activate(
         gitView.commandRuntime,
         gitView.gitMenuPresentation,
       ),
+    ),
+    registerGit("gitView.gitOpenOnRemote", (resource, workspaceRoot) =>
+      gitOpenOnRemote(resource, workspaceRoot, gitView.commandRuntime),
+    ),
+    registerGit("gitView.gitCopyRemoteLink", (resource, workspaceRoot) =>
+      gitCopyRemoteLink(resource, workspaceRoot, gitView.commandRuntime),
+    ),
+    registerGit(
+      "gitView.gitCopyRemoteLinkMarkdown",
+      (resource, workspaceRoot) =>
+        gitCopyRemoteLinkMarkdown(
+          resource,
+          workspaceRoot,
+          gitView.commandRuntime,
+        ),
     ),
     registerGit("gitView.gitCreateBranch", (resource, workspaceRoot) =>
       gitCreateBranch(

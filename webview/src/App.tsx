@@ -56,7 +56,8 @@ function MergeAppBody() {
 
   return (
     <div
-      className={`relative h-full w-full min-h-0 overflow-hidden bg-[var(--vscode-editor-background)] text-[var(--vscode-editor-foreground)] font-[var(--vscode-font-family)] text-[var(--vscode-font-size)] ${themeClass}`}
+      className={`relative h-full w-full min-h-0 overflow-hidden bg-vscode-editor-bg text-vscode-editor-fg font-app text-ui-base ${themeClass}`}
+      data-testid="merge-app"
     >
       {screen === "conflictList" ? (
         <ConflictsDialog />

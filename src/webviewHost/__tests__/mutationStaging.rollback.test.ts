@@ -4,19 +4,20 @@ import { createRepositoryService } from "../../services/repositoryService";
 import { createProtectionService } from "../../services/protectionService";
 import { createRefreshCoordinator } from "../../services/watchers/refreshCoordinator";
 import type { GitExecFn } from "../../services/git/types";
+import type { RollbackConfirmationEvidence } from "../../shared/types/confirmation";
 import type { GitFileStatus } from "../../shared/types/status";
 
 function makeExecGit(
   responses: Record<string, { stdout: string; stderr: string }>,
 ): GitExecFn {
-  return (_repoRoot, args) => {
+  return vi.fn((_repoRoot, args) => {
     const key = args.join(" ");
     const resp = responses[key];
     if (!resp) {
       throw new Error(`Unexpected git call: ${key}`);
     }
     return Promise.resolve(resp);
-  };
+  });
 }
 
 async function setup(opts?: {
@@ -26,7 +27,8 @@ async function setup(opts?: {
     "rev-parse --show-toplevel": { stdout: "/repo\n", stderr: "" },
     "rev-parse --git-dir": { stdout: ".git\n", stderr: "" },
     "rev-parse HEAD": { stdout: "abc\n", stderr: "" },
-    "restore -- file.ts": { stdout: "", stderr: "" },
+    "restore --staged --worktree -- file.ts": { stdout: "", stderr: "" },
+    "restore --staged --worktree -- added.ts": { stdout: "", stderr: "" },
     "clean -f -- untracked.txt": { stdout: "", stderr: "" },
   });
   const repositoryService = createRepositoryService({
@@ -81,6 +83,22 @@ function errorCode(sent: unknown[]): string | undefined {
   return error?.error?.code;
 }
 
+function rollbackEvidence(sent: unknown[]): RollbackConfirmationEvidence {
+  const error = sent.find(
+    (message) =>
+      typeof message === "object" &&
+      message !== null &&
+      (message as { ok?: boolean }).ok === false,
+  ) as {
+    error?: { details?: { confirmation?: RollbackConfirmationEvidence } };
+  };
+  const evidence = error.error?.details?.confirmation;
+  if (!evidence) {
+    throw new Error("Expected rollback confirmation evidence");
+  }
+  return evidence;
+}
+
 describe("mutationStaging.rollback confirmation", () => {
   it("requires confirmation for tracked rollback when confirmDestructiveActions is true", async () => {
     const { handlers, repos, sent } = await setup({
@@ -99,14 +117,15 @@ describe("mutationStaging.rollback confirmation", () => {
       },
     ];
 
-    await handlers.rollback("rb-1", repos[0]!.id, ["file.ts"], false, files);
+    await handlers.rollback("rb-1", repos[0]!.id, ["file.ts"], undefined, files);
 
-    expect(errorCode(sent)).toBe("DESTRUCTIVE_ACTION_DENIED");
-    expect(
-      (sent.find((m) => (m as { ok?: boolean }).ok === false) as {
-        error?: { message?: string };
-      })?.error?.message,
-    ).toMatch(/requires confirmation/i);
+    expect(errorCode(sent)).toBe("CONFIRMATION_REQUIRED");
+    expect(rollbackEvidence(sent)).toMatchObject({
+      action: "rollback",
+      paths: ["file.ts"],
+      unversionedPaths: [],
+      expectedTypedValue: "ROLLBACK",
+    });
   });
 
   it("allows tracked rollback when confirmed", async () => {
@@ -126,7 +145,17 @@ describe("mutationStaging.rollback confirmation", () => {
       },
     ];
 
-    await handlers.rollback("rb-2", repos[0]!.id, ["file.ts"], true, files);
+    await handlers.rollback("rb-2-preflight", repos[0]!.id, ["file.ts"], undefined, files);
+    const evidence = rollbackEvidence(sent);
+    sent.length = 0;
+
+    await handlers.rollback(
+      "rb-2",
+      repos[0]!.id,
+      ["file.ts"],
+      { evidence, typedValue: evidence.expectedTypedValue },
+      files,
+    );
 
     const ok = sent.find(
       (m) =>
@@ -156,7 +185,7 @@ describe("mutationStaging.rollback confirmation", () => {
       },
     ];
 
-    await handlers.rollback("rb-3", repos[0]!.id, ["file.ts"], false, files);
+    await handlers.rollback("rb-3", repos[0]!.id, ["file.ts"], undefined, files);
 
     expect(errorCode(sent)).toBeUndefined();
     expect(
@@ -190,10 +219,115 @@ describe("mutationStaging.rollback confirmation", () => {
       "rb-4",
       repos[0]!.id,
       ["untracked.txt"],
-      false,
+      undefined,
       files,
     );
 
-    expect(errorCode(sent)).toBe("DESTRUCTIVE_ACTION_DENIED");
+    expect(errorCode(sent)).toBe("CONFIRMATION_REQUIRED");
+    expect(rollbackEvidence(sent)).toMatchObject({
+      paths: ["untracked.txt"],
+      unversionedPaths: ["untracked.txt"],
+      expectedTypedValue: "DELETE",
+    });
+  });
+
+  it("does not restore or clean when unversioned classification changed", async () => {
+    const { handlers, repos, sent, execGit } = await setup({
+      confirmDestructive: false,
+    });
+    const unversioned: GitFileStatus[] = [
+      {
+        repoId: repos[0]!.id,
+        path: "untracked.txt",
+        kind: "unversioned",
+        indexStatus: "?",
+        workingTreeStatus: "?",
+        staged: false,
+        conflicted: false,
+        binary: false,
+      },
+    ];
+    const tracked: GitFileStatus[] = [
+      {
+        ...unversioned[0]!,
+        kind: "modified",
+        indexStatus: " ",
+        workingTreeStatus: "M",
+      },
+    ];
+
+    await handlers.rollback(
+      "rb-stale-preflight",
+      repos[0]!.id,
+      ["untracked.txt"],
+      undefined,
+      unversioned,
+    );
+    const evidence = rollbackEvidence(sent);
+    sent.length = 0;
+
+    await handlers.rollback(
+      "rb-stale-submit",
+      repos[0]!.id,
+      ["untracked.txt"],
+      { evidence, typedValue: evidence.expectedTypedValue },
+      tracked,
+    );
+
+    expect(errorCode(sent)).toBe("CONFIRMATION_STALE");
+    expect(execGit).not.toHaveBeenCalledWith(repos[0]!.rootPath, [
+      "clean",
+      "-f",
+      "--",
+      "untracked.txt",
+    ]);
+    expect(execGit).not.toHaveBeenCalledWith(repos[0]!.rootPath, [
+      "restore",
+      "--staged",
+      "--worktree",
+      "--",
+      "untracked.txt",
+    ]);
+  });
+
+  it("requires DELETE confirmation for staged-added files", async () => {
+    const { handlers, repos, sent, execGit } = await setup({
+      confirmDestructive: true,
+    });
+    const files: GitFileStatus[] = [
+      {
+        repoId: repos[0]!.id,
+        path: "added.ts",
+        kind: "added",
+        indexStatus: "A",
+        workingTreeStatus: " ",
+        staged: true,
+        conflicted: false,
+        binary: false,
+      },
+    ];
+
+    await handlers.rollback("rb-added-preflight", repos[0]!.id, ["added.ts"], undefined, files);
+    const evidence = rollbackEvidence(sent);
+    expect(evidence.expectedTypedValue).toBe("DELETE");
+    expect(evidence.unversionedPaths).toEqual(["added.ts"]);
+    sent.length = 0;
+
+    await handlers.rollback(
+      "rb-added-submit",
+      repos[0]!.id,
+      ["added.ts"],
+      { evidence, typedValue: "DELETE" },
+      files,
+    );
+
+    expect(errorCode(sent)).toBeUndefined();
+    expect(execGit).toHaveBeenCalledWith(repos[0]!.rootPath, [
+      "restore",
+      "--staged",
+      "--worktree",
+      "--",
+      "added.ts",
+    ]);
   });
 });

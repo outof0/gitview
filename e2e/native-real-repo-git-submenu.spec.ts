@@ -18,6 +18,7 @@ import {
   expectGitViewBlameScreen,
   openExplorerGitAction,
   waitForGitViewBlameFrame,
+  waitForGitViewHistoryFrame,
 } from "./helpers/git-screen-parity";
 
 const exec = promisify(execFile);
@@ -87,9 +88,10 @@ test.describe("Native Explorer Git submenu on a real repository", () => {
         "data-monaco",
         "ready",
       );
-      await expect(frame.getByTestId("git-history-tool-window")).toBeVisible();
+      const workspace = await waitForGitViewHistoryFrame(session.app);
+      await expect(workspace.getByTestId("workspace-log-panel")).toBeVisible();
       await frame.getByTestId(/^blame-sha-/).first().click();
-      await expect(frame.getByTestId("git-commit-list")).toBeVisible({
+      await expect(workspace.getByTestId("git-commit-list")).toBeVisible({
         timeout: 15_000,
       });
     } finally {

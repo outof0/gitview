@@ -1,4 +1,6 @@
 import { describe, expect, it, afterEach } from "vitest";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
 import { createBranchCompareApi } from "../git/branchCompare";
 import { createMergeApi } from "../git/merge";
 import {
@@ -90,4 +92,29 @@ describe("branchCompare integration", () => {
   },
     15_000,
   );
+  it("detects binary content from the compared refs", async () => {
+    repo = await createTempGitRepo();
+    const merge = createMergeApi(execGit);
+    const compare = createBranchCompareApi(execGit, merge.isBinaryFile);
+    await execGit(repo.root, ["checkout", "-b", "feature"]);
+    await fs.writeFile(
+      path.join(repo.root, "asset.bin"),
+      Buffer.from([0x00, 0xff, 0x80, 0x01]),
+    );
+    await execGit(repo.root, ["add", "asset.bin"]);
+    await execGit(repo.root, ["commit", "-m", "Add binary asset"]);
+    await execGit(repo.root, ["checkout", "main"]);
+
+    const document = await compare.buildFileDocument(
+      repo.root,
+      "repo-1",
+      "asset.bin",
+      "feature",
+      "current",
+      "A",
+    );
+
+    expect(document?.binary).toBe(true);
+    expect(document?.right?.text).toBe("[Binary file]");
+  });
 });

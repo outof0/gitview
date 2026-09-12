@@ -12,6 +12,20 @@ export function createStagingApi(execGit: GitExecFn) {
     await execGit(repoRoot, ["add", "--", ...paths]);
   }
 
+  async function listStagedPaths(repoRoot: string): Promise<string[]> {
+    const { stdout } = await execGit(repoRoot, [
+      "diff",
+      "--cached",
+      "--name-only",
+      "-z",
+      "--diff-filter=ACDMRTUXB",
+    ]);
+    return stdout
+      .split("\0")
+      .filter(Boolean)
+      .map((filePath) => filePath.replace(/\\/g, "/"));
+  }
+
   async function unstageAll(repoRoot: string): Promise<void> {
     try {
       await execGit(repoRoot, ["restore", "--staged", "."]);
@@ -39,8 +53,26 @@ export function createStagingApi(execGit: GitExecFn) {
       return;
     }
     try {
-      await execGit(repoRoot, ["restore", "--", ...paths]);
-    } catch {
+      // Rollback means discard the complete local change, including an index
+      // entry. Restoring only the worktree leaves staged edits behind and makes
+      // the file reappear immediately after the confirmation dialog closes.
+      await execGit(repoRoot, ["restore", "--staged", "--worktree", "--", ...paths]);
+    } catch (restoreError) {
+      // Git versions without `restore --staged --worktree` need the index reset
+      // separately before the checkout fallback can fully discard a change.
+      try {
+        await execGit(repoRoot, ["reset", "HEAD", "--", ...paths]);
+      } catch (resetError) {
+        const restoreMessage = restoreError instanceof Error
+          ? restoreError.message
+          : String(restoreError);
+        const message = resetError instanceof Error
+          ? resetError.message
+          : String(resetError);
+        throw new Error(
+          `Could not roll back ${paths.join(", ")}: ${message} (restore failed: ${restoreMessage})`,
+        );
+      }
       await execGit(repoRoot, ["checkout", "--", ...paths]);
     }
   }
@@ -58,6 +90,7 @@ export function createStagingApi(execGit: GitExecFn) {
   return {
     stageAll,
     stageFiles,
+    listStagedPaths,
     unstageAll,
     unstageFiles,
     rollbackTrackedFiles,

@@ -22,12 +22,12 @@ export function ToastContainer() {
           className="pointer-events-auto cursor-pointer rounded-vscode border px-3 py-2 text-xs shadow-lg font-sans"
           style={{
             background:
-              "var(--vscode-inputValidation-errorBackground, rgba(89, 29, 29, 0.4))",
+              "var(--danger-background)",
             borderColor:
               toast.type === "warning"
-                ? "var(--vscode-inputValidation-warningBorder, #e0ad53)"
-                : "var(--vscode-inputValidation-errorBorder, #cf5c56)",
-            color: "var(--vscode-foreground)",
+                ? "var(--nx-warning-border)"
+                : "var(--danger-border)",
+            color: "var(--nx-text)",
           }}
           role="alert"
         >

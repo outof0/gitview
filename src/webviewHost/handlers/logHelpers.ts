@@ -39,6 +39,7 @@ export function toLogSnapshot(
   branch: string | null,
   commits: LogSnapshot["commits"],
   filters?: LogQueryFilters,
+  hasMore?: boolean,
 ): LogSnapshot {
   return {
     repoId,
@@ -46,10 +47,11 @@ export function toLogSnapshot(
     commits,
     refreshedAt: Date.now(),
     filters,
+    hasMore,
   };
 }
 
-export function mapDiffStatus(
+function mapDiffStatus(
   status: string,
 ): WorkspaceDiffDocument["status"] {
   if (status === "A" || status === "D" || status === "R" || status === "U") {
@@ -89,7 +91,7 @@ export function resetProtectionAction(mode: ResetMode): "hard_reset" | "history_
   return mode === "hard" ? "hard_reset" : "history_rewrite";
 }
 
-export function isLineSelection(value: unknown): value is DiffLineSelection {
+function isLineSelection(value: unknown): value is DiffLineSelection {
   if (typeof value !== "object" || value === null) {
     return false;
   }
@@ -135,12 +137,33 @@ export function createLogHandlerApis(deps: LogHandlerDeps) {
     merge.isBinaryFile,
   );
   const extractChanges = createExtractChangesApi(deps.execGit);
+  const parentByCommit = new Map<string, string | null>();
 
-  async function resolveRepo(repoId: string) {
+  function rememberCommitParents(
+    repoId: string,
+    commits: LogSnapshot["commits"],
+  ): void {
+    for (const commit of commits) {
+      parentByCommit.set(
+        `${repoId}:${commit.sha}`,
+        commit.parentShas?.[0] ?? null,
+      );
+    }
+  }
+
+  function knownParentForCommit(
+    repoId: string,
+    sha: string,
+  ): string | null | undefined {
+    return parentByCommit.get(`${repoId}:${sha}`);
+  }
+
+  async function resolveRepo(repoId: string, freshChangeDigest = false) {
     const repos = await deps.repositoryService.discoverRepositories({
       workspaceFolders: deps.workspaceFolders,
       explicitRepoId: repoId,
       trusted: deps.trusted,
+      freshChangeDigest,
     });
     return deps.repositoryService.resolveRepositoryForResource(
       repos,
@@ -160,6 +183,8 @@ export function createLogHandlerApis(deps: LogHandlerDeps) {
     selectedChanges,
     extractChanges,
     resolveRepo,
+    rememberCommitParents,
+    knownParentForCommit,
   };
 }
 

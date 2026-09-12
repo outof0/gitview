@@ -1,5 +1,6 @@
 import * as fs from "fs/promises";
-import { resolveRepoRelativePath } from "../../util/repoPath";
+import { writeBufferAtomically } from "../fileService";
+import { resolveRepoRelativeRealPath } from "../../util/repoPath";
 
 export function applySuggestionToContent(
   content: string,
@@ -24,7 +25,11 @@ export async function applySuggestionToFile(
   startLine: number | undefined,
   suggestionText: string,
 ): Promise<void> {
-  const resolved = resolveRepoRelativePath(repoRoot, relativePath);
+  // A lexical containment check is not enough: a repository path can itself be
+  // a symlink to an external file, which readFile/writeFile would follow.
+  // Resolve symlinks first and write atomically, so a final-component swap
+  // replaces the link instead of following it outside the repository.
+  const resolved = await resolveRepoRelativeRealPath(repoRoot, relativePath);
   if (!resolved.ok) {
     throw new Error(resolved.message);
   }
@@ -35,8 +40,6 @@ export async function applySuggestionToFile(
     startLine,
     suggestionText,
   );
-  await fs.writeFile(
-    resolved.absolutePath,
-    next.endsWith("\n") ? next : `${next}\n`,
-  );
+  const text = next.endsWith("\n") ? next : `${next}\n`;
+  await writeBufferAtomically(repoRoot, resolved.absolutePath, Buffer.from(text, "utf8"));
 }

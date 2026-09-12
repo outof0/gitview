@@ -1,11 +1,12 @@
+import { Input } from "../ui/Input";
 import type { WorkspaceDiffDocument } from "@gitview/shared/types/diff";
 import type { GitFileStatus } from "@gitview/shared/types/status";
-import {
-  GitDialogShell,
-  gitDialogBtnPrimary,
-  gitDialogBtnSecondary,
-} from "../ui/GitDialogShell";
+import { GitDialogShell } from "../ui/GitDialogShell";
+import { Button } from "../ui/Button";
+import { Checkbox } from "../ui/Checkbox";
 import { ResizableSplit } from "../ui/ResizableSplit";
+import { TextArea } from "../ui/TextArea";
+import { TextField } from "../ui/TextField";
 import { WorkspaceDiffPanel } from "./WorkspaceDiffPanel";
 import { cn } from "../../lib/cn";
 
@@ -35,6 +36,7 @@ export type CommitDialogProps = {
   gpgSign: boolean;
   author: string;
   runChecks: boolean;
+  runHooks?: boolean;
   busy: boolean;
   currentBranch?: string | null;
   protectedBranch?: boolean;
@@ -44,6 +46,7 @@ export type CommitDialogProps = {
   onGpgSignChange: (value: boolean) => void;
   onAuthorChange: (value: string) => void;
   onRunChecksChange: (value: boolean) => void;
+  onRunHooksChange?: (value: boolean) => void;
   onCommit: () => void;
   onCommitAndPush: () => void;
   onCancel: () => void;
@@ -65,6 +68,7 @@ export function CommitDialog({
   gpgSign,
   author,
   runChecks,
+  runHooks = true,
   busy,
   currentBranch,
   protectedBranch = false,
@@ -74,6 +78,7 @@ export function CommitDialog({
   onGpgSignChange,
   onAuthorChange,
   onRunChecksChange,
+  onRunHooksChange,
   onCommit,
   onCommitAndPush,
   onCancel,
@@ -88,8 +93,8 @@ export function CommitDialog({
 
   const fileList = (
     <div className="h-full min-h-0 flex flex-col" data-testid="commit-dialog-files">
-      <div className="shrink-0 h-[var(--nx-toolbar-h)] min-h-[var(--nx-toolbar-h)] px-[var(--nx-pad-x)] flex items-center gap-1.5 text-[length:var(--nx-font-size-section)] font-semibold uppercase tracking-wide text-vscode-description border-b border-border">
-        <input
+      <div className="shrink-0 h-toolbar min-h-toolbar px-pad-x flex items-center gap-1.5 text-section font-semibold uppercase tracking-wide text-vscode-description border-b border-border">
+        <Input
           type="checkbox"
           checked={allChecked}
           disabled={files.length === 0}
@@ -102,7 +107,7 @@ export function CommitDialog({
         {selectedCount} of {files.length}
       </div>
       {files.length === 0 ? (
-        <div className="px-1.5 py-2 text-vscode-description" data-testid="commit-dialog-empty">
+        <div className="px-1.5 py-2 text-ui-sm text-vscode-description" data-testid="commit-dialog-empty">
           No changes to commit.
         </div>
       ) : (
@@ -113,21 +118,21 @@ export function CommitDialog({
               <li key={file.path} className="list-none">
                 <div
                   className={cn(
-                    "flex items-center gap-1.5 px-1.5 min-h-[var(--nx-row-h)]",
-                    "text-[length:var(--nx-font-size-ui)]",
+                    "flex items-center gap-1.5 px-1.5 min-h-row",
+                    "text-ui",
                     active
-                      ? "bg-[var(--vscode-list-activeSelectionBackground)] text-[var(--vscode-list-activeSelectionForeground)]"
+                      ? "bg-list-active text-list-activeForeground"
                       : "hover:bg-list-hover",
                   )}
                 >
-                  <input
+                  <Input
                     type="checkbox"
                     checked={commitScope.has(file.path)}
                     onChange={() => onToggleFile(file.path)}
                     aria-label={file.path}
                     data-testid={`commit-dialog-check-${file.path}`}
                   />
-                  <button
+                  <Button variant="ghost" size="content"
                     type="button"
                     onClick={() => onSelectFile(file.path)}
                     className="flex-1 min-w-0 flex items-center gap-1.5 text-left border-0 bg-transparent cursor-pointer text-inherit"
@@ -137,7 +142,7 @@ export function CommitDialog({
                       {STATUS_CHAR[file.kind]}
                     </span>
                     <span className="flex-1 min-w-0 truncate">{file.path}</span>
-                  </button>
+                  </Button>
                 </div>
               </li>
             );
@@ -170,32 +175,32 @@ export function CommitDialog({
       testId="commit-dialog"
       footer={
         <>
-          <button
+          <Button
             type="button"
-            className={gitDialogBtnSecondary}
+            variant="secondary" size="compact"
             onClick={onCancel}
             data-testid="commit-dialog-cancel"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className={gitDialogBtnSecondary}
+            variant="secondary" size="compact"
             disabled={!canCommit}
             onClick={onCommitAndPush}
             data-testid="commit-dialog-commit-and-push"
           >
             Commit and Push
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className={gitDialogBtnPrimary}
+            variant="primary" size="compact"
             disabled={!canCommit}
             onClick={onCommit}
             data-testid="commit-dialog-commit"
           >
             Commit
-          </button>
+          </Button>
         </>
       }
     >
@@ -211,17 +216,17 @@ export function CommitDialog({
           second={diffPane}
         />
 
-        <textarea
-          className="shrink-0 min-h-[64px] resize-y rounded-vscode border border-[var(--vscode-input-border)] bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)] px-2 py-1 text-[length:var(--nx-font-size-ui)] font-sans"
+        <TextArea
+          className="shrink-0 min-h-commit-message resize-y"
           placeholder="Commit message"
           value={message}
           onChange={(e) => onMessageChange(e.target.value)}
           data-testid="commit-dialog-message"
         />
 
-        <input
-          type="text"
-          className="shrink-0 h-[var(--nx-row-h)] min-h-[var(--nx-row-h)] px-2 text-[length:var(--nx-font-size-ui)] rounded-vscode border border-[var(--vscode-input-border)] bg-[var(--vscode-input-background)] text-[var(--vscode-input-foreground)]"
+        <TextField
+          size="compact"
+          containerClassName="shrink-0"
           placeholder="Author override (Name <email@example.com>)"
           value={author}
           onChange={(e) => onAuthorChange(e.target.value)}
@@ -230,56 +235,51 @@ export function CommitDialog({
 
         {protectedBranch && (
           <div
-            className="shrink-0 text-[var(--vscode-inputValidation-warningForeground)]"
+            className="shrink-0 text-warning-fg"
             data-testid="commit-dialog-protected-warning"
           >
             Amend is disabled on protected branches.
           </div>
         )}
 
-        <div className="shrink-0 flex flex-wrap items-center gap-2">
-          <label
-            className={cn(
-              "flex items-center gap-1.5",
-              protectedBranch ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
-            )}
+        <div className="shrink-0 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <Checkbox
+            checked={amend}
+            disabled={protectedBranch}
+            onChange={onAmendChange}
+            testId="commit-dialog-amend"
           >
-            <input
-              type="checkbox"
-              checked={amend}
-              disabled={protectedBranch}
-              onChange={(e) => onAmendChange(e.target.checked)}
-              data-testid="commit-dialog-amend"
-            />
             Amend
-          </label>
-          <label className="flex items-center gap-1.5 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={signoff}
-              onChange={(e) => onSignoffChange(e.target.checked)}
-              data-testid="commit-dialog-signoff"
-            />
+          </Checkbox>
+          <Checkbox
+            checked={signoff}
+            onChange={onSignoffChange}
+            testId="commit-dialog-signoff"
+          >
             Sign-off
-          </label>
-          <label className="flex items-center gap-1.5 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={gpgSign}
-              onChange={(e) => onGpgSignChange(e.target.checked)}
-              data-testid="commit-dialog-gpg-sign"
-            />
+          </Checkbox>
+          <Checkbox
+            checked={gpgSign}
+            onChange={onGpgSignChange}
+            testId="commit-dialog-gpg-sign"
+          >
             GPG sign
-          </label>
-          <label className="flex items-center gap-1.5 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={runChecks}
-              onChange={(e) => onRunChecksChange(e.target.checked)}
-              data-testid="commit-dialog-run-checks"
-            />
+          </Checkbox>
+          <Checkbox
+            checked={runChecks}
+            onChange={onRunChecksChange}
+            testId="commit-dialog-run-checks"
+          >
             Run checks
-          </label>
+          </Checkbox>
+          <Checkbox
+            checked={runHooks}
+            disabled={!onRunHooksChange}
+            onChange={(value) => onRunHooksChange?.(value)}
+            testId="commit-dialog-run-hooks"
+          >
+            Run Git hooks
+          </Checkbox>
         </div>
       </div>
     </GitDialogShell>

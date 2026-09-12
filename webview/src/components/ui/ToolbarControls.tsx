@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Button } from "./Button";
 
 export function ToolbarSeparator() {
-  return <span className="w-px h-5 bg-[var(--vscode-panel-border)] mx-1.5" />;
+  return <span className="w-px h-5 bg-vscode-panel-border mx-1.5" />;
 }
 
 type ToolbarIconButtonProps = {
@@ -24,22 +25,23 @@ export function ToolbarIconButton({
   ...rest
 }: ToolbarIconButtonProps) {
   return (
-    <button
-      type="button"
+    <Button
+      variant="toolbar"
+      size="icon"
       onClick={onClick}
       title={title}
       disabled={disabled}
       aria-label={rest["aria-label"]}
       aria-pressed={rest["aria-pressed"]}
       data-testid={rest["data-testid"]}
-      className={`h-[22px] min-w-[22px] px-1 inline-flex items-center justify-center gap-1 rounded-[var(--nx-menu-radius)] text-[length:var(--nx-font-size-ui)] text-[var(--vscode-icon-foreground)] enabled:hover:bg-toolbar-hover disabled:opacity-40 disabled:cursor-default ${className}`}
+      className={className}
     >
       {children}
-    </button>
+    </Button>
   );
 }
 
-export type ToolbarDropdownItem = {
+type ToolbarDropdownItem = {
   value: string;
   label: string;
   active: boolean;
@@ -53,6 +55,71 @@ type ToolbarDropdownProps = {
   align?: "left" | "right";
   testId?: string;
 };
+
+type ToolbarOverflowProps = {
+  label?: ReactNode;
+  title?: string;
+  testId?: string;
+  children: ReactNode;
+};
+
+export function ToolbarOverflow({
+  label = "More",
+  title = "More options",
+  testId,
+  children,
+}: ToolbarOverflowProps) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const closeIfOutside = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", closeIfOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeIfOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
+
+  return (
+    <div className="ui-toolbar-overflow relative" ref={ref}>
+      <Button
+        variant="secondary"
+        size="compact"
+        title={title}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        data-testid={testId}
+        onClick={() => setOpen((value) => !value)}
+      >
+        {label}
+      </Button>
+      {open ? (
+        <div
+          role="dialog"
+          aria-label={title}
+          data-testid={testId ? `${testId}-popover` : undefined}
+          className="absolute right-0 top-full z-50 mt-0.5 flex w-64 max-w-[calc(100vw-1rem)] flex-col gap-2 rounded-vscode border border-menu-border bg-menu-bg p-2 text-menu-fg shadow-lg"
+        >
+          {children}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 // Click-to-open menu matching the mockup's simple dropdowns. Closes on outside
 // click or Escape.
@@ -90,25 +157,26 @@ export function ToolbarDropdown({
 
   return (
     <div className="relative inline-block" ref={ref}>
-      <button
-        type="button"
+      <Button
+        variant="toolbar"
+        size="compact"
         title={title}
         aria-haspopup="menu"
         aria-expanded={open}
         data-testid={testId}
         onClick={() => setOpen((o) => !o)}
-        className="h-[22px] px-1.5 inline-flex items-center gap-1 rounded-[var(--nx-menu-radius)] text-[length:var(--nx-font-size-ui)] text-foreground hover:bg-toolbar-hover"
+        className="text-foreground"
       >
         {label}{" "}
-        <span className="text-[length:var(--nx-font-size-ui-sm)] text-[var(--vscode-descriptionForeground)]">
+        <span className="text-ui-sm text-vscode-description">
           ▾
         </span>
-      </button>
+      </Button>
       {open && (
         <div
           role="menu"
           data-testid={testId ? `${testId}-menu` : undefined}
-          className={`nx-context-menu absolute top-full mt-0.5 z-50 min-w-[200px] py-1 border border-menu-border bg-menu-bg shadow-2xl ${align === "right" ? "right-0" : "left-0"}`}
+          className={`nx-context-menu absolute top-full mt-0.5 z-50 min-w-log-menu py-1 border border-menu-border bg-menu-bg shadow-2xl ${align === "right" ? "right-0" : "left-0"}`}
           style={{ borderRadius: "var(--nx-menu-radius)" }}
         >
           {items.map((item) => (
@@ -122,12 +190,12 @@ export function ToolbarDropdown({
                 item.onSelect();
                 setOpen(false);
               }}
-              className="nx-menu-item w-full flex items-center justify-between gap-2 min-h-[var(--nx-menu-item-h)] px-[var(--nx-menu-pad-x)] py-[var(--nx-menu-pad-y)] text-[length:var(--nx-font-size-ui)] text-left text-menu-fg hover:bg-menu-selection hover:text-menu-selectionForeground border-0 bg-transparent cursor-pointer"
+              className="nx-menu-item w-full flex items-center justify-between gap-2 min-h-menu-item px-menu-pad-x py-menu-pad-y text-ui text-left text-menu-fg hover:bg-menu-selection hover:text-menu-selectionForeground border-0 bg-transparent cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset"
             >
               <span className="truncate">{item.label}</span>
               {item.active && (
                 <span
-                  className="shrink-0 text-[length:var(--nx-font-size-ui-sm)]"
+                  className="shrink-0 text-ui-sm"
                   aria-hidden="true"
                 >
                   ✓

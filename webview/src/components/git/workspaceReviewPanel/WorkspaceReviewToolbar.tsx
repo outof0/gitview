@@ -1,4 +1,10 @@
-import type { ReviewFilters, ReviewListSnapshot } from "@gitview/shared/types/review";
+import { SelectField } from "../../ui/SelectField";
+import { Button } from "../../ui/Button";
+import type {
+  ReviewFilters,
+  ReviewListSnapshot,
+} from "@gitview/shared/types/review";
+import { TextField } from "../../ui/TextField";
 
 type WorkspaceReviewToolbarProps = {
   snapshot: ReviewListSnapshot | null;
@@ -26,8 +32,8 @@ export function WorkspaceReviewToolbar({
 
   return (
     <div className="shrink-0 flex items-center gap-2 px-3 py-2 border-b border-border">
-      <select
-        className="h-7 px-2 text-[11px] rounded-vscode border border-border bg-[var(--vscode-input-background)]"
+      <SelectField
+        className="h-7 px-2 text-ui-sm rounded-vscode border border-border bg-input"
         value={selectedProvider ?? ""}
         onChange={(e) => onProviderChange(e.target.value)}
         disabled={busy || providers.length === 0}
@@ -40,9 +46,9 @@ export function WorkspaceReviewToolbar({
             {!provider.available ? " (unavailable)" : ""}
           </option>
         ))}
-      </select>
-      <select
-        className="h-7 px-2 text-[11px] rounded-vscode border border-border bg-[var(--vscode-input-background)]"
+      </SelectField>
+      <SelectField
+        className="h-7 px-2 text-ui-sm rounded-vscode border border-border bg-input"
         value={filters.state ?? "open"}
         onChange={(e) =>
           onFiltersChange({
@@ -57,9 +63,9 @@ export function WorkspaceReviewToolbar({
         <option value="open">Open</option>
         <option value="closed">Closed</option>
         <option value="all">All</option>
-      </select>
-      <select
-        className="h-7 px-2 text-[11px] rounded-vscode border border-border bg-[var(--vscode-input-background)]"
+      </SelectField>
+      <SelectField
+        className="h-7 px-2 text-ui-sm rounded-vscode border border-border bg-input"
         value={filters.sort ?? "updated"}
         onChange={(e) =>
           onFiltersChange({
@@ -73,10 +79,11 @@ export function WorkspaceReviewToolbar({
       >
         <option value="updated">Recently updated</option>
         <option value="created">Recently created</option>
-      </select>
-      <input
+      </SelectField>
+      <TextField
         type="search"
-        className="h-7 w-[100px] px-2 text-[11px] rounded-vscode border border-border bg-[var(--vscode-input-background)]"
+        containerClassName="w-review-filter"
+        inputClassName="text-ui-sm"
         placeholder="Author"
         value={filters.author ?? ""}
         onChange={(e) =>
@@ -86,21 +93,21 @@ export function WorkspaceReviewToolbar({
         aria-label="Filter reviews by author"
         data-testid="review-author-filter"
       />
-      <input
+      <TextField
         type="search"
-        className="h-7 w-[100px] px-2 text-[11px] rounded-vscode border border-border bg-[var(--vscode-input-background)]"
+        containerClassName="w-review-filter"
+        inputClassName="text-ui-sm"
         placeholder="Label"
         value={filters.label ?? ""}
-        onChange={(e) =>
-          onFiltersChange({ ...filters, label: e.target.value })
-        }
+        onChange={(e) => onFiltersChange({ ...filters, label: e.target.value })}
         disabled={busy}
         aria-label="Filter reviews by label"
         data-testid="review-label-filter"
       />
-      <input
+      <TextField
         type="search"
-        className="h-7 w-[100px] px-2 text-[11px] rounded-vscode border border-border bg-[var(--vscode-input-background)]"
+        containerClassName="w-review-filter"
+        inputClassName="text-ui-sm"
         placeholder="Assignee"
         value={filters.assignee ?? ""}
         onChange={(e) =>
@@ -110,9 +117,10 @@ export function WorkspaceReviewToolbar({
         aria-label="Filter reviews by assignee"
         data-testid="review-assignee-filter"
       />
-      <input
+      <TextField
         type="search"
-        className="h-7 w-[100px] px-2 text-[11px] rounded-vscode border border-border bg-[var(--vscode-input-background)]"
+        containerClassName="w-review-filter"
+        inputClassName="text-ui-sm"
         placeholder="Milestone"
         value={filters.milestone ?? ""}
         onChange={(e) =>
@@ -122,9 +130,10 @@ export function WorkspaceReviewToolbar({
         aria-label="Filter reviews by milestone"
         data-testid="review-milestone-filter"
       />
-      <input
+      <TextField
         type="search"
-        className="h-7 flex-1 min-w-0 px-2 text-[11px] rounded-vscode border border-border bg-[var(--vscode-input-background)]"
+        containerClassName="flex-1 min-w-0"
+        inputClassName="text-ui-sm"
         placeholder="Search reviews"
         value={filters.search ?? ""}
         onChange={(e) =>
@@ -134,27 +143,27 @@ export function WorkspaceReviewToolbar({
         aria-label="Search reviews"
         data-testid="review-search-filter"
       />
-      <button
+      <Button variant="ghost" size="content"
         type="button"
-        className="h-7 px-2 text-[11px] rounded-vscode border border-border hover:bg-list-hover disabled:opacity-50"
+        className="h-7 px-2 text-ui-sm rounded-vscode border border-border hover:bg-list-hover disabled:opacity-40"
         onClick={onRefresh}
         disabled={busy}
         aria-label="Refresh reviews"
         data-testid="review-refresh"
       >
         Refresh
-      </button>
+      </Button>
       {onCreateReview && (
-        <button
+        <Button variant="ghost" size="content"
           type="button"
-          className="h-7 px-2 text-[11px] rounded-vscode border border-border hover:bg-list-hover disabled:opacity-50"
+          className="h-7 px-2 text-ui-sm rounded-vscode border border-border hover:bg-list-hover disabled:opacity-40"
           onClick={onCreateReview}
           disabled={busy || !canCreateReview}
           aria-label="Create pull request or merge request"
           data-testid="review-create-toggle"
         >
           Create
-        </button>
+        </Button>
       )}
     </div>
   );

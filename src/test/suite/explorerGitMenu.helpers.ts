@@ -170,5 +170,11 @@ export const FUNCTIONAL_COVERAGE = new Map<string, string[]>([
   ["gitView.gitUnshelve", ["restores the latest shelved change"]],
   ["gitView.gitMerge", ["opens merge workflow safely"]],
   ["gitView.gitRebase", ["opens rebase workflow safely"]],
+  ["gitView.gitOpenOnRemote", ["opens remote file link without error"]],
+  ["gitView.gitCopyRemoteLink", ["copies commit-pinned remote file link"]],
+  [
+    "gitView.gitCopyRemoteLinkMarkdown",
+    ["copies remote file link as Markdown"],
+  ],
   ["gitView.open", ["opens merge resolver panel during active merge"]],
 ]);

@@ -42,7 +42,7 @@ export function CrlfBanner() {
 
   return (
     <div
-      className="flex items-center justify-between px-4 py-1.5 bg-[var(--vscode-editorWarning-background,rgba(224,175,83,0.1))] text-[var(--vscode-editorWarning-foreground,#e0ad53)] border-b border-[var(--vscode-editorWarning-border,var(--vscode-editorWarning-foreground,rgba(224,175,83,0.3)))] text-xs font-mono"
+      className="flex items-center justify-between px-4 py-1.5 bg-editor-warning-bg text-editor-warning-fg border-b border-editor-warning-border text-xs font-mono"
       data-testid="crlf-banner"
       role="alert"
       aria-live="polite"

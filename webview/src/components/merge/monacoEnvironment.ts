@@ -1,14 +1,7 @@
-// Wire Monaco editor worker for Vite. Must run before the editor API loads.
-// Syntax colors use Monarch tokenizers on the main thread; a no-op worker is
-// enough for bracket/comment helpers and avoids ?worker URL issues in webviews.
-let configured = false;
+import EditorWorker from "monaco-editor/editor/editor.worker?worker";
 
-function createNoopWorker(): Worker {
-  const source = "self.onmessage=function(){}";
-  return new Worker(
-    URL.createObjectURL(new Blob([source], { type: "application/javascript" })),
-  );
-}
+// Wire Monaco editor worker for Vite. Must run before the editor API loads.
+let configured = false;
 
 export function configureMonacoEnvironment(): void {
   if (configured) {
@@ -24,7 +17,7 @@ export function configureMonacoEnvironment(): void {
 
   global.MonacoEnvironment = {
     getWorker() {
-      return createNoopWorker();
+      return new EditorWorker();
     },
   };
 }

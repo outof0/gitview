@@ -1,15 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { LogCommitEntry } from "@gitview/shared/types/log";
 import {
-  assignCommitLanes,
-  buildGitLogGraphEdges,
-  buildParentEdgePath,
+  buildGitLogGraphLayout,
+  buildGraphCanvasPrimitives,
+  gitLogGraphWidth,
   laneCenterX,
 } from "../gitLogGraph";
 
 function commit(
   sha: string,
   parentShas: string[] = [],
+  parentPresent?: boolean[],
 ): LogCommitEntry {
   return {
     sha,
@@ -19,128 +20,101 @@ function commit(
     authorEmail: "author@example.com",
     authorTime: 0,
     parentShas,
+    parentPresent,
     isMerge: parentShas.length > 1,
     changedFiles: [],
   };
 }
 
-describe("assignCommitLanes", () => {
+describe("buildGitLogGraphLayout", () => {
   it("keeps a linear history on one lane", () => {
-    const commits = [commit("c", ["b"]), commit("b", ["a"]), commit("a", [])];
-    const lanes = assignCommitLanes(commits);
-    expect(lanes.get("c")).toBe(0);
-    expect(lanes.get("b")).toBe(0);
-    expect(lanes.get("a")).toBe(0);
-  });
-
-  it("places a merged branch on a side lane", () => {
-    const commits = [
-      commit("merge", ["main", "feature"]),
-      commit("feature", ["main"]),
-      commit("main", []),
-    ];
-    const lanes = assignCommitLanes(commits);
-    expect(lanes.get("merge")).toBe(0);
-    expect(lanes.get("feature")).toBe(1);
-    expect(lanes.get("main")).toBe(0);
-  });
-});
-
-describe("buildParentEdgePath", () => {
-  it("draws a pure vertical for the same lane", () => {
-    const d = buildParentEdgePath(17, 12, 17, 60);
-    expect(d.startsWith("M 17 ")).toBe(true);
-    expect(d).toMatch(/L 17 /);
-    expect(d.includes("L 31 ")).toBe(false);
-  });
-
-  it("draws a diagonal when lanes differ", () => {
-    const x0 = laneCenterX(0);
-    const x1 = laneCenterX(1);
-    const d = buildParentEdgePath(x0, 12, x1, 36);
-    expect(d).toContain(`M ${x0} `);
-    expect(d).toContain(`L ${x1} `);
-    // Not the old orthogonal mid-bar: L x0 y  L x1 y  L x1 y2
-    expect(d).not.toMatch(
-      new RegExp(`L ${x0} [\\d.]+ L ${x1} [\\d.]+ L ${x1}`),
-    );
-  });
-});
-
-describe("buildGitLogGraphEdges — topological correctness (not fake)", () => {
-  it("only emits edges that match real parentShas", () => {
-    const commits = [
-      commit("merge", ["main", "feature"]),
-      commit("feature", ["main"]),
-      commit("main", []),
-    ];
-    const laneBySha = assignCommitLanes(commits);
-    const edges = buildGitLogGraphEdges(commits, laneBySha);
-
-    // Every edge must be a real (child → parent) from git parentShas.
-    for (const edge of edges) {
-      const child = commits.find((c) => c.sha === edge.childSha);
-      expect(child).toBeTruthy();
-      expect(child!.parentShas ?? []).toContain(edge.parentSha);
-    }
-
-    const pairs = new Set(edges.map((e) => `${e.childSha}->${e.parentSha}`));
-    expect(pairs.has("merge->main")).toBe(true);
-    expect(pairs.has("merge->feature")).toBe(true);
-    expect(pairs.has("feature->main")).toBe(true);
-    // Never invent consecutive-list fakes like feature→merge
-    expect(pairs.has("feature->merge")).toBe(false);
-    expect(pairs.has("main->feature")).toBe(false);
-  });
-
-  it("does not invent edges when a parent is missing from the list", () => {
-    // File-scoped / truncated history: child points at a parent not loaded.
-    const commits = [
-      commit("child", ["missing-parent-not-in-list"]),
-      commit("unrelated", []),
-    ];
-    const laneBySha = assignCommitLanes(commits);
-    const edges = buildGitLogGraphEdges(commits, laneBySha);
-    // Honest gap — no fake link to the next row (unrelated).
-    expect(edges).toHaveLength(0);
-  });
-
-  it("does not connect consecutive rows that are not parent-linked", () => {
-    // Two independent roots listed back-to-back
-    const commits = [commit("tip-a", []), commit("tip-b", [])];
-    const edges = buildGitLogGraphEdges(commits, assignCommitLanes(commits));
-    expect(edges).toHaveLength(0);
-  });
-
-  it("draws a straight rail for linear history with real parents", () => {
-    const commits = [commit("c", ["b"]), commit("b", ["a"]), commit("a", [])];
-    const laneBySha = assignCommitLanes(commits);
-    const edges = buildGitLogGraphEdges(commits, laneBySha);
-    expect(edges.map((e) => `${e.childSha}->${e.parentSha}`).sort()).toEqual([
-      "b->a",
-      "c->b",
+    const layout = buildGitLogGraphLayout([
+      commit("c", ["b"]),
+      commit("b", ["a"]),
+      commit("a", []),
     ]);
-    const x0 = laneCenterX(0);
-    for (const edge of edges) {
-      expect(edge.d.startsWith(`M ${x0} `)).toBe(true);
-    }
+    expect(layout.laneBySha.get("c")).toBe(0);
+    expect(layout.laneBySha.get("b")).toBe(0);
+    expect(layout.laneBySha.get("a")).toBe(0);
+    expect(layout.width).toBe(gitLogGraphWidth(0));
   });
 
-  it("merge side-branch edge is diagonal and real", () => {
-    const commits = [
+  it("places a merged side branch on a new layout index", () => {
+    const layout = buildGitLogGraphLayout([
       commit("merge", ["main", "feature"]),
       commit("feature", ["main"]),
       commit("main", []),
-    ];
-    const laneBySha = assignCommitLanes(commits);
-    const edges = buildGitLogGraphEdges(commits, laneBySha);
-    const x0 = laneCenterX(0);
-    const x1 = laneCenterX(1);
-    const mergeToFeature = edges.find(
-      (e) => e.childSha === "merge" && e.parentSha === "feature",
+    ]);
+    expect(layout.laneBySha.get("merge")).toBe(0);
+    expect(layout.laneBySha.get("feature")).toBe(1);
+    expect(layout.laneBySha.get("main")).toBe(0);
+  });
+
+  it("keeps graph geometry aligned when a collapsed placeholder occupies a row", () => {
+    const commits = [commit("tip", ["base"]), commit("base", [])];
+    const rowBySha = new Map([
+      ["tip", 1],
+      ["base", 3],
+    ]);
+    const layout = buildGitLogGraphLayout(commits, {
+      rowBySha,
+      rowCount: 4,
+    });
+    expect(layout.height).toBe(4 * 24);
+    expect(layout.rowBySha.get("base")).toBe(3);
+    expect(layout.transitions[0]?.lane).toBe(0);
+  });
+});
+
+describe("buildGraphCanvasPrimitives with collapsed rows", () => {
+  it("includes the last commits when row gaps come from collapse", () => {
+    const layout = buildGitLogGraphLayout(
+      [commit("aaa"), commit("eee"), commit("fff")],
+      {
+        rowBySha: new Map([
+          ["aaa", 0],
+          ["eee", 2],
+          ["fff", 3],
+        ]),
+        rowCount: 4,
+      },
     );
-    expect(mergeToFeature).toBeTruthy();
-    expect(mergeToFeature!.d).toContain(`M ${x0} `);
-    expect(mergeToFeature!.d).toContain(`L ${x1} `);
+    const { dots } = buildGraphCanvasPrimitives(layout, 0, 4);
+    expect(dots.map((dot) => dot.sha)).toEqual(["aaa", "eee", "fff"]);
+    expect(dots.at(-1)?.y).toBe(3 * 24 + 12);
+  });
+});
+
+describe("canvas primitives", () => {
+  it("draws both children of a shared parent", () => {
+    const layout = buildGitLogGraphLayout([
+      commit("A", ["B", "C"]),
+      commit("B", ["D"]),
+      commit("C", ["D"]),
+      commit("D"),
+    ]);
+    const { lines, arrows } = buildGraphCanvasPrimitives(layout, 0, 4);
+    const links = new Set(lines.map((line) => `${line.fromSha}->${line.toSha}`));
+    expect(links).toEqual(new Set(["A->B", "A->C", "B->D", "C->D"]));
+    expect(arrows).toHaveLength(0);
+  });
+
+  it("draws straight compacted segments for a short chain", () => {
+    const layout = buildGitLogGraphLayout([
+      commit("c", ["b"]),
+      commit("b", ["a"]),
+      commit("a"),
+    ]);
+    const { lines, dots } = buildGraphCanvasPrimitives(layout, 0, 3);
+    expect(lines).toHaveLength(2);
+    for (const line of lines) {
+      expect(line.x1).toBe(laneCenterX(0));
+      expect(line.x2).toBe(laneCenterX(0));
+    }
+    expect(dots.map((dot) => [dot.sha, dot.x])).toEqual([
+      ["c", laneCenterX(0)],
+      ["b", laneCenterX(0)],
+      ["a", laneCenterX(0)],
+    ]);
   });
 });

@@ -12,7 +12,8 @@ import type { HostFixtures } from "./helpers/host";
 import {
   applyButton,
   buildComplexConflictDoc,
-  buildMixedNonConflictingDoc,
+  buildMagicMergeConflictDoc,
+  buildMixedMagicMergeConflictDoc,
   buildSimpleConflictDoc,
   buildTallConflictDoc,
   withUnresolvedNonConflicting,
@@ -509,30 +510,90 @@ test.describe("Non-conflicting and simple-conflict workflows", () => {
     await expect(applyButton(page)).toBeDisabled();
   });
 
-  test("resolve simple conflicts leaves real conflicts untouched", async ({
+  test("Magic Merge combines independent word edits and applies the exact result", async ({
     page,
   }) => {
     const baseDoc = await loadRealMergeDocument();
-    const mixedFixtures: HostFixtures = {
+    const magicDocument = buildMagicMergeConflictDoc(baseDoc.repoRoot);
+    const magicFixtures: HostFixtures = {
       ...fixtures,
-      mergeDocument: buildMixedNonConflictingDoc(baseDoc.repoRoot),
+      mergeDocument: magicDocument,
+      conflictFiles: [
+        { relativePath: magicDocument.relativePath, stageCode: "UU" },
+      ],
+      settings: { confirmBeforeMarkResolved: false },
     };
-    await installMergeHost(page, mixedFixtures);
-    await openMergeResolver(page, "src/mixed.ts");
+    await installMergeHost(page, magicFixtures);
+    await openMergeResolver(page, magicDocument.relativePath);
 
     await expect(
-      page.getByLabel("Resolve simple conflicts"),
+      page.getByLabel(/Magic Merge|Resolve simple conflicts/i),
     ).toBeVisible();
-    await page.getByLabel("Resolve simple conflicts").click();
+    await page.getByLabel(/Magic Merge|Resolve simple conflicts/i).click();
+
+    await expect(
+      page.locator('[data-testid="conflict-counter"]'),
+    ).toContainText(/0 conflict/i);
+    await expect(
+      page
+        .locator('[data-testid="pane-center"]')
+        .getByText(
+          "Below is a simple conflict that can be resolved automatically.",
+          { exact: true },
+        ),
+    ).toBeVisible();
+    await expect(applyButton(page)).toBeEnabled();
+
+    await clearPostedMessages(page);
+    await applyButton(page).click();
+    const request = (await getPostedMessages(page)).find(
+      (message) => message.type === "merge.markResolved",
+    );
+    expect(request).toBeDefined();
+    expect(
+      (request!.payload as { content: string }).content,
+    ).toBe("Below is a simple conflict that can be resolved automatically.\n");
+    await expectApplyFinishes(page, magicDocument.relativePath);
+  });
+
+  test("Magic Merge resolves safe blocks and leaves overlapping edits for review", async ({
+    page,
+  }) => {
+    const baseDoc = await loadRealMergeDocument();
+    const mixedDocument = buildMixedMagicMergeConflictDoc(baseDoc.repoRoot);
+    await installMergeHost(page, {
+      ...fixtures,
+      mergeDocument: mixedDocument,
+      conflictFiles: [
+        { relativePath: mixedDocument.relativePath, stageCode: "UU" },
+      ],
+    });
+    await openMergeResolver(page, mixedDocument.relativePath);
+
+    await expect(
+      page.locator('[data-testid="conflict-counter"]'),
+    ).toContainText(/2 conflict/i);
+    const magicMerge = page.getByLabel(
+      /Magic Merge|Resolve simple conflicts/i,
+    );
+    await expect(magicMerge).toBeVisible();
+    await magicMerge.click();
 
     await expect(
       page.locator('[data-testid="conflict-counter"]'),
     ).toContainText(/1 conflict/i);
+    const center = page.locator('[data-testid="pane-center"]');
     await expect(
-      page.locator('[data-testid="pane-center"]').getByText("both", {
-        exact: true,
-      }),
+      center.getByText(
+        "Below is a simple conflict that can be resolved automatically.",
+        { exact: true },
+      ),
     ).toBeVisible();
+    await expect(center.getByText("mode = old", { exact: true })).toBeVisible();
+    await expect(
+      page.getByLabel(/Magic Merge|Resolve simple conflicts/i),
+    ).toHaveCount(0);
+    await expect(applyButton(page)).toBeDisabled();
   });
 });
 

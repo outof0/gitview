@@ -1,8 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { buildPermanentGraph } from "@gitview/shared/lib/gitLogGraph";
+import type { LogDagSnapshot } from "@gitview/shared/types/log";
 import { useGitHistoryStore } from "../stores/gitHistoryStore";
 import { useVsCodeApi } from "../hooks/useVsCodeApi";
 import { createProtocolClient } from "../protocol/client";
-import { logSnapshotToStorePayload, workspaceDiffToFileDiffView } from "../apps/historyBlameAdapters";
+import {
+  logSnapshotToStorePayload,
+  requestCommitDetail,
+  workspaceDiffToFileDiffView,
+} from "../apps/historyBlameAdapters";
 import { GitCommitList } from "../components/git/GitCommitList";
 import { GitChangedFilesTree } from "../components/git/GitChangedFilesTree";
 import { GitCommitDetail } from "../components/git/GitCommitDetail";
@@ -12,9 +18,18 @@ import { GitHistoryDiffViewer } from "../components/git/GitHistoryDiffViewer";
 import { LogBranchTree } from "../components/git/LogBranchTree";
 import { findCommit } from "../components/git/gitPanelFormat";
 import { ContextMenu } from "../components/ui/ContextMenu";
+import { Button } from "../components/ui/Button";
 import { ResizableSplit } from "../components/ui/ResizableSplit";
+import { ScrollArea } from "../components/ui/ScrollArea";
+import { SelectField } from "../components/ui/SelectField";
+import { TextField } from "../components/ui/TextField";
+import { ToolbarOverflow } from "../components/ui/ToolbarControls";
 import { cn } from "../lib/cn";
-import type { GitChangedFile, GitCommitEntry, GitMenuAction } from "@gitview/types";
+import type {
+  GitChangedFile,
+  GitCommitEntry,
+  GitMenuAction,
+} from "@gitview/types";
 
 /**
  * Git tool window body — three-pane Log layout.
@@ -48,9 +63,8 @@ function filesInScope(
     return files.length;
   }
   const prefix = `${scopePath}/`;
-  return files.filter(
-    (f) => f.path === scopePath || f.path.startsWith(prefix),
-  ).length;
+  return files.filter((f) => f.path === scopePath || f.path.startsWith(prefix))
+    .length;
 }
 
 function formatCommitTimestamp(authorTimeSec: number): string {
@@ -72,7 +86,7 @@ type FileMenuState = {
 };
 
 type GitHistoryToolWindowProps = {
-  /** Embedded in history/blame shell — use parent size instead of viewport. */
+  /** Embedded in another Git surface — use parent size instead of viewport. */
   embedded?: boolean;
   /** Current / HEAD revision for annotate rows. */
   currentSha?: string | null;
@@ -88,9 +102,94 @@ export function GitHistoryToolWindow({
   const state = useGitHistoryStore();
   const repoId = useGitHistoryStore((s) => s.repoId);
   const { postMessage } = useVsCodeApi();
-  const client = useMemo(() => createProtocolClient(postMessage), [postMessage]);
+  const client = useMemo(
+    () => createProtocolClient(postMessage),
+    [postMessage],
+  );
   const [commitMenu, setCommitMenu] = useState<CommitMenuState | null>(null);
   const [fileMenu, setFileMenu] = useState<FileMenuState | null>(null);
+  const logScrollRef = useRef<HTMLDivElement | null>(null);
+  const logPagingRequestRef = useRef(0);
+  const [logDag, setLogDag] = useState<LogDagSnapshot | null>(null);
+  const permanentGraph = useMemo(
+    () => (logDag ? buildPermanentGraph(logDag) : null),
+    [logDag],
+  );
+
+  const loadMoreLog = useCallback(async () => {
+    const current = useGitHistoryStore.getState();
+    if (
+      !current.repoId ||
+      current.loading ||
+      current.loadingMore ||
+      !current.hasMore ||
+      current.commits.length === 0
+    ) {
+      return;
+    }
+    const request = logPagingRequestRef.current + 1;
+    logPagingRequestRef.current = request;
+    current.setLoadingMore(true);
+    try {
+      const response = await client.queryLog(current.repoId, {
+        path: current.path || undefined,
+        isFolder: current.isFolder,
+        limit: 200,
+        branch: current.branchFilter || undefined,
+        skip: current.commits.length,
+      });
+      if (logPagingRequestRef.current === request) {
+        useGitHistoryStore
+          .getState()
+          .appendLogResult(logSnapshotToStorePayload(response));
+      }
+    } catch (err) {
+      if (logPagingRequestRef.current === request) {
+        useGitHistoryStore.getState().setLogError(
+          err instanceof Error ? err.message : "Could not load older commits",
+        );
+      }
+    } finally {
+      if (logPagingRequestRef.current === request) {
+        useGitHistoryStore.getState().setLoadingMore(false);
+      }
+    }
+  }, [client]);
+
+  const handleLogScroll = useCallback(
+    (event: React.UIEvent<HTMLDivElement>) => {
+      const element = event.currentTarget;
+      if (element.clientHeight <= 0) {
+        return;
+      }
+      const distanceFromBottom =
+        element.scrollHeight - element.scrollTop - element.clientHeight;
+      if (distanceFromBottom <= Math.max(480, element.clientHeight * 2)) {
+        void loadMoreLog();
+      }
+    },
+    [loadMoreLog],
+  );
+
+  useEffect(() => {
+    const element = logScrollRef.current;
+    const current = useGitHistoryStore.getState();
+    if (
+      !element ||
+      current.loading ||
+      current.loadingMore ||
+      !current.hasMore ||
+      current.commits.length === 0 ||
+      element.clientHeight <= 0
+    ) {
+      return;
+    }
+    const distanceFromBottom =
+      element.scrollHeight - element.scrollTop - element.clientHeight;
+    if (distanceFromBottom <= Math.max(480, element.clientHeight * 2)) {
+      void loadMoreLog();
+    }
+  }, [loadMoreLog, state.commits.length, state.hasMore, state.loading, state.loadingMore]);
 
   // `filteredCommits()` allocates, and this array's identity gates the
   // commit-graph layout memo downstream, so key it on the inputs it reads.
@@ -98,6 +197,10 @@ export function GitHistoryToolWindow({
   const filtered = useMemo(
     () => filteredCommits(),
     [filteredCommits, state.commits, searchQuery, authorFilter],
+  );
+  const authors = useMemo(
+    () => [...new Set(state.commits.map((commit) => commit.author))].sort(),
+    [state.commits],
   );
   const selected = findCommit(state.commits, state.selectedSha);
   const changedFiles = state.changedFilesForSelection();
@@ -116,20 +219,32 @@ export function GitHistoryToolWindow({
         : "Log";
 
   useEffect(() => {
-    if (!state.path || !state.loading || !repoId) {
+    if (!repoId) {
+      return;
+    }
+    void client.queryLogDag(repoId).then(setLogDag).catch(() => {
+      setLogDag(null);
+    });
+  }, [client, repoId]);
+
+  useEffect(() => {
+    // Annotate callers own the query. Running the generic history loader here
+    // as well doubles the repository work and races commit selection.
+    if (annotateMode || !state.path || !state.loading || !repoId) {
       return;
     }
     void client
       .queryLog(repoId, {
         path: state.path,
         isFolder: state.isFolder,
-        limit: annotateMode ? 500 : 200,
+        limit: 200,
         branch: state.branchFilter || undefined,
-        ...(annotateMode ? { scope: "repo" as const } : {}),
       })
       .then((response) => {
         const snapshot = response;
-        useGitHistoryStore.getState().setLogResult(logSnapshotToStorePayload(snapshot));
+        useGitHistoryStore
+          .getState()
+          .setLogResult(logSnapshotToStorePayload(snapshot));
       })
       .catch((err) => {
         useGitHistoryStore.getState().setLogResult({
@@ -208,14 +323,7 @@ export function GitHistoryToolWindow({
   const handleSelectCommit = (sha: string | null) => {
     state.selectCommit(sha);
     if (annotateMode && sha && repoId) {
-      void client.commitDetail(repoId, sha).then((response) => {
-        const payload = response;
-        if (payload.error) {
-          useGitHistoryStore.getState().setCommitDetailError(payload.error.message);
-        } else if (payload.commit) {
-          useGitHistoryStore.getState().applyCommitDetail(payload.commit);
-        }
-      });
+      requestCommitDetail(client, repoId, sha);
     }
   };
 
@@ -295,106 +403,145 @@ export function GitHistoryToolWindow({
     <div
       className={`${
         embedded ? "h-full w-full" : "h-screen w-screen"
-      } flex flex-col bg-[var(--vscode-editor-background)] text-[var(--vscode-editor-foreground)]`}
+      } relative flex flex-col bg-vscode-editor-bg text-vscode-editor-fg`}
       data-testid="git-history-tool-window"
     >
-      <div className="nx-tool-titlebar shrink-0 flex items-center gap-1.5 px-[var(--nx-pad-x)] h-[var(--nx-toolbar-h)] min-h-[var(--nx-toolbar-h)] border-b border-border text-[length:var(--nx-font-size-ui)] font-[family-name:var(--nx-font-ui)]">
-        <span className="font-semibold truncate shrink-0 max-w-[180px]" title={title}>
+      <div className="nx-tool-titlebar ui-responsive-toolbar relative z-20 shrink-0 flex items-center gap-1.5 px-pad-x h-toolbar min-h-toolbar border-b border-border text-ui font-ui">
+        <span className="min-w-0 flex-1 font-semibold truncate" title={title}>
           {title}
         </span>
         {!state.isFolder && state.path.includes("/") ? (
           <span
-            className="text-[length:var(--nx-font-size-ui-sm)] text-vscode-description truncate min-w-0 max-w-[28%]"
+            className="text-ui-sm text-vscode-description truncate min-w-0 max-w-[28%]"
             title={state.path}
           >
             {state.path}
           </span>
         ) : null}
-        <span className="flex-1 min-w-2" />
-        <input
+        <TextField
           type="search"
           placeholder="Search"
-          className="w-[120px] shrink-0 h-[22px] px-1.5 text-[length:var(--nx-font-size-ui-sm)] rounded-[var(--nx-menu-radius)] border border-border bg-[var(--vscode-input-background)]"
+          size="compact"
+          containerClassName="w-28 shrink-0 max-history-narrow:w-20"
+          inputClassName="text-ui-sm"
+          aria-label="Search history"
           value={state.searchQuery}
           onChange={(e) => state.setSearchQuery(e.target.value)}
           data-testid="git-history-search"
         />
-        <button
-          type="button"
-          className={cn(
-            "h-[22px] px-1.5 shrink-0 text-[length:var(--nx-font-size-ui-sm)] rounded-[var(--nx-menu-radius)] border border-border hover:bg-list-hover",
-            state.branchTreeOpen && "bg-list-hover",
-          )}
+        <Button
+          variant="secondary"
+          size="compact"
+          className={cn(state.branchTreeOpen && "bg-list-hover")}
           onClick={() => state.setBranchTreeOpen(!state.branchTreeOpen)}
           data-testid="git-history-toggle-branches"
-          title={
-            state.branchTreeOpen
-              ? "Hide branch tree"
-              : "Show branch tree"
-          }
+          title={state.branchTreeOpen ? "Hide branch tree" : "Show branch tree"}
           aria-pressed={state.branchTreeOpen}
         >
           Branches
-        </button>
-        <label className="flex items-center gap-1 shrink-0 text-vscode-description text-[length:var(--nx-font-size-ui-sm)]">
-          Branch:
-          <select
-            className="h-[22px] max-w-[110px] px-1 text-[length:var(--nx-font-size-ui-sm)] rounded-[var(--nx-menu-radius)] border border-border bg-[var(--vscode-dropdown-background)] text-[var(--vscode-dropdown-foreground)]"
-            value={state.branchFilter}
-            onChange={(e) => state.setBranchFilter(e.target.value)}
-            data-testid="git-history-branch-filter"
-            title="Branch filter"
-          >
-            <option value="">All</option>
-            {state.branches.map((b) => (
-              <option key={b} value={b}>
-                {b}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex items-center gap-1 shrink-0 text-vscode-description text-[length:var(--nx-font-size-ui-sm)]">
-          User:
-          <select
-            className="h-[22px] max-w-[110px] px-1 text-[length:var(--nx-font-size-ui-sm)] rounded-[var(--nx-menu-radius)] border border-border bg-[var(--vscode-dropdown-background)] text-[var(--vscode-dropdown-foreground)]"
-            value={state.authorFilter}
-            onChange={(e) => state.setAuthorFilter(e.target.value)}
-            data-testid="git-history-author-filter"
-            title="User"
-          >
-            <option value="">All</option>
-            {[...new Set(state.commits.map((c) => c.author))]
-              .sort()
-              .map((a) => (
-                <option key={a} value={a}>
-                  {a}
+        </Button>
+        <div className="ui-toolbar-secondary flex shrink-0 items-center gap-1.5">
+          <label className="flex items-center gap-1 shrink-0 text-vscode-description text-ui-sm">
+            Branch:
+            <SelectField
+              className="max-w-28"
+              value={state.branchFilter}
+              onChange={(e) => state.setBranchFilter(e.target.value)}
+              data-testid="git-history-branch-filter"
+              title="Branch filter"
+            >
+              <option value="">All</option>
+              {state.branches.map((branch) => (
+                <option key={branch} value={branch}>
+                  {branch}
                 </option>
               ))}
-          </select>
-        </label>
-        <label className="flex items-center gap-1 shrink-0 text-vscode-description text-[length:var(--nx-font-size-ui-sm)]">
-          Paths:
-          <span
-            className="h-[22px] max-w-[120px] px-1.5 inline-flex items-center truncate text-[length:var(--nx-font-size-ui-sm)] rounded-[var(--nx-menu-radius)] border border-border bg-[var(--vscode-input-background)] text-foreground"
-            title={state.path || "All"}
-            data-testid="git-history-paths-filter"
+            </SelectField>
+          </label>
+          <label className="flex items-center gap-1 shrink-0 text-vscode-description text-ui-sm">
+            User:
+            <SelectField
+              className="max-w-28"
+              value={state.authorFilter}
+              onChange={(e) => state.setAuthorFilter(e.target.value)}
+              data-testid="git-history-author-filter"
+              title="User"
+            >
+              <option value="">All</option>
+              {authors.map((author) => (
+                <option key={author} value={author}>
+                  {author}
+                </option>
+              ))}
+            </SelectField>
+          </label>
+          <label className="flex items-center gap-1 shrink-0 text-vscode-description text-ui-sm">
+            Paths:
+            <span
+              className="h-row max-w-28 px-1.5 inline-flex items-center truncate text-ui-sm rounded-vscode border border-border bg-input text-foreground"
+              title={state.path || "All"}
+              data-testid="git-history-paths-filter"
+            >
+              {state.path ? state.path.split("/").pop() : "All"}
+            </span>
+          </label>
+          <Button
+            variant="secondary"
+            size="compact"
+            onClick={refresh}
+            data-testid="git-history-refresh"
+            title="Refresh"
           >
-            {state.path ? state.path.split("/").pop() : "All"}
-          </span>
-        </label>
-        <button
-          type="button"
-          className="h-[22px] px-1.5 shrink-0 text-[length:var(--nx-font-size-ui-sm)] rounded-[var(--nx-menu-radius)] border border-border hover:bg-list-hover"
-          onClick={refresh}
-          data-testid="git-history-refresh"
-          title="Refresh"
+            Refresh
+          </Button>
+        </div>
+        <ToolbarOverflow
+          testId="git-history-more-filters"
+          title="History filters"
         >
-          Refresh
-        </button>
+          <label className="flex flex-col gap-1 text-ui-sm">
+            Branch
+            <SelectField
+              className="w-full"
+              value={state.branchFilter}
+              onChange={(event) => state.setBranchFilter(event.target.value)}
+              data-testid="git-history-compact-branch-filter"
+            >
+              <option value="">All</option>
+              {state.branches.map((branch) => (
+                <option key={branch} value={branch}>
+                  {branch}
+                </option>
+              ))}
+            </SelectField>
+          </label>
+          <label className="flex flex-col gap-1 text-ui-sm">
+            User
+            <SelectField
+              className="w-full"
+              value={state.authorFilter}
+              onChange={(event) => state.setAuthorFilter(event.target.value)}
+              data-testid="git-history-compact-author-filter"
+            >
+              <option value="">All</option>
+              {authors.map((author) => (
+                <option key={author} value={author}>
+                  {author}
+                </option>
+              ))}
+            </SelectField>
+          </label>
+          <div className="truncate text-ui-sm text-vscode-description">
+            Path: {state.path ? state.path.split("/").pop() : "All"}
+          </div>
+          <Button variant="secondary" size="compact" onClick={refresh}>
+            Refresh
+          </Button>
+        </ToolbarOverflow>
       </div>
 
       {state.error && (
-        <div className="px-3 py-1.5 text-[12px] text-[var(--vscode-errorForeground,#f48771)] border-b border-border shrink-0">
+        <div className="px-3 py-1.5 text-ui text-danger-fg border-b border-border shrink-0">
           {state.error}
         </div>
       )}
@@ -411,7 +558,10 @@ export function GitHistoryToolWindow({
           ? filesInScope(changedFiles, scopePath)
           : changedFiles.length;
 
-        const openCommitMenu = (e: React.MouseEvent, commit: GitCommitEntry) => {
+        const openCommitMenu = (
+          e: React.MouseEvent,
+          commit: GitCommitEntry,
+        ) => {
           setFileMenu(null);
           setCommitMenu({
             visible: true,
@@ -423,12 +573,18 @@ export function GitHistoryToolWindow({
 
         // Center: commit graph + list (JB Log main pane)
         const commitPane = (
-          <div className="h-full w-full min-h-0 min-w-0 overflow-y-auto bg-[var(--vscode-editor-background)]">
+          <ScrollArea
+            ref={logScrollRef}
+            onScroll={handleLogScroll}
+            className="h-full w-full bg-vscode-editor-bg"
+            data-testid="git-history-commits-scroll"
+          >
             <GitCommitList
               commits={filtered}
               selectedSha={state.selectedSha}
               onSelect={handleSelectCommit}
               graphDensity
+              permanentGraph={permanentGraph ?? undefined}
               currentSha={annotateMode ? currentSha : null}
               onContextMenu={openCommitMenu}
               loading={state.loading}
@@ -440,15 +596,24 @@ export function GitHistoryToolWindow({
                     : "No commits found."
               }
             />
-          </div>
+            {state.loadingMore && state.hasMore ? (
+              <div
+                className="px-3 py-1 text-center text-ui-sm text-vscode-description"
+                aria-live="polite"
+                data-testid="git-history-loading-more"
+              >
+                Loading older commits…
+              </div>
+            ) : null}
+          </ScrollArea>
         );
 
         // Right top: changed files only (JB Log right pane)
         const changedFilesPane = (
-          <div className="h-full w-full min-w-0 overflow-hidden flex flex-col min-h-0 bg-[var(--vscode-sideBar-background,var(--vscode-editor-background))]">
+          <div className="h-full w-full min-w-0 overflow-hidden flex flex-col min-h-0 bg-vscode-sidebar-bg">
             {twoPane && scopePath ? (
               <div
-                className="px-2 py-0.5 h-[var(--nx-toolbar-h)] flex items-center border-b border-border text-[length:var(--nx-font-size-ui-sm)] text-[var(--vscode-descriptionForeground)] shrink-0 truncate"
+                className="px-2 py-0.5 h-toolbar flex items-center border-b border-border text-ui-sm text-vscode-description shrink-0 truncate"
                 data-testid="git-annotate-scope-header"
               >
                 {scopePath}{" "}
@@ -457,8 +622,8 @@ export function GitHistoryToolWindow({
                 </span>
               </div>
             ) : null}
-            {commitDetailLoading ? (
-              <div className="px-2 py-1 text-[length:var(--nx-font-size-ui-sm)] text-[var(--vscode-descriptionForeground)]">
+            {commitDetailLoading && changedFiles.length === 0 ? (
+              <div className="px-2 py-1 text-ui-sm text-vscode-description">
                 Loading changed files…
               </div>
             ) : selected ? (
@@ -480,22 +645,22 @@ export function GitHistoryToolWindow({
                 />
               </div>
             ) : (
-              <div className="px-2 py-1 text-[length:var(--nx-font-size-ui-sm)] text-[var(--vscode-descriptionForeground)]">
+              <div className="px-2 py-1 text-ui-sm text-vscode-description">
                 Select a commit to inspect changed files.
               </div>
             )}
             {twoPane && selected ? (
               <div
-                className="shrink-0 px-2 py-1.5 border-t border-border text-[length:var(--nx-font-size-ui-sm)] text-[var(--vscode-descriptionForeground)]"
+                className="shrink-0 px-2 py-1.5 border-t border-border text-ui-sm text-vscode-description"
                 data-testid="git-annotate-commit-footer"
               >
                 <div className="font-medium text-foreground truncate">
                   {selected.subject}
                 </div>
-                <div className="mt-0.5 font-mono text-[var(--vscode-textLink-foreground)] truncate">
+                <div className="mt-0.5 font-mono text-vscode-link truncate">
                   {selected.shortSha} {selected.author}
                   {selected.authorEmail ? (
-                    <span className="text-[var(--vscode-descriptionForeground)]">
+                    <span className="text-vscode-description">
                       {" "}
                       &lt;{selected.authorEmail}&gt;
                     </span>
@@ -512,14 +677,14 @@ export function GitHistoryToolWindow({
         // Right bottom: commit details (JB Log details pane)
         const detailsPane = (
           <div
-            className="h-full w-full min-h-0 overflow-hidden border-t border-border bg-[var(--vscode-editor-background)]"
+            className="h-full w-full min-h-0 overflow-hidden border-t border-border bg-vscode-editor-bg"
             data-testid="git-log-details-pane"
           >
             <GitCommitDetail commit={selected} detailsOnly />
           </div>
         );
 
-        // Annotate under blame: commits | files
+        // Annotate compare: commits | files
         if (twoPane) {
           return (
             <div
@@ -558,7 +723,7 @@ export function GitHistoryToolWindow({
             minFirstPercent={20}
             minSecondPercent={25}
             storageKey="gitView.gitLog.rightFilesDiffSplit"
-            className="flex-1 min-h-0 w-full"
+            className="h-full min-h-0 w-full"
             first={
               <ResizableSplit
                 direction="vertical"

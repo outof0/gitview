@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PROTOCOL_VERSION } from "@gitview/shared/protocol";
-import { createProtocolClientTransport } from "../clientCore";
+import {
+  createProtocolClientTransport,
+  ProtocolRequestTimeoutError,
+} from "../clientCore";
 
 describe("clientCore", () => {
   beforeEach(() => {
@@ -15,12 +18,15 @@ describe("clientCore", () => {
     const { request } = createProtocolClientTransport(() => {});
 
     const pending = request("repo.refresh", {}, 1_000);
-    const assertion = expect(pending).rejects.toThrow(
+    const errorType = expect(pending).rejects.toBeInstanceOf(
+      ProtocolRequestTimeoutError,
+    );
+    const message = expect(pending).rejects.toThrow(
       'Request "repo.refresh" timed out after 1000ms',
     );
 
     await vi.advanceTimersByTimeAsync(1_000);
-    await assertion;
+    await Promise.all([errorType, message]);
   });
 
   it("resolves when the host returns the expected response type", async () => {
@@ -39,6 +45,51 @@ describe("clientCore", () => {
     });
 
     await expect(pending).resolves.toEqual({ entries: [] });
+    await vi.advanceTimersByTimeAsync(1_000);
+  });
+
+  it("dispatches a same-id event as an event, not the pending response", async () => {
+    let requestId = "";
+    const { handleHostMessage, request } = createProtocolClientTransport((msg) => {
+      requestId = (msg as { requestId: string }).requestId;
+    });
+    const seen: string[] = [];
+    const pending = request("branch.list", { repoId: "r1" }, 1_000).then(
+      (payload) => {
+        seen.push("resolved");
+        return payload;
+      },
+      (err: unknown) => {
+        seen.push(`rejected: ${err instanceof Error ? err.message : String(err)}`);
+        throw err;
+      },
+    );
+
+    // The host posts branch.snapshot before the branch.list response, reusing
+    // the request id. It must be dispatched as an event and must neither
+    // resolve nor reject the pending promise.
+    expect(
+      handleHostMessage({
+        protocolVersion: PROTOCOL_VERSION,
+        requestId,
+        type: "branch.snapshot",
+        payload: { repoId: "r1", branches: [] },
+      }),
+    ).toBe(true);
+    expect(seen).toEqual([]);
+
+    // The later response (same id, with `ok`) still settles the promise.
+    expect(
+      handleHostMessage({
+        protocolVersion: PROTOCOL_VERSION,
+        requestId,
+        type: "branch.list",
+        ok: true,
+        payload: { repoId: "r1", branches: [] },
+      }),
+    ).toBe(true);
+    await expect(pending).resolves.toEqual({ repoId: "r1", branches: [] });
+    expect(seen).toEqual(["resolved"]);
     await vi.advanceTimersByTimeAsync(1_000);
   });
 
@@ -84,6 +135,58 @@ describe("clientCore", () => {
       `Host replied with protocol version ${PROTOCOL_VERSION + 1}, expected ${PROTOCOL_VERSION}`,
     );
     await vi.advanceTimersByTimeAsync(1_000);
+  });
+
+  it("drops events from a superseded request for the same key", async () => {
+    const ids: string[] = [];
+    const { request, isCurrentEvent } = createProtocolClientTransport((msg) => {
+      ids.push((msg as { requestId: string }).requestId);
+    });
+
+    const first = request("log.query", { repoId: "r1" }, 1_000);
+    void first.catch(() => {});
+    const second = request("log.query", { repoId: "r1" }, 1_000);
+    void second.catch(() => {});
+
+    expect(isCurrentEvent("log.snapshot", ids[0])).toBe(false);
+    expect(isCurrentEvent("log.snapshot", ids[1])).toBe(true);
+    // Events without an id (spontaneous pushes) always apply.
+    expect(isCurrentEvent("log.snapshot", undefined)).toBe(true);
+    // Unrelated keys with no recorded request are unaffected.
+    expect(isCurrentEvent("stash.snapshot", ids[0])).toBe(true);
+    await vi.advanceTimersByTimeAsync(1_000);
+  });
+
+  it("keeps the tombstone when the latest request fails", async () => {
+    const ids: string[] = [];
+    const { handleHostMessage, request, isCurrentEvent } =
+      createProtocolClientTransport((msg) => {
+        ids.push((msg as { requestId: string }).requestId);
+      });
+
+    const first = request("log.query", { repoId: "r1" }, 1_000);
+    void first.catch(() => {});
+    const second = request("log.query", { repoId: "r1" }, 1_000);
+    const settledSecond = second.catch(() => {});
+    handleHostMessage({
+      protocolVersion: PROTOCOL_VERSION,
+      requestId: ids[1],
+      type: "log.query",
+      ok: false,
+      error: { code: "QUERY_FAILED", message: "boom" },
+    });
+    await settledSecond;
+
+    // The failed attempt keeps its tombstone: the older in-flight event
+    // stays superseded so it cannot clear the newest error or show results
+    // for obsolete filters. A retry would record a newer id.
+    expect(isCurrentEvent("log.snapshot", ids[0])).toBe(false);
+    expect(isCurrentEvent("log.snapshot", ids[1])).toBe(true);
+    const timedOut = expect(first).rejects.toBeInstanceOf(
+      ProtocolRequestTimeoutError,
+    );
+    await vi.advanceTimersByTimeAsync(1_000);
+    await timedOut;
   });
 
   it("settles child-client requests when parent handleHostMessage receives the reply", async () => {

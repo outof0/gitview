@@ -1,5 +1,5 @@
 /**
- * GitView Git screen coverage — annotate editor + Git Log tool window.
+ * GitView Git screen coverage — annotate editor + workspace Git Log tool window.
  */
 import {
   expect,
@@ -12,6 +12,7 @@ import {
   groupBlameBlocks,
   type BlameBlockLine,
 } from "../../src/shared/lib/groupBlameBlocks";
+import { expectUiSurfaceLayout } from "./ui-system-contracts";
 
 type ScreenSurface = Frame | Page;
 import {
@@ -57,6 +58,7 @@ export async function expectGitViewScreen(
   await expect(surface.getByTestId("git-diff-app")).toBeVisible({
     timeout: 15_000,
   });
+  await expectUiSurfaceLayout(surface, "git-diff-app");
   if (opts.titlePart) {
     await expect(surface.getByTestId("git-diff-app")).toContainText(
       opts.titlePart,
@@ -85,10 +87,9 @@ export async function expectGitViewBlameScreen(
   await expect(surface.getByTestId("git-blame-app")).toBeVisible({
     timeout: 15_000,
   });
-  await expect(surface.getByTestId("workspace-blame-panel")).toBeVisible();
+  await expectUiSurfaceLayout(surface, "git-blame-app");
+  await expect(surface.getByTestId("git-blame-editor-panel")).toBeVisible();
   await expect(surface.getByTestId("blame-editor")).toBeVisible();
-  await expect(surface.getByTestId("blame-git-log-pane")).toBeVisible();
-  await expect(surface.getByTestId("git-history-tool-window")).toBeVisible();
   if (opts.relativePath) {
     const fileName = opts.relativePath.split("/").pop() ?? opts.relativePath;
     await expect(surface.getByTestId("blame-editor-tab")).toContainText(
@@ -218,12 +219,14 @@ export async function expectBlameSyntaxHighlight(
     await expect(
       monaco
         .locator(
-          '.mtk1, .mtk5, .mtk6, .mtk7, .mtk8, .mtk9, .mtk20, .syntax-keyword, .view-line span',
+          ".mtk1, .mtk5, .mtk6, .mtk7, .mtk8, .mtk9, .mtk20, .syntax-keyword, .view-line span",
         )
         .first(),
     ).toBeVisible({ timeout: 15_000 });
   } else {
-    await expect(monaco.locator(".view-line, .monaco-editor").first()).toBeVisible();
+    await expect(
+      monaco.locator(".view-line, .monaco-editor").first(),
+    ).toBeVisible();
   }
 }
 
@@ -248,22 +251,73 @@ export async function expectBlameSingleScrollContainer(
   }
 }
 
-export async function expectBlameCommitHistoryPanel(
+export async function expectGitLogGraphFitsCommitList(
   surface: ScreenSurface,
 ): Promise<void> {
-  await expect(surface.getByTestId("git-history-tool-window")).toBeVisible({
-    timeout: 15_000,
+  const graph = surface.getByTestId("git-log-graph");
+  const canvas = surface.getByTestId("git-log-graph-canvas");
+  const firstRow = surface.locator('[data-graph-row="true"]').first();
+  await expect(graph).toBeVisible();
+  await expect(canvas).toBeVisible();
+  await expect(firstRow).toBeVisible();
+
+  const graphWidth = Number(await graph.getAttribute("width"));
+  const metrics = await firstRow.evaluate((row) => {
+    const rowRect = row.getBoundingClientRect();
+    const subject = row.querySelector<HTMLElement>(
+      '[data-testid="git-commit-subject"]',
+    );
+    const subjectRect = subject?.getBoundingClientRect();
+    return {
+      rowWidth: rowRect.width,
+      subjectWidth: subjectRect?.width ?? 0,
+      subjectLeft: subjectRect?.left ?? 0,
+      subjectVisible:
+        subjectRect !== undefined &&
+        subjectRect.right > rowRect.left &&
+        subjectRect.left < rowRect.right,
+    };
   });
-  await expect(surface.getByTestId("git-commit-list")).toBeVisible();
+
+  expect(Number.isFinite(graphWidth)).toBe(true);
+  expect(graphWidth).toBeLessThanOrEqual(Math.max(68, metrics.rowWidth * 0.35));
+  expect(metrics.subjectVisible).toBe(true);
+  expect(metrics.subjectWidth).toBeGreaterThan(12);
+
+  const [rowBox, canvasBox] = await Promise.all([
+    firstRow.boundingBox(),
+    canvas.boundingBox(),
+  ]);
+  expect(rowBox).not.toBeNull();
+  expect(canvasBox).not.toBeNull();
+  expect(canvasBox!.width).toBeGreaterThan(0);
+  expect(canvasBox!.height).toBeGreaterThan(0);
+  // The graph is a fixed gutter: the subject starts after its clipped edge.
+  expect(metrics.subjectLeft).toBeGreaterThanOrEqual(
+    canvasBox!.x + canvasBox!.width - 1,
+  );
 }
 
 export async function expectGitViewHistoryScreen(
   surface: ScreenSurface,
   targetPath: string,
 ): Promise<void> {
+  // Native Show History now opens the Git workspace Log tab. Keep the legacy
+  // assertion for standalone history fixtures, but prefer the workspace
+  // surface so Explorer audits exercise the shipped route.
+  if ((await surface.getByTestId("git-workspace-app").count()) > 0) {
+    await expect(surface.getByTestId("git-workspace-app")).toBeVisible({
+      timeout: 15_000,
+    });
+    await expectUiSurfaceLayout(surface, "workspace-log-panel");
+    await expect(surface.getByText(`History · ${targetPath}`)).toBeVisible();
+    await expect(surface.getByTestId("workspace-log-files-pane")).toBeVisible();
+    return;
+  }
   await expect(surface.getByTestId("git-history-app")).toBeVisible({
     timeout: 15_000,
   });
+  await expectUiSurfaceLayout(surface, "git-history-app");
   await expect(surface.getByTestId("history-git-log-pane")).toBeVisible();
   await expect(surface.getByTestId("git-history-tool-window")).toBeVisible();
   await expect(surface.getByTestId("git-history-tool-window")).toContainText(
@@ -352,7 +406,6 @@ export async function waitForGitViewBlameFrame(
   app: ElectronApplication,
   timeout = 60_000,
 ): Promise<Frame> {
-  // Legacy webview blame surface (playground / fixtures). Native Annotate uses the real editor.
   return waitForWebviewFrame(app, "git-blame-app", timeout);
 }
 
@@ -368,7 +421,7 @@ export async function waitForGitViewHistoryFrame(
   app: ElectronApplication,
   timeout = 60_000,
 ): Promise<Frame> {
-  return waitForWebviewFrame(app, "git-history-app", timeout);
+  return waitForWebviewFrame(app, "git-workspace-app", timeout);
 }
 
 export async function openExplorerGitAction(

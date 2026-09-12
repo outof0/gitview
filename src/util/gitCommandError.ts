@@ -28,6 +28,10 @@ const PHRASES: Partial<Record<GitViewErrorCode, Phrase>> = {
     `${action} timed out. Increase the timeout or try again on a smaller range.`,
   AUTH_REQUIRED: (action) =>
     `${action} failed: authentication required for the remote.`,
+  NETWORK_OFFLINE: (action) =>
+    `${action} failed: the remote could not be reached.`,
+  CERTIFICATE_ERROR: (action) =>
+    `${action} failed: the remote certificate could not be verified.`,
   PUSH_REJECTED: (action) =>
     `${action} was rejected by the remote. Pull or fetch first, then retry.`,
 };

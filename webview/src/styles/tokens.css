@@ -16,13 +16,13 @@
 :root {
   /* GitView foundation tokens. Semantic and graph colors remain separate. */
   --gitview-brand-primary: #f15a29;
-  --gitview-brand-ink: #0f1115;
-  --gitview-brand-surface: #fafaf9;
-  --gitview-graph-blue: #3882f6;
-  --gitview-graph-green: #22c55e;
-  --gitview-graph-purple: #a855f7;
-  --gitview-graph-cyan: #06b6d4;
-  --gitview-graph-pink: #ec4899;
+  --gitview-graph-blue: var(--vscode-charts-blue, #3882f6);
+  --gitview-graph-green: var(--vscode-charts-green, #22c55e);
+  --gitview-graph-purple: var(--vscode-charts-purple, #a855f7);
+  --gitview-graph-cyan: var(--vscode-charts-foreground, #06b6d4);
+  --gitview-graph-pink: var(--vscode-charts-red, #ec4899);
+  --gitview-graph-orange: var(--vscode-charts-orange, #e67e22);
+  --gitview-graph-yellow: var(--vscode-charts-yellow, #cca700);
   --gitview-semantic-info: #3882f6;
   --gitview-semantic-success: #22c55e;
   --gitview-semantic-warning: #f59e0b;
@@ -56,6 +56,34 @@
   --input: var(--vscode-input-background, #3c3c3c);
   --input-foreground: var(--vscode-input-foreground, #cccccc);
   --input-border: var(--vscode-input-border, transparent);
+  --control-placeholder: var(
+    --vscode-input-placeholderForeground,
+    var(--vscode-descriptionForeground, #8b949e)
+  );
+  --select-background: var(
+    --vscode-dropdown-background,
+    var(--vscode-input-background, #3c3c3c)
+  );
+  --select-foreground: var(
+    --vscode-dropdown-foreground,
+    var(--vscode-input-foreground, #cccccc)
+  );
+  --select-border: var(
+    --vscode-dropdown-border,
+    var(--vscode-input-border, transparent)
+  );
+  --danger-background: var(
+    --vscode-inputValidation-errorBackground,
+    var(--vscode-button-secondaryBackground, rgba(255, 255, 255, 0.08))
+  );
+  --danger-foreground: var(
+    --vscode-inputValidation-errorForeground,
+    var(--vscode-errorForeground, #f48771)
+  );
+  --danger-border: var(
+    --vscode-inputValidation-errorBorder,
+    var(--vscode-panel-border, rgba(127, 127, 127, 0.35))
+  );
 
   --list-hover: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.06));
   --list-active: var(--vscode-list-activeSelectionBackground, #094771);
@@ -108,6 +136,24 @@
     var(--vscode-editorError-foreground, #cf5c56) 32%,
     transparent
   );
+  /* Diff rows use the workbench line wash; changed text gets Monaco's stronger
+   * text background as a second layer. */
+  --nx-diff-insert-line: var(
+    --vscode-diffEditor-insertedLineBackground,
+    rgba(46, 160, 67, 0.22)
+  );
+  --nx-diff-delete-line: var(
+    --vscode-diffEditor-removedLineBackground,
+    rgba(248, 81, 73, 0.22)
+  );
+  --nx-diff-insert-char: var(
+    --vscode-diffEditor-insertedTextBackground,
+    rgba(46, 160, 67, 0.22)
+  );
+  --nx-diff-delete-char: var(
+    --vscode-diffEditor-removedTextBackground,
+    rgba(248, 81, 73, 0.22)
+  );
   --nx-added-bar: var(--vscode-gitDecoration-addedResourceForeground, #4ba85a);
   --nx-modified-bar: var(
     --vscode-gitDecoration-modifiedResourceForeground,
@@ -149,26 +195,382 @@
   --nx-font-size-ui: 12px;
   --nx-font-size-ui-sm: 11px;
   --nx-font-size-section: 10px;
+  --nx-font-size-micro: 9px;
+  --nx-font-size-title: 13px;
   --nx-font-size-code: var(--vscode-editor-font-size, 12px);
 
-  --nx-row-h: 22px;
-  --nx-toolbar-h: 28px;
-  --nx-menu-item-h: 24px;
-  --nx-titlebar-h: 28px;
+  /*
+   * Vertical rhythm of the chrome, smallest to tallest. Every toolbar, row
+   * and header in the UI picks one of these; nothing invents a height.
+   */
   --nx-icon-sm: 14px;
   --nx-icon-md: 16px;
+  --nx-icon-lg: 18px;
+  --nx-row-h: 22px;
+  --nx-control-h: 26px;
+  --nx-toolbar-h: 28px;
+  --nx-row-h-lg: 30px;
+  --nx-log-graph-row-h: 24px;
+  --nx-control-h-lg: 34px;
+  --nx-header-h: 38px;
+
+  /* Code and diff rows share one line box so gutter and content stay aligned. */
+  --nx-line-h-code: 18px;
+
+  --nx-menu-item-h: 24px;
 
   --nx-pad-x: 8px;
-  --nx-pad-y: 2px;
+  /* Padding of a panel body or a panel header, wider than the control inset. */
+  --nx-pad-panel: 10px;
   --nx-menu-pad-x: 10px;
   --nx-menu-pad-y: 4px;
   --nx-menu-radius: 2px;
   --nx-section-gap: 2px;
+
+  /* Intent-based geometry. Keep layout values in the theme adapter so a
+   * density change does not require hunting through screen components. */
+  --nx-width-tab-title: 140px;
+  --nx-width-changes-files-pane: 286px;
+  --nx-width-changes-files-min: 200px;
+  --nx-width-changes-commit-pane: 292px;
+  --nx-width-changes-commit-min: 200px;
+  --nx-width-conflict-actions: 136px;
+  --nx-width-conflict-confirm: 380px;
+  --nx-width-branch-menu: 220px;
+  --nx-width-branch-compare: 220px;
+  --nx-width-blame-hover-min: 240px;
+  --nx-width-blame-hover-max: 340px;
+  --nx-width-blame-gutter-min: 260px;
+  --nx-width-blame-gutter: clamp(260px, 25vw, 520px);
+  --nx-width-log-menu: 200px;
+  --nx-width-log-search: 260px;
+  --nx-width-filter-value: 120px;
+  --nx-width-review-filter: 100px;
+  --nx-width-temporary-prefix: 120px;
+  --nx-width-history-search: 150px;
+  --nx-width-search-field: 150px;
+  --nx-width-search-count: 32px;
+  --nx-width-changes-close: 92px;
+  --nx-width-conflicts-close: 72px;
+  --nx-width-diff-gutter: 52px;
+  --nx-width-blame-column: 120px;
+
+  --nx-height-commit-message: 64px;
+  --nx-height-commit-scope-max: 64px;
+  --nx-height-commit-body-min: 44px;
+  --nx-height-edit-message: 96px;
+  --nx-height-diff-preview-header: 35px;
+  --nx-height-git-widget-header: 42px;
+  --nx-height-tree-section: 20px;
+  --nx-height-stash-list-max: 132px;
+  --nx-height-sync-targets-max: 220px;
+  --nx-height-update-targets-max: 240px;
+  --nx-height-log-details-max: 96px;
+  --nx-height-review-timeline-max: 120px;
+  --nx-height-review-description: 56px;
+  --nx-height-review-comment: 48px;
+  --nx-height-review-comments-max: 160px;
+  --nx-size-splitter: 4px;
+  --nx-size-splitter-active: 3px;
+  --nx-size-blame-accent: 3px;
+  --nx-size-search-count: 32px;
+
+  --nx-space-commit-field: 9px;
+  --nx-space-control-gap: 6px;
+  --nx-space-form-gap: 9px;
+  --nx-space-action-gap: 7px;
+  --nx-space-widget-gap: 5px;
+  --nx-space-footer-pad-y: 7px;
+  --nx-space-widget-control-x: 7px;
+  --nx-space-badge-x: 6px;
+
+  --nx-font-size-file-glyph: 7px;
+  --nx-font-size-path: 8px;
+  --nx-font-size-editor-ui: 12.5px;
+  --nx-font-size-status: 11.5px;
+  --nx-line-height-commit-body: 17px;
+  --nx-line-height-ref: 16px;
+
+  --nx-chrome-bg: var(--vscode-sideBar-background, #252526);
+  --nx-chrome-fg: var(--vscode-editor-foreground, #cccccc);
+
+  /* Component aliases always resolve through the active VS Code theme. */
+  --nx-bg: var(--vscode-editor-background, #18181b);
+  --nx-panel: var(
+    --vscode-panel-background,
+    var(--vscode-editor-background, #202126)
+  );
+  --nx-panel2: var(
+    --vscode-editorWidget-background,
+    var(--vscode-sideBar-background, #27282e)
+  );
+  --nx-border: var(
+    --vscode-editorGroup-border,
+    var(--vscode-panel-border, #35363d)
+  );
+  --nx-text: var(--vscode-foreground, var(--vscode-editor-foreground, #e8e8ea));
+  --nx-muted: var(--vscode-descriptionForeground, #9b9ca3);
+  --nx-faint: var(
+    --vscode-disabledForeground,
+    var(--vscode-descriptionForeground, #707178)
+  );
+  --nx-orange: var(--vscode-button-background, #f15a29);
+  --nx-blue: var(--vscode-focusBorder, #61afef);
+  --nx-green: var(
+    --vscode-gitDecoration-addedResourceForeground,
+    var(--vscode-testing-iconPassed, #48b57a)
+  );
+  --nx-red: var(--vscode-errorForeground, #e06c75);
+  --nx-status-added: var(
+    --vscode-gitDecoration-addedResourceForeground,
+    #81b88b
+  );
+  --nx-status-modified: var(
+    --vscode-gitDecoration-modifiedResourceForeground,
+    #e2c08d
+  );
+  --nx-status-deleted: var(
+    --vscode-gitDecoration-deletedResourceForeground,
+    #c74e39
+  );
+  --nx-status-untracked: var(
+    --vscode-gitDecoration-untrackedResourceForeground,
+    #73c991
+  );
+  --nx-status-ignored: var(
+    --vscode-gitDecoration-ignoredResourceForeground,
+    #8c8c8c
+  );
+  --nx-status-conflict: var(
+    --vscode-gitDecoration-conflictingResourceForeground,
+    #e4676b
+  );
+  --nx-status-renamed: var(
+    --vscode-gitDecoration-renamedResourceForeground,
+    var(--vscode-gitDecoration-modifiedResourceForeground, #e2c08d)
+  );
+
+  /*
+   * Theme adapter, part 2. Every VS Code variable a component needs is mapped
+   * here exactly once. Components consume the --nx-* name (or its Tailwind
+   * alias) and never reach for --vscode-* directly, so a fallback chain has a
+   * single source and light/high-contrast overrides have a single target.
+   */
+
+  /* Text and iconography */
+  --nx-danger-fg: var(--vscode-errorForeground, #f48771);
+  --nx-link: var(--vscode-textLink-foreground, #3794ff);
+  --nx-icon-fg: var(--vscode-icon-foreground, var(--foreground));
+  --nx-sidebar-title-fg: var(
+    --vscode-sideBarTitle-foreground,
+    var(--nx-muted)
+  );
+  --nx-hover-fg: var(
+    --vscode-editorHoverWidget-foreground,
+    var(--vscode-editor-foreground, #cccccc)
+  );
+  --nx-line-number: var(--vscode-editorLineNumber-foreground, #6e7681);
+  --nx-testing-passed: var(--vscode-testing-iconPassed, #73c991);
+  --nx-charts-yellow: var(--vscode-charts-yellow, #d9a441);
+  --nx-editor-fg: var(--vscode-editor-foreground, #cccccc);
+
+  /* Validation and feedback */
+  --nx-warning-fg: var(
+    --vscode-inputValidation-warningForeground,
+    #e0ad53
+  );
+  --nx-warning-bg: var(--vscode-inputValidation-warningBackground);
+  --nx-warning-border: var(--vscode-inputValidation-warningBorder, #e0ad53);
+  --nx-info-fg: var(--vscode-inputValidation-infoForeground);
+  --nx-info-bg: var(--vscode-inputValidation-infoBackground);
+  --nx-editor-warning-fg: var(--vscode-editorWarning-foreground, #e0ad53);
+  --nx-editor-warning-bg: var(
+    --vscode-editorWarning-background,
+    rgba(224, 175, 83, 0.1)
+  );
+  --nx-editor-warning-border: var(
+    --vscode-editorWarning-border,
+    var(--nx-editor-warning-fg)
+  );
+  --nx-editor-error-fg: var(--vscode-editorError-foreground, #cf5c56);
+  --nx-editor-info-fg: var(--vscode-editorInfo-foreground, var(--foreground));
+  --nx-editor-info-bg: var(
+    --vscode-editorInfo-background,
+    rgba(0, 122, 204, 0.1)
+  );
+  --nx-editor-info-border: var(
+    --vscode-editorInfo-border,
+    var(--vscode-focusBorder)
+  );
+
+  /* Surfaces */
+  --nx-sidebar-section-bg: var(
+    --vscode-sideBarSectionHeader-background,
+    transparent
+  );
+  --nx-titlebar-bg: var(--vscode-titleBar-activeBackground, var(--nx-panel2));
+  --nx-tabs-bg: var(
+    --vscode-editorGroupHeader-tabsBackground,
+    var(--vscode-editor-background)
+  );
+  --nx-gutter-bg: var(
+    --vscode-editorGutter-background,
+    var(--vscode-editor-background, #1e1e1e)
+  );
+  --nx-hover-bg: var(
+    --vscode-editorHoverWidget-background,
+    var(--menu-bg, #252526)
+  );
+  --nx-code-block-bg: var(--vscode-textCodeBlock-background);
+  --nx-editor-inactive-sel: var(
+    --vscode-editor-inactiveSelectionBackground,
+    rgba(128, 128, 128, 0.15)
+  );
+  --nx-list-inactive-sel: var(
+    --vscode-list-inactiveSelectionBackground,
+    var(--list-active)
+  );
+  --nx-tab-active-bg: var(
+    --vscode-tab-activeBackground,
+    var(--nx-panel2, #27282e)
+  );
+  --nx-tab-active-fg: var(
+    --vscode-tab-activeForeground,
+    var(--nx-text, #e8e8ea)
+  );
+  --nx-tab-inactive-fg: var(
+    --vscode-tab-inactiveForeground,
+    var(--nx-muted, #9b9ca3)
+  );
+  --nx-badge-bg: var(--vscode-badge-background, rgba(127, 127, 127, 0.2));
+  --nx-badge-fg: var(--vscode-badge-foreground, var(--foreground));
+  --nx-menu-separator: var(--vscode-menu-separatorBackground, var(--border));
+  --nx-overview-ruler-bg: var(--vscode-editorOverviewRuler-background);
+
+  /* Controls */
+  --nx-button-border: var(--vscode-button-border, transparent);
+  --nx-checkbox-bg: var(
+    --vscode-checkbox-background,
+    var(--vscode-input-background)
+  );
+  --nx-checkbox-border: var(--vscode-checkbox-border, var(--border));
+  --nx-checkbox-fg: var(
+    --vscode-checkbox-foreground,
+    var(--primary-foreground)
+  );
+
+  /* Borders and elevation */
+  --nx-panel-border: var(
+    --vscode-panel-border,
+    var(--vscode-editorGroup-border, #444)
+  );
+  --nx-group-border: var(--vscode-editorGroup-border, #444);
+  --nx-widget-border: var(
+    --vscode-widget-border,
+    var(--vscode-editorWidget-border, var(--border))
+  );
+  --nx-widget-shadow: var(--vscode-widget-shadow, rgba(0, 0, 0, 0.36));
+
+  /* Typography */
+  --nx-font-size-base: var(--vscode-font-size, 13px);
+  --nx-font-app: var(--vscode-font-family, system-ui, sans-serif);
+
+  /*
+   * File-type palette. These are language brand colours, not theme colours:
+   * they deliberately do not follow the VS Code theme. They still live here
+   * because two surfaces render the same glyph set and must not disagree.
+   */
+  --nx-lang-ts: #3178c6;
+  --nx-lang-tsx: #4f7df3;
+  --nx-lang-js: #f4c84f;
+  --nx-lang-jsx: #61dafb;
+  --nx-lang-jsx-ink: #20232a;
+  --nx-lang-json: #83cd29;
+  --nx-lang-md: #519aba;
+  --nx-lang-css: #563d7c;
+  --nx-lang-html: #e44d26;
+  --nx-lang-py: #3572a5;
+  --nx-lang-yaml: #cb171e;
+  --nx-lang-image: #a074c4;
+
+  /* Elevation */
+  --nx-shadow-popover: 0 4px 14px rgba(0, 0, 0, 0.4);
+  --nx-shadow-modal: 0 12px 28px rgba(0, 0, 0, 0.35);
+  --nx-overlay-modal: rgba(0, 0, 0, 0.4);
+  --nx-overlay-subtle: rgba(0, 0, 0, 0.25);
+  --nx-dialog-inset: 24px;
+  --nx-lang-on-dark: #ffffff;
+  --nx-lang-on-light: #000000;
+}
+
+.nx-file-status-added {
+  color: var(--nx-status-added);
+}
+.nx-file-status-modified,
+.nx-file-status-renamed {
+  color: var(--nx-status-modified);
+}
+.nx-file-status-deleted {
+  color: var(--nx-status-deleted);
+}
+.nx-file-status-untracked {
+  color: var(--nx-status-untracked);
+}
+.nx-file-status-ignored {
+  color: var(--nx-status-ignored);
+}
+.nx-file-status-conflict {
+  color: var(--nx-status-conflict);
 }
 
 /* Light themes — softer tints on bright editor backgrounds */
 body.vscode-light,
 .vscode-light {
+  --background: var(--vscode-editor-background, #ffffff);
+  --foreground: var(--vscode-editor-foreground, #3b3b3b);
+  --secondary: var(--vscode-button-secondaryBackground, rgba(0, 0, 0, 0.08));
+  --secondary-foreground: var(
+    --vscode-button-secondaryForeground,
+    var(--vscode-editor-foreground, #3b3b3b)
+  );
+  --secondary-hover: var(
+    --vscode-button-secondaryHoverBackground,
+    rgba(0, 0, 0, 0.12)
+  );
+  --input: var(--vscode-input-background, #ffffff);
+  --input-foreground: var(--vscode-input-foreground, #3b3b3b);
+  --list-hover: var(--vscode-list-hoverBackground, rgba(0, 0, 0, 0.05));
+  --toolbar-hover: var(--vscode-toolbar-hoverBackground, rgba(0, 0, 0, 0.06));
+  --nx-chrome-bg: var(--vscode-sideBar-background, #f3f3f3);
+  --nx-chrome-fg: var(--vscode-editor-foreground, #3b3b3b);
+  --nx-status-added: var(
+    --vscode-gitDecoration-addedResourceForeground,
+    #587c0c
+  );
+  --nx-status-modified: var(
+    --vscode-gitDecoration-modifiedResourceForeground,
+    #895503
+  );
+  --nx-status-deleted: var(
+    --vscode-gitDecoration-deletedResourceForeground,
+    #ad0707
+  );
+  --nx-status-untracked: var(
+    --vscode-gitDecoration-untrackedResourceForeground,
+    #007100
+  );
+  --nx-status-ignored: var(
+    --vscode-gitDecoration-ignoredResourceForeground,
+    #8e8e90
+  );
+  --nx-status-conflict: var(
+    --vscode-gitDecoration-conflictingResourceForeground,
+    #ad0707
+  );
+  --nx-status-renamed: var(
+    --vscode-gitDecoration-renamedResourceForeground,
+    var(--vscode-gitDecoration-modifiedResourceForeground, #895503)
+  );
   --nx-added-soft: color-mix(
     in srgb,
     var(--vscode-gitDecoration-addedResourceForeground, #22863a) 16%,

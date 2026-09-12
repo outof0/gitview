@@ -54,6 +54,35 @@ export async function wireGitHistoryBootstrap(
     }
 
     if (
+      msg.type === "log.dag" &&
+      msg.protocolVersion === E2E_PROTOCOL_VERSION
+    ) {
+      const nodes = bootstrap.commits.map((commit) => ({
+        sha: commit.sha,
+        parentShas: commit.parentShas ?? [],
+        timestamp: commit.authorTime,
+      }));
+      const dag = {
+        repoId,
+        headSha: nodes[0]?.sha ?? null,
+        refTips: nodes[0] ? [nodes[0].sha] : [],
+        nodes,
+        generatedAt: Date.now(),
+      };
+      await page.evaluate(
+        (args) => {
+          window.postMessage(args.response, "*");
+          window.postMessage(args.event, "*");
+        },
+        {
+          response: v1Response(String(msg.requestId), "log.dag", dag),
+          event: v1Event("log.dag", dag),
+        },
+      );
+      return;
+    }
+
+    if (
       msg.type === "log.query" &&
       msg.protocolVersion === E2E_PROTOCOL_VERSION
     ) {

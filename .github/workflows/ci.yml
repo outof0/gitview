@@ -6,6 +6,11 @@ on:
     branches: [main, master]
   pull_request:
 
+# Least privilege: jobs below only read the repository and upload artifacts.
+# Release-side write scopes live in release.yml, which grants them per job.
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -24,7 +29,7 @@ jobs:
 
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
 
       - name: Install dependencies
@@ -35,6 +40,9 @@ jobs:
 
       - name: Architecture invariants
         run: pnpm run check:architecture
+
+      - name: UI system ratchet
+        run: pnpm run check:ui-system
 
       - name: Documentation links
         run: pnpm run check:docs
@@ -78,7 +86,7 @@ jobs:
 
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
 
       - name: Install dependencies
@@ -99,7 +107,7 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     needs: quality
-    timeout-minutes: 25
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
@@ -109,7 +117,7 @@ jobs:
 
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
 
       - name: Install dependencies
@@ -118,16 +126,28 @@ jobs:
       - name: Install Playwright browser
         run: pnpm exec playwright install chromium --with-deps
 
-      - name: Native VS Code E2E smoke tests
-        run: xvfb-run -a pnpm run test:e2e:smoke
+      - name: Native VS Code E2E tests
+        run: xvfb-run -a pnpm run test:e2e
         env:
           CI: "true"
           HEADED: "1"
 
+  # `engines.vscode` is a promise to users on older editors, but
+  # `downloadAndUnzipVSCode` defaults to the newest stable build — so the
+  # floor was claimed and never exercised. Both ends run here.
   integration:
     runs-on: ubuntu-latest
     needs: quality
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: stable
+            source: channel
+          - label: minimum-supported
+            source: manifest
+    name: integration (VS Code ${{ matrix.label }})
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
@@ -137,13 +157,24 @@ jobs:
 
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Resolve VS Code version under test
+        id: vscode
+        run: |
+          if [ "${{ matrix.source }}" = "manifest" ]; then
+            MIN=$(node -p "require('./package.json').engines.vscode.replace(/[^0-9.]/g, '')")
+            echo "version=$MIN" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=stable" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Integration tests (VS Code extension host)
         run: xvfb-run -a pnpm run test:int
         env:
           CI: "true"
+          VSCODE_VERSION: ${{ steps.vscode.outputs.version }}

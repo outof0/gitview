@@ -4,6 +4,17 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { WorkspaceDiffPanel } from "../WorkspaceDiffPanel";
 import type { WorkspaceDiffDocument } from "@gitview/shared/types/diff";
 
+const AD_HOC_OVERFLOW = ["overflow-auto", "overflow-x-auto", "overflow-x-scroll"];
+
+/** Every element below `root` that illegally became its own scroll owner. */
+function adHocScrollOwners(root: Element): Element[] {
+  return Array.from(root.querySelectorAll("*")).filter((el) =>
+    (el.getAttribute("class") ?? "")
+      .split(/\s+/)
+      .some((name) => AD_HOC_OVERFLOW.includes(name)),
+  );
+}
+
 const document: WorkspaceDiffDocument = {
   repoId: "repo-1",
   filePath: "sample.txt",
@@ -53,5 +64,45 @@ describe("WorkspaceDiffPanel line actions", () => {
     fireEvent.click(screen.getByTestId("diff-line-right-4"));
     fireEvent.click(screen.getByTestId("stage-lines"));
     expect(onStageLines).toHaveBeenCalledWith([{ side: "new", line: 4 }]);
+  });
+
+  // ui-system.md rule 2: a region has one explicit scroll owner; nested rows
+  // and cells must not create their own scrollbar.
+  it("gives each diff pane the only scrollbar in that pane", () => {
+    render(
+      <WorkspaceDiffPanel
+        document={document}
+        filePath="sample.txt"
+        showHunkActions
+        onStageLines={vi.fn()}
+      />,
+    );
+
+    for (const side of ["left", "right"] as const) {
+      const pane = screen.getByTestId(`workspace-diff-${side}-scroll`);
+      expect(pane.getAttribute("data-scroll-owner")).toBe("both");
+      expect(adHocScrollOwners(pane)).toEqual([]);
+    }
+  });
+
+  it("renders only the visible window for large files", () => {
+    const text = Array.from(
+      { length: 6_000 },
+      (_, index) => `const value${index} = ${index};`,
+    ).join("\n");
+    const { container } = render(
+      <WorkspaceDiffPanel
+        document={{
+          ...document,
+          filePath: "large.ts",
+          left: { label: "parent", text },
+          right: { label: "commit", text },
+        }}
+        filePath="large.ts"
+        showHunkActions
+      />,
+    );
+
+    expect(container.querySelectorAll('[data-testid="code-line"]').length).toBeLessThan(300);
   });
 });

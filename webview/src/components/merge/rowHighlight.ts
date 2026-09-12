@@ -32,7 +32,7 @@ function sideLineText(
 }
 
 /** True when ours or theirs differs from base on this aligned row (conflict region). */
-export function conflictRegionLine(
+function conflictRegionLine(
   block: BlockRows,
   rowIndex: number,
 ): boolean {

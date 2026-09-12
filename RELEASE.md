@@ -24,11 +24,34 @@ pnpm run changelog:preview
 pnpm release
 ```
 
+The release wrapper refuses a dirty working tree and commits exactly the files
+owed by the selected version: `CHANGELOG.md`, plus `package.json` when the
+manifest was not already pre-bumped to that version. Unrelated tracked changes
+are never swept into the release commit.
+
 Pushing the tag triggers `.github/workflows/release.yml`, reruns CI, packages the
 VSIX, verifies the tag matches `package.json`, and creates a GitHub Release with
 generated notes and the VSIX attached.
 
 Then continue with packaging and marketplace publish below.
+
+### Release lineage gate
+
+Both `changelog:preview` and `changelog` run the remote-backed lineage gate in
+`scripts/generate-changelog.mjs`. It fails when the newest **published** `v*`
+tag is not available locally at the same commit or is **not an ancestor of
+`HEAD`**. Local-only tags are never allowed to define the range, because
+changelogen can otherwise emit a plausible but false `## ...main` heading.
+
+```bash
+# Do not move an existing published tag. Fetch the published tag and restore
+# its commit as an ancestor of this branch, or cut a new version/tag from the
+# current HEAD. The lineage gate must pass before running `pnpm release` again.
+```
+
+If a tag was never published and is known to be a local mistake, remove it
+locally before cutting the release again. Never move a tag that downstream
+consumers already resolved.
 
 ## 1. Repository Hygiene
 

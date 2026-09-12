@@ -1,0 +1,245 @@
+{
+  "results": [
+    {
+      "app": "gitHistory",
+      "width": 1400,
+      "theme": "dark",
+      "rootOverflowX": 0,
+      "owners": 4,
+      "adHoc": 0,
+      "bodyBg": "rgb(30, 30, 30)",
+      "bodyFg": "rgb(212, 212, 212)",
+      "textChars": 1354,
+      "scrollProof": []
+    },
+    {
+      "app": "gitHistory",
+      "width": 1100,
+      "theme": "dark",
+      "rootOverflowX": 0,
+      "owners": 4,
+      "adHoc": 0,
+      "bodyBg": "rgb(30, 30, 30)",
+      "bodyFg": "rgb(212, 212, 212)",
+      "textChars": 1354,
+      "scrollProof": [
+        {
+          "testId": null,
+          "axis": "vertical",
+          "applied": 16
+        }
+      ]
+    },
+    {
+      "app": "gitHistory",
+      "width": 860,
+      "theme": "dark",
+      "rootOverflowX": 0,
+      "owners": 4,
+      "adHoc": 0,
+      "bodyBg": "rgb(30, 30, 30)",
+      "bodyFg": "rgb(212, 212, 212)",
+      "textChars": 1354,
+      "scrollProof": [
+        {
+          "testId": null,
+          "axis": "vertical",
+          "applied": 40
+        }
+      ]
+    },
+    {
+      "app": "gitHistory",
+      "width": 640,
+      "theme": "dark",
+      "rootOverflowX": 0,
+      "owners": 4,
+      "adHoc": 0,
+      "bodyBg": "rgb(30, 30, 30)",
+      "bodyFg": "rgb(212, 212, 212)",
+      "textChars": 1278,
+      "scrollProof": [
+        {
+          "testId": null,
+          "axis": "vertical",
+          "applied": 40
+        }
+      ]
+    },
+    {
+      "app": "gitHistory",
+      "width": 420,
+      "theme": "dark",
+      "rootOverflowX": 0,
+      "owners": 4,
+      "adHoc": 0,
+      "bodyBg": "rgb(30, 30, 30)",
+      "bodyFg": "rgb(212, 212, 212)",
+      "textChars": 1278,
+      "scrollProof": [
+        {
+          "testId": null,
+          "axis": "vertical",
+          "applied": 40
+        }
+      ]
+    },
+    {
+      "app": "gitMenu",
+      "width": 1400,
+      "theme": "dark",
+      "rootOverflowX": 0,
+      "owners": 0,
+      "adHoc": 0,
+      "bodyBg": "rgb(30, 30, 30)",
+      "bodyFg": "rgb(212, 212, 212)",
+      "textChars": 431,
+      "scrollProof": []
+    },
+    {
+      "app": "gitMenu",
+      "width": 1100,
+      "theme": "dark",
+      "rootOverflowX": 0,
+      "owners": 0,
+      "adHoc": 0,
+      "bodyBg": "rgb(30, 30, 30)",
+      "bodyFg": "rgb(212, 212, 212)",
+      "textChars": 431,
+      "scrollProof": []
+    },
+    {
+      "app": "gitMenu",
+      "width": 860,
+      "theme": "dark",
+      "rootOverflowX": 0,
+      "owners": 0,
+      "adHoc": 0,
+      "bodyBg": "rgb(30, 30, 30)",
+      "bodyFg": "rgb(212, 212, 212)",
+      "textChars": 431,
+      "scrollProof": []
+    },
+    {
+      "app": "gitMenu",
+      "width": 640,
+      "theme": "dark",
+      "rootOverflowX": 0,
+      "owners": 0,
+      "adHoc": 0,
+      "bodyBg": "rgb(30, 30, 30)",
+      "bodyFg": "rgb(212, 212, 212)",
+      "textChars": 431,
+      "scrollProof": []
+    },
+    {
+      "app": "gitMenu",
+      "width": 420,
+      "theme": "dark",
+      "rootOverflowX": 0,
+      "owners": 0,
+      "adHoc": 0,
+      "bodyBg": "rgb(30, 30, 30)",
+      "bodyFg": "rgb(212, 212, 212)",
+      "textChars": 431,
+      "scrollProof": []
+    },
+    {
+      "app": "merge",
+      "width": 1400,
+      "theme": "dark",
+      "rootOverflowX": 0,
+      "owners": 1,
+      "adHoc": 0,
+      "bodyBg": "rgb(30, 30, 30)",
+      "bodyFg": "rgb(212, 212, 212)",
+      "textChars": 712,
+      "scrollProof": []
+    },
+    {
+      "app": "merge",
+      "width": 1100,
+      "theme": "dark",
+      "rootOverflowX": 0,
+      "owners": 1,
+      "adHoc": 0,
+      "bodyBg": "rgb(30, 30, 30)",
+      "bodyFg": "rgb(212, 212, 212)",
+      "textChars": 712,
+      "scrollProof": []
+    },
+    {
+      "app": "merge",
+      "width": 860,
+      "theme": "dark",
+      "rootOverflowX": 0,
+      "owners": 1,
+      "adHoc": 0,
+      "bodyBg": "rgb(30, 30, 30)",
+      "bodyFg": "rgb(212, 212, 212)",
+      "textChars": 712,
+      "scrollProof": []
+    },
+    {
+      "app": "merge",
+      "width": 640,
+      "theme": "dark",
+      "rootOverflowX": 0,
+      "owners": 1,
+      "adHoc": 0,
+      "bodyBg": "rgb(30, 30, 30)",
+      "bodyFg": "rgb(212, 212, 212)",
+      "textChars": 712,
+      "scrollProof": []
+    },
+    {
+      "app": "merge",
+      "width": 420,
+      "theme": "dark",
+      "rootOverflowX": 0,
+      "owners": 1,
+      "adHoc": 0,
+      "bodyBg": "rgb(30, 30, 30)",
+      "bodyFg": "rgb(212, 212, 212)",
+      "textChars": 712,
+      "scrollProof": []
+    },
+    {
+      "app": "gitHistory",
+      "width": 860,
+      "theme": "light",
+      "rootOverflowX": 0,
+      "owners": 4,
+      "adHoc": 0,
+      "bodyBg": "rgb(255, 255, 255)",
+      "bodyFg": "rgb(59, 59, 59)",
+      "textChars": 1354,
+      "scrollProof": [
+        {
+          "testId": null,
+          "axis": "vertical",
+          "applied": 40
+        }
+      ]
+    },
+    {
+      "app": "gitHistory",
+      "width": 860,
+      "theme": "high-contrast",
+      "rootOverflowX": 0,
+      "owners": 4,
+      "adHoc": 0,
+      "bodyBg": "rgb(30, 30, 30)",
+      "bodyFg": "rgb(212, 212, 212)",
+      "textChars": 1354,
+      "scrollProof": [
+        {
+          "testId": null,
+          "axis": "vertical",
+          "applied": 40
+        }
+      ]
+    }
+  ],
+  "failures": []
+}

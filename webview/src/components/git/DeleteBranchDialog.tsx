@@ -1,8 +1,7 @@
 import {
   GitDialogShell,
-  gitDialogBtnDanger,
-  gitDialogBtnSecondary,
 } from "../ui/GitDialogShell";
+import { Button } from "../ui/Button";
 
 type DeleteBranchDialogProps = {
   open: boolean;
@@ -26,22 +25,22 @@ export function DeleteBranchDialog({
       testId="delete-branch-dialog"
       footer={
         <>
-          <button
+          <Button
             type="button"
-            className={gitDialogBtnSecondary}
+            variant="secondary" size="compact"
             onClick={onCancel}
             data-testid="delete-branch-cancel"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className={gitDialogBtnDanger}
+            variant="danger" size="compact"
             onClick={() => onConfirm(forceRequired)}
             data-testid="delete-branch-confirm"
           >
             {forceRequired ? "Force delete" : "Delete"}
-          </button>
+          </Button>
         </>
       }
     >

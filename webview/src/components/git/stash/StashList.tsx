@@ -1,3 +1,4 @@
+import { Button } from "../../ui/Button";
 import { useState } from "react";
 import { GitBranch, Package } from "lucide-react";
 import type { StashEntry } from "@gitview/shared/types/stash";
@@ -53,7 +54,7 @@ export function StashList({
   if (stashes.length === 0) {
     return (
       <div
-        className="px-1.5 py-2 text-[length:var(--nx-font-size-ui)] text-vscode-description"
+        className="px-3 py-2 text-ui-sm text-vscode-description"
         data-testid="stash-empty"
       >
         {emptyLabel}
@@ -72,9 +73,12 @@ export function StashList({
         {stashes.map((entry) => {
           const selected = entry.index === selectedIndex;
           const fileCount = selected ? selectedFileCount : entry.fileCount;
+          const stashIconClass = entry.hasUntracked
+            ? "text-status-untracked"
+            : "text-status-modified";
           return (
             <li key={entry.ref} className="list-none">
-              <button
+              <Button variant="ghost" size="content"
                 type="button"
                 role="option"
                 aria-selected={selected}
@@ -84,29 +88,33 @@ export function StashList({
                 className={cn(
                   "w-full text-left border-0 bg-transparent cursor-pointer",
                   "flex items-center gap-1.5 px-1.5",
-                  "min-h-[var(--nx-row-h)] py-0.5",
-                  "text-[length:var(--nx-font-size-ui)]",
+                  "min-h-row py-0.5",
+                  "text-ui",
                   "border-b border-border",
                   selected
-                    ? "bg-[var(--vscode-list-activeSelectionBackground)] text-[var(--vscode-list-activeSelectionForeground)]"
+                    ? "bg-list-active text-list-activeForeground"
                     : "hover:bg-list-hover",
                 )}
                 data-testid={`stash-entry-${entry.index}`}
               >
-                <Package size={13} className="shrink-0 opacity-70" aria-hidden />
+                <Package
+                  size={14}
+                  className={cn("shrink-0", stashIconClass)}
+                  aria-hidden
+                />
                 <span className="flex-1 min-w-0 truncate">{entry.message}</span>
                 {entry.branch ? (
                   <span
-                    className="shrink-0 inline-flex items-center gap-1 text-[length:var(--nx-font-size-ui-sm)] opacity-75"
+                    className="shrink-0 inline-flex items-center gap-1 text-ui-sm text-vscode-link"
                     data-testid={`stash-branch-${entry.index}`}
                   >
-                    <GitBranch size={11} aria-hidden />
+                    <GitBranch size={12} aria-hidden />
                     {entry.branch}
                   </span>
                 ) : null}
                 {typeof fileCount === "number" ? (
                   <span
-                    className="shrink-0 text-[length:var(--nx-font-size-ui-sm)] opacity-75"
+                    className="shrink-0 text-ui-sm opacity-75"
                     data-testid={`stash-filecount-${entry.index}`}
                   >
                     {fileCount} {fileCount === 1 ? "file" : "files"}
@@ -114,14 +122,14 @@ export function StashList({
                 ) : null}
                 {entry.relativeDate ? (
                   <span
-                    className="shrink-0 text-[length:var(--nx-font-size-ui-sm)] text-vscode-description"
+                    className="shrink-0 text-ui-sm text-vscode-description"
                     title={entry.authoredAt ?? undefined}
                     data-testid={`stash-date-${entry.index}`}
                   >
                     {entry.relativeDate}
                   </span>
                 ) : null}
-              </button>
+              </Button>
             </li>
           );
         })}

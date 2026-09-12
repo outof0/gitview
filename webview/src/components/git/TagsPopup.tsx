@@ -1,6 +1,16 @@
-import { useState } from "react";
-import { Tag, X } from "lucide-react";
+import {
+  useState,
+} from "react";
+import {
+  Tag,
+  X,
+} from "lucide-react";
 import type { TagListSnapshot } from "@gitview/shared/types/tag";
+import { GitDialogShell } from "../ui/GitDialogShell";
+import { Button } from "../ui/Button";
+import { TextField } from "../ui/TextField";
+import { ToolbarIconButton } from "../ui/ToolbarControls";
+import { ToolEmptyState } from "../ui/ToolEmptyState";
 
 type TagsPopupProps = {
   open: boolean;
@@ -30,104 +40,50 @@ export function TagsPopup({
   const [newName, setNewName] = useState("");
   const [newMessage, setNewMessage] = useState("");
 
-  if (!open) {
-    return null;
-  }
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center pt-12 bg-black/40"
-      data-testid="tags-popup"
-      onClick={onClose}
-    >
-      <div
-        className="w-[min(440px,92vw)] max-h-[70vh] flex flex-col rounded-vscode border border-border bg-[var(--vscode-editor-background)] shadow-lg"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
-          <Tag size={16} aria-hidden />
-          <span className="text-[13px] font-semibold flex-1">Tags</span>
-          <button
+    <GitDialogShell
+      open={open}
+      title="Tags"
+      titleIcon={<Tag size={16} />}
+      size="list"
+      onCancel={onClose}
+      testId="tags-popup"
+      headerActions={
+        <>
+          <Button
             type="button"
-            className="h-7 px-2 text-[11px] rounded-vscode hover:bg-list-hover"
+            variant="secondary" size="compact"
             onClick={onRefresh}
             disabled={loading || busy}
           >
             Refresh
-          </button>
-          <button type="button" className="h-7 w-7 flex items-center justify-center rounded-vscode hover:bg-list-hover" onClick={onClose}>
+          </Button>
+          <ToolbarIconButton onClick={onClose} aria-label="Close tags">
             <X size={14} aria-hidden />
-          </button>
-        </div>
-
-        <div className="flex-1 min-h-0 overflow-y-auto" data-testid="tags-list">
-          {loading && (
-            <div className="p-3 text-[12px] text-[var(--vscode-descriptionForeground)]">
-              Loading tags…
-            </div>
-          )}
-          {!loading &&
-            (snapshot?.tags ?? []).map((tag) => (
-              <div
-                key={tag.name}
-                className="flex items-center gap-2 px-3 py-2 border-b border-border text-[12px]"
-                data-testid={`tag-${tag.name}`}
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="font-mono">{tag.name}</div>
-                  <div className="text-[11px] text-[var(--vscode-descriptionForeground)]">
-                    {tag.sha}
-                    {tag.annotated ? " · annotated" : ""}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className="h-7 px-2 text-[11px] rounded-vscode border border-border hover:bg-list-hover disabled:opacity-40"
-                  disabled={busy}
-                  onClick={() => onCheckout(tag.name)}
-                >
-                  Checkout
-                </button>
-                <button
-                  type="button"
-                  className="h-7 px-2 text-[11px] rounded-vscode border border-border hover:bg-list-hover disabled:opacity-40"
-                  disabled={busy}
-                  onClick={() => onPush(tag.name)}
-                >
-                  Push
-                </button>
-                <button
-                  type="button"
-                  className="h-7 px-2 text-[11px] rounded-vscode border border-border hover:bg-list-hover disabled:opacity-40"
-                  disabled={busy}
-                  onClick={() => onDelete(tag.name)}
-                >
-                  Delete
-                </button>
-              </div>
-            ))}
-        </div>
-
-        <div className="shrink-0 flex flex-col gap-2 px-3 py-2 border-t border-border">
-          <input
-            type="text"
-            className="h-7 px-2 text-[12px] rounded-vscode border border-border bg-[var(--vscode-input-background)]"
+          </ToolbarIconButton>
+        </>
+      }
+      footer={
+        <div className="flex w-full flex-col gap-2">
+          <TextField
+            size="compact"
+            containerClassName="w-full"
             placeholder="New tag name"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             data-testid="new-tag-name"
           />
-          <input
-            type="text"
-            className="h-7 px-2 text-[12px] rounded-vscode border border-border bg-[var(--vscode-input-background)]"
+          <TextField
+            size="compact"
+            containerClassName="w-full"
             placeholder="Annotated tag message"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             data-testid="new-tag-message"
           />
-          <button
+          <Button
             type="button"
-            className="h-7 px-2 text-[11px] rounded-vscode border border-border hover:bg-list-hover disabled:opacity-40 self-end"
+            variant="primary" size="compact" className="self-end"
             disabled={!newName.trim() || busy}
             onClick={() => {
               onCreate(newName.trim(), newMessage.trim());
@@ -137,9 +93,60 @@ export function TagsPopup({
             data-testid="create-tag-button"
           >
             Create annotated tag
-          </button>
+          </Button>
         </div>
+      }
+    >
+      <div className="flex-1 min-h-0 overflow-y-auto" data-testid="tags-list">
+        {loading && (
+          <div className="p-3 text-ui-sm text-vscode-description">
+            Loading tags…
+          </div>
+        )}
+        {!loading && (snapshot?.tags ?? []).length === 0 && (
+          <ToolEmptyState title="No tags yet." />
+        )}
+        {!loading &&
+          (snapshot?.tags ?? []).map((tag) => (
+            <div
+              key={tag.name}
+              className="flex items-center gap-2 px-3 py-2 border-b border-border text-ui"
+              data-testid={`tag-${tag.name}`}
+            >
+              <div className="flex-1 min-w-0">
+                <div className="font-mono">{tag.name}</div>
+                <div className="text-ui-sm text-vscode-description">
+                  {tag.sha}
+                  {tag.annotated ? " · annotated" : ""}
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="secondary" size="compact"
+                disabled={busy}
+                onClick={() => onCheckout(tag.name)}
+              >
+                Checkout
+              </Button>
+              <Button
+                type="button"
+                variant="secondary" size="compact"
+                disabled={busy}
+                onClick={() => onPush(tag.name)}
+              >
+                Push
+              </Button>
+              <Button
+                type="button"
+                variant="secondary" size="compact"
+                disabled={busy}
+                onClick={() => onDelete(tag.name)}
+              >
+                Delete
+              </Button>
+            </div>
+          ))}
       </div>
-    </div>
+    </GitDialogShell>
   );
 }

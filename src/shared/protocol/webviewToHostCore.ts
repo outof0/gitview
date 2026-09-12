@@ -1,18 +1,30 @@
 import type { GitMenuActionPayload } from "../../types/gitMenu";
-import type { DiffLineSelection } from "../types/diff";
+import type { ConfirmationSubmission } from "../types/confirmation";
+import type { DiffLineSelection, StandaloneDiffPreview } from "../types/diff";
 import type { LogQueryFilters } from "../types/log";
 import type { CommitCreatePayload, WebviewRequest } from "./base";
 
 /** Webview → host intents (core, v1). */
 export type WebviewToHostCore =
   | WebviewRequest<"webview.ready", { surface: string }>
+  | WebviewRequest<"workspace.openFolder", Record<string, never>>
+  | WebviewRequest<"workspace.clone", Record<string, never>>
+  | WebviewRequest<"workspace.manageTrust", Record<string, never>>
+  | WebviewRequest<"workspace.collapsePanel", Record<string, never>>
+  | WebviewRequest<"workspace.toggleSidebar", Record<string, never>>
+  | WebviewRequest<"repository.addRemote", { repoId: string }>
   | WebviewRequest<"repo.refresh", { repoId?: string }>
   | WebviewRequest<"status.list", { repoId: string; includeIgnored?: boolean }>
   | WebviewRequest<"changes.stage", { repoId: string; paths: string[] }>
   | WebviewRequest<"changes.unstage", { repoId: string; paths: string[] }>
   | WebviewRequest<
       "changes.rollback",
-      { repoId: string; paths: string[]; confirmed?: boolean }
+      {
+        repoId: string;
+        paths: string[];
+        confirmed?: boolean;
+        confirmation?: ConfirmationSubmission;
+      }
     >
   | WebviewRequest<"commit.create", CommitCreatePayload>
   | WebviewRequest<"sync.fetch", { repoId: string }>
@@ -28,10 +40,17 @@ export type WebviewToHostCore =
       "sync.updateAllRoots",
       { strategy?: "merge" | "rebase" | "ff_only" }
     >
+  | WebviewRequest<"sync.cancel", { operationId: string }>
   | WebviewRequest<"branch.list", { repoId: string }>
   | WebviewRequest<
       "branch.checkout",
-      { repoId: string; ref: string; smart?: boolean; force?: boolean }
+      {
+        repoId: string;
+        ref: string;
+        smart?: boolean;
+        force?: boolean;
+        confirmation?: ConfirmationSubmission;
+      }
     >
   | WebviewRequest<
       "branch.syncOperation",
@@ -41,6 +60,7 @@ export type WebviewToHostCore =
         smart?: boolean;
         force?: boolean;
         confirmed?: boolean;
+        confirmation?: ConfirmationSubmission;
       }
     >
   | WebviewRequest<
@@ -136,6 +156,7 @@ export type WebviewToHostCore =
       "log.query",
       { repoId: string } & LogQueryFilters
     >
+  | WebviewRequest<"log.dag", { repoId: string }>
   | WebviewRequest<
       "log.fileDiff",
       { repoId: string; sha: string; path: string; status?: string }
@@ -151,6 +172,18 @@ export type WebviewToHostCore =
   | WebviewRequest<
       "git.menuAction",
       { repoId: string } & GitMenuActionPayload
+    >
+  | WebviewRequest<
+      "rollback.openPanel",
+      { repoId: string; path: string; selectedPaths?: string[] }
+    >
+  | WebviewRequest<
+      "git.openContentDialog",
+      {
+        repoId: string;
+        dialog: "stash" | "unstash";
+        index?: number | null;
+      }
     >
   | WebviewRequest<
       "diff.stageHunk",
@@ -209,6 +242,7 @@ export type WebviewToHostCore =
         hunkIndexes?: number[];
         lines?: DiffLineSelection[];
         confirmed?: boolean;
+        confirmation?: ConfirmationSubmission;
       }
     >
   | WebviewRequest<
@@ -218,6 +252,7 @@ export type WebviewToHostCore =
         sha: string;
         mode: "soft" | "mixed" | "hard" | "keep";
         confirmed?: boolean;
+        confirmation?: ConfirmationSubmission;
       }
     >
   | WebviewRequest<
@@ -230,7 +265,12 @@ export type WebviewToHostCore =
     >
   | WebviewRequest<
       "log.dropCommit",
-      { repoId: string; sha: string; confirmed?: boolean }
+      {
+        repoId: string;
+        sha: string;
+        confirmed?: boolean;
+        confirmation?: ConfirmationSubmission;
+      }
     >
   | WebviewRequest<
       "log.editMessage",
@@ -243,9 +283,14 @@ export type WebviewToHostCore =
         sha: string;
         action: "squash" | "fixup" | "drop";
         confirmed?: boolean;
+        confirmation?: ConfirmationSubmission;
       }
     >
   | WebviewRequest<
       "log.extractChanges",
       { repoId: string; sha: string; paths?: string[] }
+    >
+  | WebviewRequest<
+      "diff.openInEditor",
+      { preview: StandaloneDiffPreview; workspaceRoot?: string }
     >;

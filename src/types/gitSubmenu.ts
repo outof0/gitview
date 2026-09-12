@@ -18,13 +18,17 @@ export const GIT_SUBMENU_CONTEXT_GROUP = "z_git@1";
 /** Resolve conflict — first row inside the Git submenu when merge changes exist. */
 export const RESOLVE_CONFLICT_GROUP = "0_merge@1";
 
+/** Native keybindings must yield to shortcuts handled inside GitView webviews. */
+export const NOT_GITVIEW_WEBVIEW_FOCUS_WHEN =
+  "!(view == gitView.launcher || view == gitView.workspace)";
+
 /** Default chord for opening the merge resolver from the active editor. */
 export const RESOLVE_CONFLICT_KEYBINDING_WHEN =
-  "git.mergeChangesCount != 0 && editorTextFocus && resourceScheme == file && git.activeResourceHasMergeConflicts";
+  `git.mergeChangesCount != 0 && editorTextFocus && resourceScheme == file && git.activeResourceHasMergeConflicts && ${NOT_GITVIEW_WEBVIEW_FOCUS_WHEN}`;
 
 export type GitSubmenuScope = "resource" | "file" | "repository" | "merge";
 
-export type GitSubmenuHistoryAction = "showHistory";
+type GitSubmenuHistoryAction = "showHistory";
 
 export type GitSubmenuSpecialAction =
   | GitSubmenuHistoryAction
@@ -265,6 +269,33 @@ export const GIT_SUBMENU_ITEMS = [
     testId: "git-menu-rebase",
     feature: "Rebase branch",
   },
+  {
+    command: "gitView.gitOpenOnRemote",
+    action: "openOnRemote",
+    title: "Open on Remote",
+    group: "7_remote@1",
+    scope: "resource",
+    testId: "git-menu-open-on-remote",
+    feature: "Open file, folder, or commit on the remote host",
+  },
+  {
+    command: "gitView.gitCopyRemoteLink",
+    action: "copyRemoteLink",
+    title: "Copy Remote Link",
+    group: "7_remote@2",
+    scope: "resource",
+    testId: "git-menu-copy-remote-link",
+    feature: "Copy remote-host link for a file, folder, or commit",
+  },
+  {
+    command: "gitView.gitCopyRemoteLinkMarkdown",
+    action: "copyRemoteLinkMarkdown",
+    title: "Copy Remote Link as Markdown",
+    group: "7_remote@3",
+    scope: "resource",
+    testId: "git-menu-copy-remote-link-markdown",
+    feature: "Copy remote-host link as Markdown",
+  },
 ] as const satisfies readonly GitSubmenuItem[];
 
 export type GitSubmenuRenderOptions = {
@@ -294,6 +325,8 @@ export function gitSubmenuSectionLabel(groupKey: string): string | null {
       return "Branch & temporary work";
     case "6_integrate":
       return "Integrate";
+    case "7_remote":
+      return "Remote link";
     default:
       return null;
   }

@@ -30,11 +30,25 @@ export type MergeBootstrap = {
   repoId: string;
 };
 
+export type GitCreateBranchBootstrap = {
+  repoId: string;
+  /** Ref the new branch starts from; empty means the current HEAD. */
+  startPoint?: string;
+};
+
+export type WorkspaceBootstrap = {
+  surface?: "workspace" | "commit" | "branches" | "sidebar" | "content";
+  /** Repository explicitly targeted by a transient editor-area dialog. */
+  repoId?: string;
+};
+
 export type GitViewBootstrap =
   | HistoryBootstrap
   | BlameBootstrap
   | DiffBootstrap
-  | MergeBootstrap;
+  | MergeBootstrap
+  | GitCreateBranchBootstrap
+  | WorkspaceBootstrap;
 
 declare global {
   interface Window {

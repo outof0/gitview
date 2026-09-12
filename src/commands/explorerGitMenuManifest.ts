@@ -6,6 +6,7 @@ import {
   GIT_SUBMENU_CONTEXT_GROUP,
   GIT_SUBMENU_ITEMS,
   MERGE_CHANGES_WHEN,
+  NOT_GITVIEW_WEBVIEW_FOCUS_WHEN,
   RESOLVE_CONFLICT_KEYBINDING_WHEN,
   RESOURCE_FILE_WHEN,
   type GitSubmenuScope,
@@ -41,6 +42,7 @@ export {
   FILE_ONLY_WHEN,
   GIT_SUBMENU_CONTEXT_GROUP,
   MERGE_CHANGES_WHEN,
+  NOT_GITVIEW_WEBVIEW_FOCUS_WHEN,
   RESOLVE_CONFLICT_KEYBINDING_WHEN,
   RESOURCE_FILE_WHEN,
 };
@@ -51,6 +53,14 @@ export const RESOLVE_CONFLICT_KEYBINDING_SPEC = {
   key: "alt+shift+m",
   mac: "cmd+alt+shift+m",
   when: RESOLVE_CONFLICT_KEYBINDING_WHEN,
+} as const;
+
+/** Ctrl/Cmd+D shows the working-tree diff for the selected Explorer file. */
+export const SHOW_DIFF_KEYBINDING_SPEC = {
+  command: "gitView.gitShowDiff",
+  key: "ctrl+d",
+  mac: "cmd+d",
+  when: `explorerViewletFocus && explorerResourceIsFolder == false && resourceScheme == file && ${NOT_GITVIEW_WEBVIEW_FOCUS_WHEN}`,
 } as const;
 
 export const GIT_CONTEXT_SLOT_SPECS = [
@@ -265,6 +275,24 @@ export const EXPLORER_GIT_SUBMENU_FEATURE_SPECS = [
     featureId: "CONFLICT-001",
     feature: "Open conflicts resolver when merge conflicts exist",
     expectedCommand: "gitView.open",
+    coverage: "functional-integration",
+  },
+  {
+    featureId: "REMOTE-LINK-001",
+    feature: "Open file, folder, or commit on the remote host",
+    expectedCommand: "gitView.gitOpenOnRemote",
+    coverage: "functional-integration",
+  },
+  {
+    featureId: "REMOTE-LINK-002",
+    feature: "Copy remote-host link for a file, folder, or commit",
+    expectedCommand: "gitView.gitCopyRemoteLink",
+    coverage: "functional-integration",
+  },
+  {
+    featureId: "REMOTE-LINK-003",
+    feature: "Copy remote-host link as Markdown",
+    expectedCommand: "gitView.gitCopyRemoteLinkMarkdown",
     coverage: "functional-integration",
   },
 ] as const satisfies readonly ExplorerGitSubmenuFeatureSpec[];

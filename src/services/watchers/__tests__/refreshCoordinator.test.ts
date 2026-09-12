@@ -45,6 +45,7 @@ describe("refreshCoordinator", () => {
           ahead: null,
           behind: null,
           conflictCount: 0,
+          changeDigest: null,
           dirty: false,
           trusted: true,
           protectedBranch: false,
@@ -191,6 +192,54 @@ describe("refreshCoordinator", () => {
       "refresh.listener.failed",
       expect.objectContaining({ errorMessage: "panel closed" }),
     );
+  });
+
+  it("replays the last payload to a subscriber that attaches after refresh", async () => {
+    const repositoryService = {
+      discoverRepositories: vi.fn(async () => [
+        {
+          id: "r1",
+          rootPath: "/repo",
+          workspaceFolderPath: "/repo",
+          gitDirPath: "/repo/.git",
+          name: "repo",
+          currentBranch: "main",
+          headSha: "abc",
+          upstream: null,
+          isDetached: false,
+          isBare: false,
+          isWorktree: false,
+          operation: { type: "none" as const },
+          ahead: null,
+          behind: null,
+          conflictCount: 0,
+          changeDigest: null,
+          dirty: false,
+          trusted: true,
+          protectedBranch: false,
+          lastRefreshAt: 0,
+        },
+      ]),
+      buildSnapshot: vi.fn((repos, active) => ({
+        repositories: repos,
+        activeRepoId: active,
+        multiRootDiverged: false,
+      })),
+    };
+    const coordinator = createRefreshCoordinator({
+      execGit: async () => ({ stdout: "", stderr: "" }),
+      repositoryService: repositoryService as never,
+      getWorkspaceFolders: () => [{ uriPath: "/repo", name: "repo" }],
+      getTrusted: () => true,
+    });
+
+    await coordinator.refreshNow();
+    const late = vi.fn();
+    coordinator.subscribe(late);
+
+    expect(late).toHaveBeenCalledTimes(1);
+    expect(late.mock.calls[0]?.[0].repoSnapshot.repositories).toHaveLength(1);
+    coordinator.dispose();
   });
 
   it("reuses repository status instead of spawning a duplicate status command", async () => {

@@ -1,3 +1,4 @@
+import { Button } from "../ui/Button";
 import { memo, useCallback, useMemo, useState } from "react";
 import type { GitChangedFile } from "@gitview/types";
 import {
@@ -11,12 +12,14 @@ import {
 } from "./changedFileStatus";
 import { GitFileIcon } from "./gitFileIcon";
 import { statusBadge } from "./gitPanelFormat";
+import { ScrollArea } from "../ui/ScrollArea";
 
 type GitChangedFilesTreeProps = {
   files: GitChangedFile[];
   selectedPath: string | null;
   highlightPath?: string;
   onSelectFile: (path: string) => void;
+  onActivateFile?: (path: string) => void;
   onContextMenuFile?: (e: React.MouseEvent, path: string) => void;
 };
 
@@ -35,7 +38,7 @@ function Chevron({ open }: { open: boolean }) {
 function FolderIcon() {
   return (
     <svg
-      className="w-3.5 h-3.5 shrink-0 text-[#c5c5c5]"
+      className="w-3.5 h-3.5 shrink-0 text-icon-fg"
       viewBox="0 0 16 16"
       fill="currentColor"
     >
@@ -52,6 +55,7 @@ const TreeRow = memo(function TreeRow({
   collapsed,
   onToggle,
   onSelectFile,
+  onActivateFile,
   onContextMenuFile,
 }: {
   node: ChangedFileTreeNode;
@@ -61,6 +65,7 @@ const TreeRow = memo(function TreeRow({
   collapsed: Set<string>;
   onToggle: (path: string) => void;
   onSelectFile: (path: string) => void;
+  onActivateFile?: (path: string) => void;
   onContextMenuFile?: (e: React.MouseEvent, path: string) => void;
 }) {
   const isOpen = !collapsed.has(node.path);
@@ -73,19 +78,19 @@ const TreeRow = memo(function TreeRow({
   if (node.isFolder) {
     return (
       <>
-        <button
+        <Button variant="ghost" size="content"
           type="button"
-          className="w-full text-left flex items-center gap-1 py-0.5 pr-2 text-[11px] font-mono hover:bg-list-hover border-none bg-transparent cursor-pointer text-foreground"
+          className="w-full text-left flex items-center gap-1 py-1 pr-2 min-h-row text-ui-base font-mono hover:bg-list-hover border-none bg-transparent cursor-pointer text-foreground"
           style={{ paddingLeft: `${8 + depth * 14}px` }}
           onClick={() => onToggle(node.path)}
           data-testid={`changed-files-folder-${node.path}`}
         >
           <Chevron open={isOpen} />
           <FolderIcon />
-          <span className="truncate font-semibold text-[#c5c5c5]">
+          <span className="truncate font-semibold text-icon-fg">
             {node.name}
           </span>
-        </button>
+        </Button>
         {isOpen &&
           node.children.map((child) => (
             <TreeRow
@@ -97,6 +102,7 @@ const TreeRow = memo(function TreeRow({
               collapsed={collapsed}
               onToggle={onToggle}
               onSelectFile={onSelectFile}
+              onActivateFile={onActivateFile}
               onContextMenuFile={onContextMenuFile}
             />
           ))}
@@ -107,11 +113,12 @@ const TreeRow = memo(function TreeRow({
   const status = node.status ?? "M";
 
   return (
-    <button
+    <Button variant="ghost" size="content"
       type="button"
-      className={`w-full text-left flex items-center gap-1 py-0.5 pr-2 text-[11px] font-mono border-none cursor-pointer truncate ${changedFileRowBgClass(status, isSelected, isHighlighted)}`}
+      className={`w-full text-left flex items-center gap-1 py-1 pr-2 min-h-row text-ui-base font-mono border-none cursor-pointer truncate ${changedFileRowBgClass(isSelected, isHighlighted)}`}
       style={{ paddingLeft: `${22 + depth * 14}px` }}
       onClick={() => onSelectFile(node.path)}
+      onDoubleClick={() => onActivateFile?.(node.path)}
       onContextMenu={
         onContextMenuFile
           ? (e) => {
@@ -134,7 +141,7 @@ const TreeRow = memo(function TreeRow({
       >
         {node.name}
       </span>
-    </button>
+    </Button>
   );
 });
 
@@ -143,6 +150,7 @@ export function GitChangedFilesTree({
   selectedPath,
   highlightPath,
   onSelectFile,
+  onActivateFile,
   onContextMenuFile,
 }: GitChangedFilesTreeProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
@@ -163,14 +171,14 @@ export function GitChangedFilesTree({
 
   if (files.length === 0) {
     return (
-      <div className="px-3 py-2 text-[11px] text-[var(--vscode-descriptionForeground)]">
+      <div className="px-3 py-2 text-ui-sm text-vscode-description">
         No file changes in this revision.
       </div>
     );
   }
 
   return (
-    <div className="min-h-0 overflow-auto" data-testid="git-changed-files-tree">
+    <ScrollArea axis="vertical" data-testid="git-changed-files-tree">
       {tree.map((node) => (
         <TreeRow
           key={node.path}
@@ -181,9 +189,10 @@ export function GitChangedFilesTree({
           collapsed={collapsed}
           onToggle={toggle}
           onSelectFile={onSelectFile}
+          onActivateFile={onActivateFile}
           onContextMenuFile={onContextMenuFile}
         />
       ))}
-    </div>
+    </ScrollArea>
   );
 }

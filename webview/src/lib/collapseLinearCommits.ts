@@ -89,17 +89,3 @@ export function collapseLinearCommits(
 
   return result;
 }
-
-export function flattenCollapsedCommits(
-  entries: CollapsedLogCommit[],
-): LogCommitEntry[] {
-  const commits: LogCommitEntry[] = [];
-  for (const entry of entries) {
-    if (entry.kind === "commit") {
-      commits.push(entry.commit);
-      continue;
-    }
-    commits.push(...entry.commits);
-  }
-  return commits;
-}

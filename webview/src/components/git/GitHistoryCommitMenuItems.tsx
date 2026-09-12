@@ -1,7 +1,10 @@
 import {
   Copy,
+  ExternalLink,
+  FileText,
   GitBranch,
   GitCompare,
+  Link,
   Redo2,
   RotateCcw,
 } from "lucide-react";
@@ -78,6 +81,26 @@ export function GitHistoryCommitMenuItems({
         onClick={() => run("copyCommitMessage")}
         testId="git-history-menu-copy-message"
         icon={<Copy {...ICON} />}
+      />
+      <MenuDivider />
+      <MenuSectionHeader label="Remote link" />
+      <MenuItem
+        label="Open Commit on Remote"
+        onClick={() => run("openOnRemote")}
+        testId="git-history-menu-open-on-remote"
+        icon={<ExternalLink {...ICON} />}
+      />
+      <MenuItem
+        label="Copy Remote Link"
+        onClick={() => run("copyRemoteLink")}
+        testId="git-history-menu-copy-remote-link"
+        icon={<Link {...ICON} />}
+      />
+      <MenuItem
+        label="Copy Remote Link as Markdown"
+        onClick={() => run("copyRemoteLinkMarkdown")}
+        testId="git-history-menu-copy-remote-link-markdown"
+        icon={<FileText {...ICON} />}
       />
     </>
   );

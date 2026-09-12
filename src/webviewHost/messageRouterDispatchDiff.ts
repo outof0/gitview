@@ -32,6 +32,23 @@ export async function dispatchDiff(
         );
         return true;
 
+      case "diff.openInEditor":
+        await diff.openInEditor(
+          request.requestId,
+          request.payload.preview,
+          request.payload.workspaceRoot,
+        );
+        return true;
+
+      case "diff.numstat":
+        await diff.numstat(
+          request.requestId,
+          request.payload.repoId,
+          request.payload.paths,
+          request.payload.ref,
+        );
+        return true;
+
       case "changelist.create":
         if (!changelists) {
           deps.postMessage(

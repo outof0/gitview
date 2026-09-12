@@ -6,7 +6,6 @@
 
 import { tokenizeLine } from "./syntaxTokenizer";
 
-export type { SyntaxToken, SyntaxTokenType } from "./syntaxTypes";
 export { tokenizeLine };
 
 // ── CSS class mapper ─────────────────────────────────────────────────────────
@@ -62,16 +61,25 @@ export function detectLanguage(filePath: string): string {
     less: "less",
     html: "html",
     htm: "html",
+    vue: "html",
+    svelte: "html",
+    astro: "html",
     json: "json",
+    json5: "json",
     yaml: "yaml",
     yml: "yaml",
     md: "markdown",
-    mdx: "markdown",
+    mdx: "mdx",
     sh: "shell",
     bash: "shell",
     zsh: "shell",
-    c: "c",
-    h: "c",
+    fish: "shell",
+    ps1: "powershell",
+    psm1: "powershell",
+    bat: "bat",
+    cmd: "bat",
+    c: "cpp",
+    h: "cpp",
     cpp: "cpp",
     cc: "cpp",
     cxx: "cpp",
@@ -86,9 +94,34 @@ export function detectLanguage(filePath: string): string {
     cs: "csharp",
     sql: "sql",
     xml: "xml",
-    toml: "toml",
+    toml: "ini",
     ini: "ini",
     dockerfile: "dockerfile",
+    graphql: "graphql",
+    gql: "graphql",
+    hbs: "handlebars",
+    handlebars: "handlebars",
+    mustache: "handlebars",
+    hcl: "hcl",
+    tf: "hcl",
+    tfvars: "hcl",
+    proto: "protobuf",
+    pug: "pug",
+    jade: "pug",
+    coffee: "coffee",
+    lua: "lua",
+    r: "r",
+    scala: "scala",
+    sol: "solidity",
+    sv: "systemverilog",
+    v: "systemverilog",
+    fs: "fsharp",
+    fsx: "fsharp",
+    julia: "julia",
+    tcl: "tcl",
+    vb: "vb",
+    m: "objective-c",
+    mm: "objective-c",
   };
   // Special filename matches
   const basename = filePath.split("/").pop()?.toLowerCase() ?? "";
@@ -96,7 +129,17 @@ export function detectLanguage(filePath: string): string {
     return "dockerfile";
   }
   if (basename === "makefile" || basename === "gnumakefile") {
-    return "makefile";
+    return "shell";
+  }
+  if (basename === ".env" || basename.startsWith(".env.")) {
+    return "shell";
+  }
+  if (
+    basename === ".gitignore" ||
+    basename === ".gitattributes" ||
+    basename === ".editorconfig"
+  ) {
+    return "ini";
   }
   return MAP[ext] ?? "plaintext";
 }

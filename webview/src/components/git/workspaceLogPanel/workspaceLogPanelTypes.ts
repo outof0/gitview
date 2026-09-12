@@ -1,10 +1,13 @@
 import type { ResetMode } from "@gitview/shared/types/log";
+import type { GitWorkspaceHistoryScope } from "../../../stores/gitWorkspaceStoreTypes";
 import type { DiffLineSelection, WorkspaceDiffDocument } from "@gitview/shared/types/diff";
+import type { PermanentGraph } from "@gitview/shared/lib/gitLogGraph";
 import type { LogCommitEntry, LogQueryFilters, LogSnapshot } from "@gitview/shared/types/log";
 
 export type WorkspaceLogPanelProps = {
   snapshot: LogSnapshot | null;
   loading?: boolean;
+  loadingMore?: boolean;
   error?: string | null;
   selectedSha: string | null;
   selectedShas?: string[];
@@ -12,20 +15,28 @@ export type WorkspaceLogPanelProps = {
   diffDocument: WorkspaceDiffDocument | null;
   diffLoading?: boolean;
   diffError?: string | null;
+  historyScope?: GitWorkspaceHistoryScope | null;
   onSelectCommit: (sha: string, multi?: boolean) => void;
   onSelectFile: (path: string, status: string) => void;
+  onOpenFileDiff?: (path: string, status: string) => void;
   onRefresh: () => void;
+  onLoadMore?: () => void;
   filters: LogQueryFilters;
   onFiltersChange: (filters: LogQueryFilters) => void;
   busy?: boolean;
   protectedBranch?: boolean;
   hasUpstream?: boolean;
+  branches?: string[];
+  authors?: string[];
+  pathOptions?: string[];
+  onBranchMenuOpen?: () => void;
   onCherryPick?: (sha: string) => void;
   onCherryPickMultiple?: (shas: string[]) => void;
   onRevert?: (sha: string) => void;
   onRevertMultiple?: (shas: string[]) => void;
   issueTrackerBaseUrl?: string | null;
   currentBranchHeadSha?: string | null;
+  permanentGraph?: PermanentGraph | null;
   onCopyHash?: (sha: string) => void;
   onCreateBranchFromCommit?: (sha: string) => void;
   onResetToCommit?: (sha: string, mode: ResetMode) => void;
@@ -36,8 +47,6 @@ export type WorkspaceLogPanelProps = {
   onExtractChanges?: (sha: string) => void;
   canDropSelected?: boolean;
   protectedBranchForDrop?: boolean;
-  onCherryPickHunk?: (hunkIndex: number) => void;
-  onRevertHunk?: (hunkIndex: number) => void;
   onDropHunk?: (hunkIndex: number) => void;
   onCherryPickLines?: (lines: DiffLineSelection[]) => void;
   onRevertLines?: (lines: DiffLineSelection[]) => void;

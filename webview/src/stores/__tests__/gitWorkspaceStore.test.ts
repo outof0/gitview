@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { RepositorySnapshot } from "@gitview/shared/types/repository";
+import type { SyncOperationEvent } from "@gitview/shared/types/sync";
 import type {
   GitFileStatus,
   GitFileStatusKind,
@@ -43,6 +44,23 @@ function status(
     refreshedAt: 0,
     ...overrides,
   };
+}
+
+function syncEvent(
+  overrides: Partial<SyncOperationEvent> = {},
+): SyncOperationEvent {
+  return {
+    operationId: "sync-1",
+    requestId: "fetch-1",
+    operation: "fetch",
+    repoIds: ["r1"],
+    sequence: 1,
+    timestamp: 1,
+    state: "accepted",
+    phase: "preparing",
+    cancellable: true,
+    ...overrides,
+  } as SyncOperationEvent;
 }
 
 const repoSnapshot: RepositorySnapshot = {
@@ -156,6 +174,220 @@ describe("gitWorkspaceStore slice", () => {
     expect(state.error).toBeNull();
   });
 
+  it("preserves mutation errors during background repository refresh", () => {
+    const store = useGitWorkspaceStore.getState();
+    store.setError("Repository state changed");
+
+    store.applyRepoSnapshot(repoSnapshot);
+
+    expect(useGitWorkspaceStore.getState().error).toBe(
+      "Repository state changed",
+    );
+  });
+
+  it("rejects status for a repository that is not active", () => {
+    const store = useGitWorkspaceStore.getState();
+    store.applyRepoSnapshot(repoSnapshot);
+    store.applyStatusSnapshot(status([file("stale.ts")], { repoId: "r1" }));
+
+    expect(useGitWorkspaceStore.getState().statusSnapshot).toBeNull();
+  });
+
+  it("rejects branch, log, and diff snapshots for a repository that is not active", () => {
+    const store = useGitWorkspaceStore.getState();
+    store.applyRepoSnapshot(repoSnapshot);
+    store.applyBranchSnapshot({ repoId: "r1", branches: [], refreshedAt: 0 });
+    store.applyLogSnapshot({
+      repoId: "r1",
+      branch: "main",
+      commits: [],
+      refreshedAt: 0,
+    });
+    store.setDiffDocument({
+      repoId: "r1",
+      filePath: "a.ts",
+      layout: "split",
+      status: "M",
+      left: null,
+      right: null,
+      binary: false,
+      staged: false,
+    });
+
+    const state = useGitWorkspaceStore.getState();
+    expect(state.branchSnapshot).toBeNull();
+    expect(state.logSnapshot).toBeNull();
+    expect(state.diffDocument).toBeNull();
+  });
+
+  it("resets mutation-form state when the active repository changes", () => {
+    const store = useGitWorkspaceStore.getState();
+    store.applyRepoSnapshot({ ...repoSnapshot, activeRepoId: "r1" });
+    store.setCommitMessage("repo A message");
+    store.setAmend(true);
+    store.setSignoff(true);
+    store.setGpgSign(true);
+    store.setAuthor("A U Thor <a@example.com>");
+    store.setRunChecks(false);
+    store.selectLogCommit("abc123");
+
+    store.applyRepoSnapshot(repoSnapshot);
+
+    const state = useGitWorkspaceStore.getState();
+    expect(state.commitMessage).toBe("");
+    expect(state.amend).toBe(false);
+    expect(state.signoff).toBe(false);
+    expect(state.gpgSign).toBe(false);
+    expect(state.author).toBe("");
+    expect(state.runChecks).toBe(true);
+    expect(state.logSelectedSha).toBeNull();
+    expect(state.logSelectedShas).toEqual([]);
+  });
+
+  it("applies only newer lifecycle events for each sync operation", () => {
+    const store = useGitWorkspaceStore.getState();
+    store.applySyncOperation(syncEvent());
+    store.applySyncOperation(
+      syncEvent({ state: "running", phase: "fetching", sequence: 2 }),
+    );
+    store.markSyncOperationOutcomeUnknown("sync-1");
+    store.applySyncOperation(
+      syncEvent({ state: "running", phase: "refreshing", sequence: 2 }),
+    );
+    store.applySyncOperation(syncEvent({ sequence: 1 }));
+
+    let operation = useGitWorkspaceStore
+      .getState()
+      .syncOperationForRepository("r1", "fetch");
+    expect(operation).toMatchObject({
+      outcomeUnknown: true,
+      event: { state: "running", phase: "fetching", sequence: 2 },
+    });
+
+    store.applySyncOperation(
+      syncEvent({
+        state: "completed",
+        sequence: 3,
+        outcome: { kind: "success" },
+      }),
+    );
+    operation = useGitWorkspaceStore
+      .getState()
+      .syncOperationForRepository("r1", "fetch");
+    expect(operation).toMatchObject({
+      outcomeUnknown: false,
+      event: { state: "completed", sequence: 3 },
+    });
+  });
+
+  it("keeps cancellation requested and rejected operations active until confirmation", () => {
+    const store = useGitWorkspaceStore.getState();
+    store.applySyncOperation(
+      syncEvent({ state: "running", phase: "fetching", sequence: 2 }),
+    );
+    store.applySyncOperation(
+      syncEvent({
+        state: "cancel_requested",
+        phase: "fetching",
+        sequence: 3,
+      }),
+    );
+    expect(
+      store.syncOperationForRepository("r1", "fetch")?.event.state,
+    ).toBe("cancel_requested");
+
+    store.applySyncOperation(
+      syncEvent({
+        state: "cancel_rejected",
+        phase: "refreshing",
+        reason: "not_cancellable",
+        message: "Refresh cannot be cancelled.",
+        cancellable: false,
+        sequence: 4,
+      }),
+    );
+    expect(
+      store.syncOperationForRepository("r1", "fetch")?.event.state,
+    ).toBe("cancel_rejected");
+
+    store.applySyncOperation(
+      syncEvent({
+        state: "cancel_confirmed",
+        outcome: { kind: "cancelled", message: "Cancelled." },
+        sequence: 5,
+      }),
+    );
+    expect(
+      store.syncOperationForRepository("r1", "fetch")?.event.state,
+    ).toBe("cancel_confirmed");
+  });
+
+  it("does not let a late terminal event replace a newer active operation", () => {
+    const store = useGitWorkspaceStore.getState();
+    store.applySyncOperation(
+      syncEvent({ state: "running", phase: "fetching", sequence: 2 }),
+    );
+    store.applySyncOperation(
+      syncEvent({
+        operationId: "sync-2",
+        requestId: "fetch-2",
+        sequence: 1,
+        timestamp: 2,
+      }),
+    );
+    store.applySyncOperation(
+      syncEvent({
+        state: "failed",
+        sequence: 3,
+        outcome: { kind: "offline", message: "Offline." },
+      }),
+    );
+
+    expect(
+      store.syncOperationForRepository("r1", "fetch")?.event.operationId,
+    ).toBe("sync-2");
+  });
+
+  it("preserves a typed draft across initial hydration", () => {
+    const store = useGitWorkspaceStore.getState();
+    expect(store.repoSnapshot).toBeNull();
+    store.setCommitMessage("typed while booting");
+    store.setAmend(true);
+
+    store.applyRepoSnapshot(repoSnapshot);
+
+    const state = useGitWorkspaceStore.getState();
+    expect(state.commitMessage).toBe("typed while booting");
+    expect(state.amend).toBe(true);
+  });
+
+  it("resets the draft when replacing an established repository", () => {
+    const store = useGitWorkspaceStore.getState();
+    store.applyRepoSnapshot({ ...repoSnapshot, activeRepoId: "r1" });
+    store.setCommitMessage("repo A message");
+    store.setAmend(true);
+
+    store.applyRepoSnapshot(repoSnapshot);
+
+    const state = useGitWorkspaceStore.getState();
+    expect(state.commitMessage).toBe("");
+    expect(state.amend).toBe(false);
+  });
+
+  it("clears repository-dependent state when the active repository changes", () => {
+    const store = useGitWorkspaceStore.getState();
+    store.applyRepoSnapshot({ ...repoSnapshot, activeRepoId: "r1" });
+    store.applyStatusSnapshot(status([file("a.ts")]));
+    store.selectFile("a.ts");
+
+    store.applyRepoSnapshot(repoSnapshot);
+
+    const state = useGitWorkspaceStore.getState();
+    expect(state.statusSnapshot).toBeNull();
+    expect(state.selectedFilePath).toBeNull();
+    expect([...state.commitScope]).toEqual([]);
+  });
+
   it("opens and closes dialogs by id", () => {
     const store = useGitWorkspaceStore.getState();
     store.openDialog("stash", {});
@@ -195,6 +427,43 @@ describe("gitWorkspaceStore slice", () => {
     state = useGitWorkspaceStore.getState();
     expect(state.logSelectedShas).toEqual([]);
     expect(state.logSelectedSha).toBeNull();
+  });
+
+  it("focuses the repository-root log and clears scoped view state", () => {
+    const store = useGitWorkspaceStore.getState();
+    store.setLogFilters({
+      range: "incoming",
+      limit: 10,
+      branch: "feature/old",
+      path: "packages/old",
+      isFolder: true,
+    });
+    store.requestHistoryOpen({
+      repoId: "r1",
+      path: "packages/old",
+      isFolder: true,
+    });
+    store.selectLogCommit("abc123");
+    store.selectLogFile("packages/old/file.ts");
+    store.openDialog("stash", {});
+    store.setBranchesOpen(true);
+
+    const requestBefore = useGitWorkspaceStore.getState().logRootRequest;
+    store.focusLogRoot();
+
+    const state = useGitWorkspaceStore.getState();
+    expect(state.logRootRequest).toBe(requestBefore + 1);
+    expect(state.workspaceTab).toBe("log");
+    expect(state.logFilters).toEqual({ range: "all", limit: 200 });
+    expect(state.historyOpenRequest).toBeNull();
+    expect(state.activeHistoryScope).toBeNull();
+    expect(state.logSelectedSha).toBeNull();
+    expect(state.logSelectedShas).toEqual([]);
+    expect(state.logSelectedFilePath).toBeNull();
+    expect(state.logSnapshot).toBeNull();
+    expect(state.diffDocument).toBeNull();
+    expect(state.dialogs).toEqual({});
+    expect(state.branchesOpen).toBe(false);
   });
 
   it("opens the branch compare view with the first file preselected and clears it", () => {
@@ -244,8 +513,6 @@ describe("gitWorkspaceStore slice", () => {
     ["setWorktreesLoading", [true], { worktreesLoading: true }],
     ["applyWorktreeSnapshot", [{ worktrees: [] }], { worktreesLoading: false }],
     ["setPatchPreview", ["diff"], { patchPreview: "diff" }],
-    ["setBlameLoading", [true], { blameLoading: true }],
-    ["setBlameError", ["boom"], { blameError: "boom", blameLoading: false }],
     ["clearWorkspaceNotification", [], { workspaceNotification: null }],
     ["setLogLoading", [true], { logLoading: true }],
     ["setLogError", ["boom"], { logError: "boom", logLoading: false }],
@@ -277,8 +544,6 @@ describe("gitWorkspaceStore slice", () => {
 
   it("stores the snapshots the host pushes", () => {
     const store = useGitWorkspaceStore.getState();
-    store.setBlameLoading(true);
-    store.applyBlameSnapshot({ lines: [] } as never);
     store.setLogLoading(true);
     store.applyLogSnapshot({ commits: [] } as never);
     store.applyStashSnapshot({ entries: [] } as never);
@@ -290,8 +555,6 @@ describe("gitWorkspaceStore slice", () => {
     store.selectLogCommit("aaa");
 
     const state = useGitWorkspaceStore.getState();
-    expect(state.blameLoading).toBe(false);
-    expect(state.blameError).toBeNull();
     expect(state.logLoading).toBe(false);
     expect(state.logError).toBeNull();
     expect(state.stashSnapshot).toEqual({ entries: [] });
@@ -300,6 +563,104 @@ describe("gitWorkspaceStore slice", () => {
     expect(state.reviewDetails).toEqual({ id: "7" });
     expect(state.workspaceNotification).toEqual({ kind: "info", message: "hi" });
     expect(state.logSelectedShas).toEqual(["aaa"]);
+  });
+
+  it("fills an existing merge node from lazy commit detail", () => {
+    const store = useGitWorkspaceStore.getState();
+    store.applyRepoSnapshot({ ...repoSnapshot, activeRepoId: "r1" });
+    store.applyLogSnapshot({
+      repoId: "r1",
+      branch: "main",
+      refreshedAt: 1,
+      commits: [
+        {
+          sha: "merge-sha",
+          shortSha: "merge",
+          author: "Jane",
+          authorEmail: "jane@example.com",
+          authorTime: 1,
+          subject: "Merge feature",
+          isMerge: true,
+          refs: ["main"],
+          changedFiles: [],
+        },
+      ],
+    });
+
+    store.applyLogCommitDetail("r1", {
+      sha: "merge-sha",
+      shortSha: "merge",
+      author: "Jane",
+      authorEmail: "jane@example.com",
+      authorTime: 1,
+      subject: "Merge feature",
+      isMerge: true,
+      changedFiles: [{ path: "src/feature.ts", status: "A" }],
+    });
+
+    expect(useGitWorkspaceStore.getState().logSnapshot?.commits[0]).toMatchObject({
+      refs: ["main"],
+      changedFiles: [{ path: "src/feature.ts", status: "A" }],
+    });
+  });
+
+  it("keeps the same log filters object when values do not change", () => {
+    const store = useGitWorkspaceStore.getState();
+    const before = store.logFilters;
+    store.setLogFilters({ ...before });
+    expect(useGitWorkspaceStore.getState().logFilters).toBe(before);
+  });
+
+  it("appends an older log page without replacing the visible history", () => {
+    const store = useGitWorkspaceStore.getState();
+    store.applyRepoSnapshot({ ...repoSnapshot, activeRepoId: "r1" });
+    store.setLogFilters({ range: "all", limit: 1 });
+    store.applyLogSnapshot({
+      repoId: "r1",
+      branch: "main",
+      refreshedAt: 1,
+      hasMore: true,
+      filters: { range: "all", limit: 1 },
+      commits: [
+        {
+          sha: "newest",
+          shortSha: "newest",
+          author: "Jane",
+          authorEmail: "jane@example.com",
+          authorTime: 2,
+          subject: "Newest",
+          changedFiles: [],
+        },
+      ],
+    });
+    store.setLogLoadingMore(true);
+    store.applyLogSnapshot({
+      repoId: "r1",
+      branch: "main",
+      refreshedAt: 2,
+      hasMore: false,
+      filters: { range: "all", limit: 1, skip: 1 },
+      commits: [
+        {
+          sha: "older",
+          shortSha: "older",
+          author: "Jane",
+          authorEmail: "jane@example.com",
+          authorTime: 1,
+          subject: "Older",
+          changedFiles: [],
+        },
+      ],
+    });
+
+    const state = useGitWorkspaceStore.getState();
+    expect(state.logSnapshot?.commits.map((commit) => commit.sha)).toEqual([
+      "newest",
+      "older",
+    ]);
+    expect(state.logSnapshot?.hasMore).toBe(false);
+    expect(state.logLoadingMore).toBe(false);
+    expect(state.logSnapshot?.filters).toEqual({ range: "all", limit: 1 });
   });
 
   it("clears diff loading and error when a document arrives", () => {

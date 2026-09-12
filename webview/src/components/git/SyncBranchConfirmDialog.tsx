@@ -1,4 +1,9 @@
 import type { SyncBranchTarget } from "@gitview/shared/types/branch";
+import {
+  GitDialogShell,
+} from "../ui/GitDialogShell";
+import { Button } from "../ui/Button";
+import { ScrollArea } from "../ui/ScrollArea";
 
 type SyncBranchConfirmDialogProps = {
   open: boolean;
@@ -15,28 +20,46 @@ export function SyncBranchConfirmDialog({
   onConfirm,
   onCancel,
 }: SyncBranchConfirmDialogProps) {
-  if (!open) {
-    return null;
-  }
-
   const applicable = targets.filter((target) => target.available);
   const unavailable = targets.filter((target) => !target.available);
 
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40"
-      data-testid="sync-branch-dialog"
+    <GitDialogShell
+      open={open}
+      title="Checkout branch across repositories?"
+      size="wide"
+      onCancel={onCancel}
+      testId="sync-branch-dialog"
+      footer={
+        <>
+          <Button
+            type="button"
+            variant="secondary" size="compact"
+            onClick={onCancel}
+            data-testid="sync-branch-cancel"
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="primary" size="compact"
+            onClick={onConfirm}
+            disabled={applicable.length === 0}
+            data-testid="sync-branch-confirm"
+          >
+            Checkout {applicable.length} repositor
+            {applicable.length === 1 ? "y" : "ies"}
+          </Button>
+        </>
+      }
     >
-      <div className="w-[min(480px,90vw)] rounded-vscode border border-border bg-[var(--vscode-editor-background)] p-4 shadow-lg">
-        <h3 className="text-[13px] font-semibold mb-2">
-          Checkout branch across repositories?
-        </h3>
-        <p className="text-[12px] text-[var(--vscode-descriptionForeground)] mb-3">
-          Synchronous branch control will checkout{" "}
-          <span className="font-mono">{refName}</span> in matching workspace
-          repositories.
-        </p>
-        <ul className="max-h-[220px] overflow-auto text-[12px] space-y-2 mb-3">
+      <p className="mt-0 mb-3">
+        Synchronous branch control will checkout{" "}
+        <span className="font-mono">{refName}</span> in matching workspace
+        repositories.
+      </p>
+      <ScrollArea axis="vertical" className="max-h-sync-targets-max">
+        <ul className="text-ui text-foreground space-y-2 mb-0">
           {applicable.map((target) => (
             <li
               key={target.repoId}
@@ -44,7 +67,7 @@ export function SyncBranchConfirmDialog({
               data-testid={`sync-branch-target-${target.repoId}`}
             >
               <div className="font-medium">{target.name}</div>
-              <div className="text-[var(--vscode-descriptionForeground)]">
+              <div className="text-vscode-description">
                 {target.currentBranch
                   ? `Current: ${target.currentBranch}`
                   : "Detached or unknown branch"}
@@ -58,33 +81,13 @@ export function SyncBranchConfirmDialog({
               data-testid={`sync-branch-skipped-${target.repoId}`}
             >
               <div className="font-medium">{target.name}</div>
-              <div className="text-[var(--vscode-descriptionForeground)]">
+              <div className="text-vscode-description">
                 {target.unavailableReason ?? "Branch unavailable"}
               </div>
             </li>
           ))}
         </ul>
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            className="h-7 px-3 text-[12px] rounded-vscode hover:bg-list-hover"
-            onClick={onCancel}
-            data-testid="sync-branch-cancel"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="h-7 px-3 text-[12px] rounded-vscode bg-[var(--vscode-button-background)] text-[var(--vscode-button-foreground)] hover:opacity-90 disabled:opacity-50"
-            onClick={onConfirm}
-            disabled={applicable.length === 0}
-            data-testid="sync-branch-confirm"
-          >
-            Checkout {applicable.length} repositor
-            {applicable.length === 1 ? "y" : "ies"}
-          </button>
-        </div>
-      </div>
-    </div>
+      </ScrollArea>
+    </GitDialogShell>
   );
 }

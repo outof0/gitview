@@ -31,6 +31,15 @@ type ConflictsFileTableProps = {
   onMerge: () => void;
 };
 
+function activateOnKey(action: () => void) {
+  return (event: React.KeyboardEvent) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      action();
+    }
+  };
+}
+
 export function ConflictsFileTable({
   conflictFiles,
   branchInfo,
@@ -59,7 +68,7 @@ export function ConflictsFileTable({
 
   return (
     <div className="flex-1 border border-border bg-background flex flex-col overflow-hidden min-w-0">
-      <div className="grid grid-cols-[minmax(220px,1fr)_140px_140px] h-8 bg-[var(--vscode-editorWidget-background,var(--background))] border-b border-border font-semibold text-[13px] text-[var(--vscode-descriptionForeground,var(--foreground))] flex-shrink-0">
+      <div className="grid grid-cols-[minmax(220px,1fr)_140px_140px] h-8 bg-vscode-widget-bg border-b border-border font-semibold text-title text-vscode-description flex-shrink-0">
         <div className="px-3 flex items-center">Name</div>
         <div className="px-3 flex items-center border-l border-border overflow-hidden whitespace-nowrap text-ellipsis">
           Yours ({branchInfo?.currentBranch || "master"})
@@ -71,7 +80,7 @@ export function ConflictsFileTable({
 
       <div className="flex-1 overflow-y-auto">
         {conflictFiles.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-xs text-[var(--vscode-descriptionForeground,#70727a)]">
+          <div className="flex items-center justify-center h-full text-xs text-vscode-description">
             {branchInfo ? "No conflicts remaining." : "Loading conflicts…"}
           </div>
         ) : groupDir ? (
@@ -81,9 +90,14 @@ export function ConflictsFileTable({
               <div key={dir}>
                 <div
                   data-testid={`conflicts-folder-row-${dir}`}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => onSelectFolder(dir === "./" ? "." : dir)}
+                  onKeyDown={activateOnKey(() =>
+                    onSelectFolder(dir === "./" ? "." : dir),
+                  )}
                   onContextMenu={(e) => onContextMenu(e, dir, true)}
-                  className={`grid grid-cols-1 h-7 items-center text-[13px] text-foreground cursor-pointer hover:bg-list-hover ${
+                  className={`grid grid-cols-1 h-7 items-center text-title text-foreground cursor-pointer hover:bg-list-hover ${
                     selectedFolder === dir ||
                     (dir === "./" && selectedFolder === ".")
                       ? "bg-list-active text-list-activeForeground hover:bg-list-active"
@@ -120,12 +134,17 @@ export function ConflictsFileTable({
                       <div
                         key={file.relativePath}
                         data-testid={`conflicts-file-row-${file.relativePath}`}
+                        role="button"
+                        tabIndex={0}
                         onClick={() => onSelectPath(file.relativePath)}
+                        onKeyDown={activateOnKey(() =>
+                          onSelectPath(file.relativePath),
+                        )}
                         onDoubleClick={onMerge}
                         onContextMenu={(e) =>
                           onContextMenu(e, file.relativePath, false)
                         }
-                        className={`grid grid-cols-[minmax(220px,1fr)_140px_140px] h-6 items-center text-[13px] text-foreground cursor-pointer hover:bg-list-hover ${
+                        className={`grid grid-cols-[minmax(220px,1fr)_140px_140px] h-6 items-center text-title text-foreground cursor-pointer hover:bg-list-hover ${
                           isSelected
                             ? "bg-list-active text-list-activeForeground hover:bg-list-active"
                             : ""
@@ -141,7 +160,7 @@ export function ConflictsFileTable({
                           className={`px-3 h-full flex items-center ${
                             isSelected
                               ? "text-list-activeForeground"
-                              : "text-[var(--vscode-descriptionForeground,#c7c9cf)]"
+                              : "text-vscode-description"
                           }`}
                         >
                           Modified
@@ -150,7 +169,7 @@ export function ConflictsFileTable({
                           className={`px-3 h-full flex items-center ${
                             isSelected
                               ? "text-list-activeForeground"
-                              : "text-[var(--vscode-descriptionForeground,#c7c9cf)]"
+                              : "text-vscode-description"
                           }`}
                         >
                           Modified
@@ -169,12 +188,15 @@ export function ConflictsFileTable({
               <div
                 key={file.relativePath}
                 data-testid={`conflicts-file-row-${file.relativePath}`}
+                role="button"
+                tabIndex={0}
                 onClick={() => onSelectPath(file.relativePath)}
+                onKeyDown={activateOnKey(() => onSelectPath(file.relativePath))}
                 onDoubleClick={onMerge}
                 onContextMenu={(e) =>
                   onContextMenu(e, file.relativePath, false)
                 }
-                className={`grid grid-cols-[minmax(220px,1fr)_140px_140px] h-6 items-center text-[13px] text-foreground cursor-pointer hover:bg-list-hover ${
+                className={`grid grid-cols-[minmax(220px,1fr)_140px_140px] h-6 items-center text-title text-foreground cursor-pointer hover:bg-list-hover ${
                   isSelected
                     ? "bg-list-active text-list-activeForeground hover:bg-list-active"
                     : ""
@@ -190,7 +212,7 @@ export function ConflictsFileTable({
                   className={`px-3 h-full flex items-center ${
                     isSelected
                       ? "text-list-activeForeground"
-                      : "text-[var(--vscode-descriptionForeground,#c7c9cf)]"
+                      : "text-vscode-description"
                   }`}
                 >
                   Modified
@@ -199,7 +221,7 @@ export function ConflictsFileTable({
                   className={`px-3 h-full flex items-center ${
                     isSelected
                       ? "text-list-activeForeground"
-                      : "text-[var(--vscode-descriptionForeground,#c7c9cf)]"
+                      : "text-vscode-description"
                   }`}
                 >
                   Modified

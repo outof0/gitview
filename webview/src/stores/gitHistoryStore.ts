@@ -35,6 +35,10 @@ export type GitHistoryStore = {
   showDiffPreview: boolean;
   showDetails: boolean;
   loading: boolean;
+  /** Whether another page of commits is available from the host. */
+  hasMore: boolean;
+  /** True while an older page is being fetched. */
+  loadingMore: boolean;
   error: string | null;
   commits: GitCommitEntry[];
   selectedSha: string | null;
@@ -64,8 +68,18 @@ export type GitHistoryStore = {
     path?: string;
     branch?: string;
     commits?: GitCommitEntry[];
+    hasMore?: boolean;
     error?: string;
   }) => void;
+  appendLogResult: (payload: {
+    path?: string;
+    branch?: string;
+    commits?: GitCommitEntry[];
+    hasMore?: boolean;
+    error?: string;
+  }) => void;
+  setLoadingMore: (loading: boolean) => void;
+  setLogError: (message: string | null) => void;
   selectCommit: (sha: string | null) => void;
   applyCommitDetail: (commit: GitCommitEntry) => void;
   setCommitDetailError: (message: string) => void;
@@ -96,6 +110,8 @@ export const useGitHistoryStore = create<GitHistoryStore>((set, get) => ({
   showDiffPreview: true,
   showDetails: true,
   loading: false,
+  hasMore: true,
+  loadingMore: false,
   error: null,
   commits: [],
   selectedSha: null,
@@ -119,10 +135,12 @@ export const useGitHistoryStore = create<GitHistoryStore>((set, get) => ({
       // File/folder history opens with branch pane closed; user expands on demand.
       branchTreeOpen: false,
       // Always enable inline diff so click on a changed file loads preview.
-      // Annotate mode overwrites this after init via GitBlameApp.
+      // Annotate callers overwrite this after initialization.
       showDiffPreview: true,
       showDetails: true,
       loading: true,
+      hasMore: true,
+      loadingMore: false,
       error: null,
       commits: [],
       selectedSha: null,
@@ -137,6 +155,8 @@ export const useGitHistoryStore = create<GitHistoryStore>((set, get) => ({
     set({
       branchFilter,
       loading: true,
+      hasMore: true,
+      loadingMore: false,
       fileDiff: null,
       patchError: null,
       selectedChangedFilePath: null,
@@ -149,6 +169,9 @@ export const useGitHistoryStore = create<GitHistoryStore>((set, get) => ({
   setBranchTreeOpen: (branchTreeOpen) => set({ branchTreeOpen }),
 
   setLoading: (loading) => set({ loading }),
+  setLoadingMore: (loadingMore) => set({ loadingMore }),
+  setLogError: (message) =>
+    set({ error: message, loading: false, loadingMore: false }),
 
   setLogResult: (payload) => {
     const state = get();
@@ -172,6 +195,8 @@ export const useGitHistoryStore = create<GitHistoryStore>((set, get) => ({
     if (payload.error) {
       set({
         loading: false,
+        loadingMore: false,
+        hasMore: false,
         error: payload.error,
         commits: [],
         selectedSha: null,
@@ -204,6 +229,49 @@ export const useGitHistoryStore = create<GitHistoryStore>((set, get) => ({
       patchLoading: !!defaultFile && get().showDiffPreview && !annotateMode,
       patchError: null,
       commitDetailLoading: annotateMode && !!first,
+      hasMore: payload.hasMore ?? commits.length >= 200,
+      loadingMore: false,
+    });
+  },
+
+  appendLogResult: (payload) => {
+    const state = get();
+    if (
+      payload.path !== undefined &&
+      normalizeGitHistoryPath(state.path) !==
+        normalizeGitHistoryPath(payload.path)
+    ) {
+      return;
+    }
+    if (
+      payload.branch !== undefined &&
+      state.branchFilter !== "" &&
+      payload.branch !== state.branchFilter
+    ) {
+      return;
+    }
+    if (payload.error) {
+      set({ loadingMore: false, error: payload.error });
+      return;
+    }
+    const incoming = payload.commits ?? [];
+    const seen = new Set(state.commits.map((commit) => commit.sha));
+    const commits = [
+      ...state.commits,
+      ...incoming.filter((commit) => {
+        if (seen.has(commit.sha)) {
+          return false;
+        }
+        seen.add(commit.sha);
+        return true;
+      }),
+    ];
+    set({
+      loading: false,
+      loadingMore: false,
+      error: null,
+      commits,
+      hasMore: payload.hasMore ?? incoming.length >= 200,
     });
   },
 
@@ -284,7 +352,10 @@ export const useGitHistoryStore = create<GitHistoryStore>((set, get) => ({
     const { commits, selectedSha, path, isFolder, annotateMode, commitDetailLoading } =
       get();
     const commit = findCommit(commits, selectedSha);
-    if (!commit || (annotateMode && commitDetailLoading)) {
+    if (
+      !commit ||
+      (annotateMode && commitDetailLoading && commit.changedFiles.length === 0)
+    ) {
       return [];
     }
     if (annotateMode) {

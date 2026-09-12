@@ -1,10 +1,14 @@
 import type { BranchEntry } from "../../shared/types/branch";
 import type { GitExecFn } from "./types";
+import { assertSafeGitOperand } from "../../shared/lib/gitOperand";
 
 export type CheckoutOptions = {
   force?: boolean;
   smart?: boolean;
 };
+
+/** What a ref actually points at, resolved through git rather than its spelling. */
+export type BranchRefKind = "local" | "remote" | "tag" | "unknown";
 
 export type CreateBranchOptions = {
   /** Switch to the new branch after creating it. Defaults to true. */
@@ -20,7 +24,7 @@ export function createBranchApi(execGit: GitExecFn) {
   ): Promise<BranchEntry[]> {
     const { stdout } = await execGit(repoRoot, [
       "for-each-ref",
-      "--format=%(refname:short)|%(refname)|%(upstream:short)|%(objectname:short)|%(HEAD)",
+      "--format=%(refname:short)|%(refname)|%(upstream:short)|%(objectname)|%(HEAD)",
       "refs/heads/",
       "refs/remotes/",
     ]);
@@ -31,7 +35,8 @@ export function createBranchApi(execGit: GitExecFn) {
       if (!trimmed) {
         continue;
       }
-      const [shortName, fullRef, upstream, headSha, headFlag] = trimmed.split("|");
+      const [shortName, fullRef, upstream, headSha, headFlag] =
+        trimmed.split("|");
       if (!shortName || !fullRef || shortName.includes("HEAD")) {
         continue;
       }
@@ -55,31 +60,80 @@ export function createBranchApi(execGit: GitExecFn) {
     return stdout.trim().length > 0;
   }
 
+  /**
+   * Classify a ref by asking git, not by looking at its spelling.
+   *
+   * Treating every ref containing "/" as a remote branch is wrong: `feature/login`
+   * is an ordinary local branch, and the old heuristic checked it out as a new
+   * branch named `login` tracking `feature/login`. Local refs win, because that
+   * is what the user means when a local and a remote branch share a name.
+   */
+  async function resolveRefKind(
+    repoRoot: string,
+    ref: string,
+  ): Promise<BranchRefKind> {
+    const candidates: ReadonlyArray<[BranchRefKind, string]> = [
+      ["local", `refs/heads/${ref}`],
+      ["remote", `refs/remotes/${ref}`],
+      ["tag", `refs/tags/${ref}`],
+    ];
+    for (const [kind, fullRef] of candidates) {
+      try {
+        await execGit(repoRoot, [
+          "show-ref",
+          "--verify",
+          "--quiet",
+          fullRef,
+        ]);
+        return kind;
+      } catch {
+        /* not this one */
+      }
+    }
+    return "unknown";
+  }
+
+  /**
+   * Run a checkout behind smart checkout: stash the pending work first, then
+   * restore it afterwards. Shared by the local and remote paths so "smart"
+   * means the same thing whichever branch the user picked — remote checkouts
+   * used to skip it entirely and silently carried dirty files across branches.
+   */
+  async function withSmartStash(
+    repoRoot: string,
+    opts: CheckoutOptions | undefined,
+    operation: () => Promise<void>,
+  ): Promise<void> {
+    if (!opts?.smart || opts?.force || !(await isDirty(repoRoot))) {
+      await operation();
+      return;
+    }
+
+    await execGit(repoRoot, [
+      "stash",
+      "push",
+      "-m",
+      "GitView Smart Checkout",
+      "--include-untracked",
+    ]);
+    try {
+      await operation();
+      await execGit(repoRoot, ["stash", "pop"]);
+    } catch (err) {
+      throw new Error(
+        `Checkout completed but restoring shelved work failed. Run 'git stash pop' to recover. ${err instanceof Error ? err.message : ""}`,
+      );
+    }
+  }
+
   async function checkout(
     repoRoot: string,
     ref: string,
     opts?: CheckoutOptions,
   ): Promise<void> {
-    if (opts?.smart && (await isDirty(repoRoot))) {
-      await execGit(repoRoot, [
-        "stash",
-        "push",
-        "-m",
-        "GitView Smart Checkout",
-        "--include-untracked",
-      ]);
-      try {
-        await checkoutInternal(repoRoot, ref, opts);
-        await execGit(repoRoot, ["stash", "pop"]);
-      } catch (err) {
-        throw new Error(
-          `Checkout completed but restoring shelved work failed. Run 'git stash pop' to recover. ${err instanceof Error ? err.message : ""}`,
-        );
-      }
-      return;
-    }
-
-    await checkoutInternal(repoRoot, ref, opts);
+    await withSmartStash(repoRoot, opts, () =>
+      checkoutInternal(repoRoot, ref, opts),
+    );
   }
 
   async function checkoutInternal(
@@ -87,6 +141,7 @@ export function createBranchApi(execGit: GitExecFn) {
     ref: string,
     opts?: CheckoutOptions,
   ): Promise<void> {
+    assertSafeGitOperand(ref, "branch or ref");
     const args = ["switch"];
     if (opts?.force) {
       args.push("-f");
@@ -109,29 +164,30 @@ export function createBranchApi(execGit: GitExecFn) {
     remoteBranch: string,
     opts?: CheckoutOptions,
   ): Promise<void> {
+    assertSafeGitOperand(remoteBranch, "remote branch");
+    // `remoteBranch` is a `refs/remotes/<remote>/<branch>` short name, so the
+    // first segment is the remote and the rest is the branch to create locally.
     const localName = remoteBranch.includes("/")
       ? remoteBranch.split("/").slice(1).join("/")
       : remoteBranch;
-    try {
-      await execGit(repoRoot, [
-        "switch",
-        "--track",
-        "-c",
-        localName,
-        remoteBranch,
-      ]);
-    } catch {
-      await execGit(repoRoot, [
-        "checkout",
-        "--track",
-        "-b",
-        localName,
-        remoteBranch,
-      ]);
+    const switchArgs = ["switch"];
+    if (opts?.force) {
+      switchArgs.push("-f");
     }
-    if (opts?.smart) {
-      // already switched; smart only needed when dirty before switch
-    }
+    switchArgs.push("--track", "-c", localName, remoteBranch);
+
+    await withSmartStash(repoRoot, opts, async () => {
+      try {
+        await execGit(repoRoot, switchArgs);
+      } catch {
+        const checkoutArgs = ["checkout"];
+        if (opts?.force) {
+          checkoutArgs.push("-f");
+        }
+        checkoutArgs.push("--track", "-b", localName, remoteBranch);
+        await execGit(repoRoot, checkoutArgs);
+      }
+    });
   }
 
   async function createBranch(
@@ -140,6 +196,10 @@ export function createBranchApi(execGit: GitExecFn) {
     startPoint?: string,
     opts?: CreateBranchOptions,
   ): Promise<void> {
+    assertSafeGitOperand(name, "branch name");
+    if (startPoint) {
+      assertSafeGitOperand(startPoint, "start point");
+    }
     const force = opts?.force ?? false;
 
     if (opts?.checkout === false) {
@@ -175,6 +235,7 @@ export function createBranchApi(execGit: GitExecFn) {
     name: string,
     force = false,
   ): Promise<void> {
+    assertSafeGitOperand(name, "branch name");
     await execGit(repoRoot, ["branch", force ? "-D" : "-d", name]);
   }
 
@@ -184,6 +245,8 @@ export function createBranchApi(execGit: GitExecFn) {
     newName: string,
     currentBranch: string | null,
   ): Promise<void> {
+    assertSafeGitOperand(oldName, "old branch name");
+    assertSafeGitOperand(newName, "new branch name");
     if (currentBranch === oldName) {
       await execGit(repoRoot, ["branch", "-m", newName]);
       return;
@@ -198,6 +261,7 @@ export function createBranchApi(execGit: GitExecFn) {
     createBranch,
     deleteBranch,
     renameBranch,
+    resolveRefKind,
     isDirty,
   };
 }

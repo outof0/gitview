@@ -19,7 +19,7 @@ export function createStashHandlers(ctx: TemporaryWorkContext) {
         return;
       }
       const stashes = await stash.listStashes(repo.rootPath);
-      const snapshot = emitStashSnapshot(repo.id, stashes);
+      const snapshot = emitStashSnapshot(repo.id, stashes, requestId);
       deps.postMessage(createHostResponse(requestId, "stash.list", snapshot));
     },
 
@@ -57,6 +57,7 @@ export function createStashHandlers(ctx: TemporaryWorkContext) {
         const snapshot = emitStashSnapshot(
           repo.id,
           await stash.listStashes(repo.rootPath),
+          requestId,
         );
         deps.postMessage(createHostResponse(requestId, "stash.push", snapshot));
       } catch (err) {
@@ -165,6 +166,7 @@ export function createStashHandlers(ctx: TemporaryWorkContext) {
         const snapshot = emitStashSnapshot(
           repo.id,
           await stash.listStashes(repo.rootPath),
+          requestId,
         );
         deps.postMessage(
           createHostResponse(requestId, "stash.apply", { index, snapshot }),
@@ -195,6 +197,7 @@ export function createStashHandlers(ctx: TemporaryWorkContext) {
         const snapshot = emitStashSnapshot(
           repo.id,
           await stash.listStashes(repo.rootPath),
+          requestId,
         );
         deps.postMessage(createHostResponse(requestId, "stash.pop", snapshot));
       } catch (err) {
@@ -217,6 +220,7 @@ export function createStashHandlers(ctx: TemporaryWorkContext) {
         const snapshot = emitStashSnapshot(
           repo.id,
           await stash.listStashes(repo.rootPath),
+          requestId,
         );
         deps.postMessage(createHostResponse(requestId, "stash.drop", snapshot));
       } catch (err) {
@@ -245,6 +249,7 @@ export function createStashHandlers(ctx: TemporaryWorkContext) {
         const snapshot = emitStashSnapshot(
           repo.id,
           await stash.listStashes(repo.rootPath),
+          requestId,
         );
         deps.postMessage(
           createHostResponse(requestId, "stash.branch", snapshot),
@@ -269,6 +274,7 @@ export function createStashHandlers(ctx: TemporaryWorkContext) {
         const snapshot = emitStashSnapshot(
           repo.id,
           await stash.listStashes(repo.rootPath),
+          requestId,
         );
         deps.postMessage(createHostResponse(requestId, "stash.clear", snapshot));
       } catch (err) {

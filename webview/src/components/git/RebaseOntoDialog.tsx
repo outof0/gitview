@@ -1,13 +1,17 @@
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
 import type { BranchEntry } from "@gitview/shared/types/branch";
 import {
+  GitDialogField,
   GitDialogShell,
-  gitDialogBtnPrimary,
-  gitDialogBtnSecondary,
 } from "../ui/GitDialogShell";
+import { Button } from "../ui/Button";
+import { Checkbox } from "../ui/Checkbox";
 import { BranchRefSelect } from "./BranchRefSelect";
 
-export type RebaseChoice = {
+type RebaseChoice = {
   interactive?: boolean;
   from?: string;
   rebaseMerges?: boolean;
@@ -58,17 +62,17 @@ export function RebaseOntoDialog({
       testId="rebase-onto-dialog"
       footer={
         <>
-          <button
+          <Button
             type="button"
-            className={gitDialogBtnSecondary}
+            variant="secondary" size="compact"
             onClick={onCancel}
             data-testid="rebase-onto-cancel"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className={gitDialogBtnPrimary}
+            variant="primary" size="compact"
             disabled={busy || !onto}
             onClick={() =>
               onConfirm(onto, {
@@ -80,13 +84,12 @@ export function RebaseOntoDialog({
             data-testid="rebase-onto-confirm"
           >
             Rebase
-          </button>
+          </Button>
         </>
       }
     >
       <div className="flex flex-col gap-2">
-        <label className="flex flex-col gap-1">
-          <span>Onto</span>
+        <GitDialogField label="Onto">
           <BranchRefSelect
             branches={branches}
             value={onto}
@@ -94,10 +97,9 @@ export function RebaseOntoDialog({
             exclude={from || undefined}
             testId="rebase-onto-ref"
           />
-        </label>
+        </GitDialogField>
 
-        <label className="flex flex-col gap-1">
-          <span>Branch to rebase</span>
+        <GitDialogField label="Branch to rebase">
           <BranchRefSelect
             branches={branches}
             value={from}
@@ -106,37 +108,25 @@ export function RebaseOntoDialog({
             exclude={onto || undefined}
             testId="rebase-from-ref"
           />
-        </label>
+        </GitDialogField>
 
-        <label className="flex items-start gap-2">
-          <input
-            type="checkbox"
-            className="mt-0.5"
-            checked={interactive}
-            onChange={(e) => setInteractive(e.target.checked)}
-            data-testid="rebase-interactive"
-          />
-          <span>
-            Interactive
-            <span className="block opacity-70">
-              Edit the commit list before replaying (-i).
-            </span>
-          </span>
-        </label>
+        <Checkbox
+          checked={interactive}
+          onChange={setInteractive}
+          testId="rebase-interactive"
+          hint="Edit the commit list before replaying (-i)."
+        >
+          Interactive
+        </Checkbox>
 
-        <label className="flex items-start gap-2">
-          <input
-            type="checkbox"
-            className="mt-0.5"
-            checked={rebaseMerges}
-            onChange={(e) => setRebaseMerges(e.target.checked)}
-            data-testid="rebase-merges"
-          />
-          <span>
-            Preserve merge commits
-            <span className="block opacity-70">--rebase-merges</span>
-          </span>
-        </label>
+        <Checkbox
+          checked={rebaseMerges}
+          onChange={setRebaseMerges}
+          testId="rebase-merges"
+          hint="--rebase-merges"
+        >
+          Preserve merge commits
+        </Checkbox>
       </div>
     </GitDialogShell>
   );

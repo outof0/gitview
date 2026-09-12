@@ -84,6 +84,14 @@ describe("sync integration", () => {
     expect(result.rejected).toBe(true);
   }, 15_000);
 
+  it("rethrows push failures that are not remote rejections", async () => {
+    const sync = createSyncApi(async () => {
+      throw new Error("authentication failed");
+    });
+
+    await expect(sync.push("/repo")).rejects.toThrow("authentication failed");
+  });
+
   it("pulls with rebase strategy", async () => {
     repo = await createTempGitRepo();
     const sync = createSyncApi(execGit);

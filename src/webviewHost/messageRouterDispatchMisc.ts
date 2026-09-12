@@ -157,6 +157,86 @@ export async function dispatchMisc(
         }
         return true;
       }
+
+      case "rollback.openPanel": {
+        const { deps } = ctx;
+        const handler = deps.onOpenGitRollback;
+        if (!handler) {
+          deps.postMessage(
+            createHostError(
+              request.requestId,
+              createError(
+                "NOT_IMPLEMENTED",
+                "rollback.openPanel is not configured for this surface.",
+              ),
+            ),
+          );
+          return true;
+        }
+        try {
+          await handler(
+            request.payload.repoId,
+            request.payload.path,
+            request.payload.selectedPaths,
+          );
+          deps.postMessage(
+            createHostResponse(request.requestId, "rollback.openPanel", {
+              opened: true as const,
+            }),
+          );
+        } catch (err) {
+          deps.postMessage(
+            createHostError(
+              request.requestId,
+              createError(
+                "GIT_COMMAND_FAILED",
+                err instanceof Error ? err.message : String(err),
+              ),
+            ),
+          );
+        }
+        return true;
+      }
+
+      case "git.openContentDialog": {
+        const { deps } = ctx;
+        const handler = deps.onOpenGitContentDialog;
+        if (!handler) {
+          deps.postMessage(
+            createHostError(
+              request.requestId,
+              createError(
+                "NOT_IMPLEMENTED",
+                "git.openContentDialog is not configured for this surface.",
+              ),
+            ),
+          );
+          return true;
+        }
+        try {
+          await handler(
+            request.payload.repoId,
+            request.payload.dialog,
+            request.payload.index,
+          );
+          deps.postMessage(
+            createHostResponse(request.requestId, "git.openContentDialog", {
+              opened: true as const,
+            }),
+          );
+        } catch (err) {
+          deps.postMessage(
+            createHostError(
+              request.requestId,
+              createError(
+                "GIT_COMMAND_FAILED",
+                err instanceof Error ? err.message : String(err),
+              ),
+            ),
+          );
+        }
+        return true;
+      }
     default:
       return false;
   }

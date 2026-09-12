@@ -1,3 +1,5 @@
+import { Input } from "../ui/Input";
+import { Button } from "../ui/Button";
 import { useEffect } from "react";
 import { useGitPanelStore } from "../../stores/gitPanelStore";
 import { useMergeClientContext } from "../../hooks/merge/mergeClientContext";
@@ -5,6 +7,7 @@ import { GitPanelChrome } from "./GitPanelChrome";
 import { GitCommitList } from "./GitCommitList";
 import { GitCommitDetail } from "./GitCommitDetail";
 import { findCommit } from "./gitPanelFormat";
+import { ScrollArea } from "../ui/ScrollArea";
 
 export function ChangesFromBranchPanel() {
   const panel = useGitPanelStore((s) => s.changesFromSide);
@@ -49,8 +52,8 @@ export function ChangesFromBranchPanel() {
       testId="changes-from-branch-panel"
       footer={
         <>
-          <label className="inline-flex items-center gap-2 min-w-0 text-xs leading-[18px] text-foreground cursor-pointer select-none">
-            <input
+          <label className="inline-flex items-center gap-2 min-w-0 text-xs leading-code text-foreground cursor-pointer select-none">
+            <Input
               type="checkbox"
               className="w-3.5 h-3.5 m-0 accent-ring"
               checked={panel.filterByFile}
@@ -58,26 +61,29 @@ export function ChangesFromBranchPanel() {
             />
             Filter by conflicted file
           </label>
-          <button
+          <Button variant="primary" size="content"
             type="button"
-            className="btn-vscode min-w-[92px]"
+            className="btn-vscode min-w-changes-close"
             onClick={close}
           >
             Close
-          </button>
+          </Button>
         </>
       }
     >
       {panel.error && (
-        <div className="px-4 py-2 text-[12px] text-vscode-error border-b border-border shrink-0">
+        <div className="p-3 text-ui-sm text-danger-fg border-b border-border shrink-0">
           {panel.error}
         </div>
       )}
       <div
-        className="grid flex-1 min-h-0 grid-cols-[minmax(220px,280px)_minmax(0,1fr)] max-[780px]:grid-cols-1 max-[780px]:grid-rows-[minmax(120px,30%)_minmax(0,1fr)]"
+        className="grid flex-1 min-h-0 grid-cols-[minmax(220px,280px)_minmax(0,1fr)] max-surface-stacked:grid-cols-1 max-surface-stacked:grid-rows-[minmax(120px,30%)_minmax(0,1fr)]"
         data-testid="changes-from-body"
       >
-        <div className="min-h-0 overflow-auto border-r border-border bg-vscode-sidebar-bg max-[780px]:border-r-0 max-[780px]:border-b max-[780px]:border-border">
+        <ScrollArea
+          axis="vertical"
+          className="border-r border-border bg-vscode-sidebar-bg max-surface-stacked:border-r-0 max-surface-stacked:border-b max-surface-stacked:border-border"
+        >
           <GitCommitList
             commits={panel.commits}
             selectedSha={panel.selectedSha}
@@ -90,7 +96,7 @@ export function ChangesFromBranchPanel() {
                 : "No commits on this branch since merge-base."
             }
           />
-        </div>
+        </ScrollArea>
         <div className="min-w-0 min-h-0 overflow-hidden bg-vscode-editor-bg">
           <GitCommitDetail
             commit={selected}

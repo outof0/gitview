@@ -1,8 +1,19 @@
 import type { ProtocolRequestFn } from "./clientCore";
+import type { ConfirmationSubmission } from "@gitview/shared/types/confirmation";
 import type { StashFileOrigin } from "@gitview/shared/types/stash";
 
 export function createProtocolClientAuxMethods(request: ProtocolRequestFn) {
   return {
+    openContentDialog: (
+      repoId: string,
+      dialog: "stash" | "unstash",
+      index?: number | null,
+    ) =>
+      request("git.openContentDialog", {
+        repoId,
+        dialog,
+        ...(index !== undefined ? { index } : {}),
+      }),
     listStashes: (repoId: string) =>
       request("stash.list", { repoId }),
     pushStash: (
@@ -91,13 +102,8 @@ export function createProtocolClientAuxMethods(request: ProtocolRequestFn) {
     removeWorktree: (
       repoId: string,
       path: string,
-      force?: boolean,
-      confirmed?: boolean,
-    ) =>
-      request(
-        "worktree.remove",
-        { repoId, path, force, confirmed },
-      ),
+      confirmation?: ConfirmationSubmission,
+    ) => request("worktree.remove", { repoId, path, confirmation }),
     openWorktree: (repoId: string, path: string) =>
       request("worktree.open", { repoId, path }),
   };

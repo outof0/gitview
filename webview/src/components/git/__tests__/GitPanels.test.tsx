@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import {
+  render,
+  screen,
+  cleanup,
+  fireEvent,
+  within,
+} from "@testing-library/react";
 import { GitHistoryToolWindow } from "../../../screens/GitHistoryToolWindow";
 import { ChangesFromBranchPanel } from "../ChangesFromBranchPanel";
 import { useGitHistoryStore } from "../../../stores/gitHistoryStore";
@@ -79,7 +85,13 @@ describe("Git panels", () => {
     );
     expect(screen.queryByTestId("log-branch-tree")).toBeNull();
     expect(screen.getByTestId("git-commit-list")).toBeTruthy();
-    expect(screen.getByTestId("commit-ref-main")).toBeTruthy();
+    const mainRef = screen.getByTestId("commit-ref-main");
+    const subject = screen.getByTestId("git-commit-subject");
+    expect(mainRef.compareDocumentPosition(subject) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(screen.getByTestId("commit-refs").className).toContain("max-w-[36%]");
+    expect(mainRef.className).toContain("flex-[0_1_auto]");
     expect(screen.getByTestId("git-changed-files-tree")).toBeTruthy();
     expect(screen.getByTestId("git-log-details-pane")).toBeTruthy();
     expect(screen.getByTestId("git-history-branch-filter")).toBeTruthy();
@@ -167,6 +179,51 @@ describe("Git panels", () => {
     expect(screen.getByTestId("git-history-toggle-branches").getAttribute("aria-pressed")).toBe(
       "true",
     );
+  });
+
+  it("compact history filters preserve branch, author, and refresh actions", () => {
+    useGitHistoryStore.setState({
+      path: "src/app.ts",
+      isFolder: false,
+      repoId: "test-repo",
+      repoRoot: "/r",
+      branches: ["main", "feature"],
+      branchFilter: "main",
+      authorFilter: "",
+      loading: false,
+      commits: [
+        {
+          sha: "abc",
+          shortSha: "abc",
+          author: "Jane",
+          authorEmail: "jane@example.com",
+          authorTime: 1_700_000_000,
+          subject: "Fix bug",
+          changedFiles: [{ path: "src/app.ts", status: "M" }],
+        },
+      ],
+    });
+    render(<GitHistoryToolWindow />);
+
+    fireEvent.click(screen.getByTestId("git-history-more-filters"));
+    fireEvent.change(screen.getByTestId("git-history-compact-branch-filter"), {
+      target: { value: "feature" },
+    });
+    fireEvent.change(screen.getByTestId("git-history-compact-author-filter"), {
+      target: { value: "Jane" },
+    });
+    expect(useGitHistoryStore.getState().branchFilter).toBe("feature");
+    expect(useGitHistoryStore.getState().authorFilter).toBe("Jane");
+
+    mergeTestOutbound.length = 0;
+    useGitHistoryStore.setState({ loading: false });
+    fireEvent.click(
+      within(screen.getByTestId("git-history-more-filters-popover")).getByRole(
+        "button",
+        { name: "Refresh" },
+      ),
+    );
+    expect(useGitHistoryStore.getState().loading).toBe(true);
   });
 
   it("Ctrl+D posts showRevisionDiff to open full diff viewer", () => {

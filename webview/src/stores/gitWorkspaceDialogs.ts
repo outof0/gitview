@@ -1,6 +1,15 @@
 import type { GitPanelDialog } from "@gitview/shared/protocol";
 import type { SyncBranchTarget } from "@gitview/shared/types/branch";
 import type { CommitCheckIssue } from "@gitview/shared/types/commitCheck";
+import type {
+  DropCommitConfirmationEvidence,
+  DropSelectedConfirmationEvidence,
+  ForceCheckoutConfirmationEvidence,
+  HardResetConfirmationEvidence,
+  MultiRootForceCheckoutConfirmationEvidence,
+  RemoveDirtyWorktreeConfirmationEvidence,
+  RollbackConfirmationEvidence,
+} from "@gitview/shared/types/confirmation";
 import type { DiffLineSelection } from "@gitview/shared/types/diff";
 import type { ResetMode } from "@gitview/shared/types/log";
 
@@ -14,26 +23,41 @@ export type GitWorkspaceDialogPayloads = {
   stash: Record<string, never>;
   unstash: { index: number | null };
   commit: Record<string, never>;
-  /** `startPoint` empty means "from HEAD". */
-  createBranch: { startPoint: string };
   /** `ref`/`onto` empty means the dialog opened with no branch picked yet. */
   merge: { ref: string };
   rebase: { onto: string };
-  forceCheckout: { ref: string; opts?: { smart?: boolean; force?: boolean } };
+  forceCheckout: {
+    ref: string;
+    opts?: { smart?: boolean; force?: boolean };
+    confirmation:
+      | ForceCheckoutConfirmationEvidence
+      | MultiRootForceCheckoutConfirmationEvidence;
+  };
   renameBranch: { oldName: string };
   deleteBranch: { name: string; forceRequired?: boolean };
   deleteReviewSourceBranch: { branchName: string };
-  rollbackConfirm: { paths: string[] };
-  reset: { sha: string; mode: ResetMode };
+  /** Local preflight shown before the host-side rollback mutation. */
+  rollbackChanges: { paths: string[]; selectedPaths?: string[] };
+  rollbackConfirm: { confirmation: RollbackConfirmationEvidence };
+  reset: {
+    sha: string;
+    mode: ResetMode;
+    confirmation?: HardResetConfirmationEvidence;
+  };
   createBranchFromCommit: { sha: string };
   editMessage: { sha: string; subject: string };
-  rewrite: { sha: string; action: "squash" | "fixup" | "drop" };
+  rewrite: {
+    sha: string;
+    action: "squash" | "fixup" | "drop";
+    confirmation?: DropCommitConfirmationEvidence;
+  };
   commitCheckWarnings: { issues: CommitCheckIssue[] };
   dropSelected: {
     sha: string;
     path: string;
     hunkIndexes?: number[];
     lines?: DiffLineSelection[];
+    confirmation?: DropSelectedConfirmationEvidence;
   };
   pushUpstream: { branch: string; remote: string };
   syncBranch: {
@@ -44,7 +68,7 @@ export type GitWorkspaceDialogPayloads = {
   updateAllRootsReport: {
     results: Array<{ repoId: string; name: string; ok: boolean; error?: string }>;
   };
-  worktreeRemove: { path: string; forceRequired?: boolean };
+  worktreeRemove: { confirmation: RemoveDirtyWorktreeConfirmationEvidence };
 };
 
 export type GitWorkspaceDialogId = keyof GitWorkspaceDialogPayloads;
@@ -64,7 +88,6 @@ export const PANEL_DIALOG_PAYLOADS: {
   stash: {},
   unstash: { index: null },
   commit: {},
-  createBranch: { startPoint: "" },
   merge: { ref: "" },
   rebase: { onto: "" },
 };

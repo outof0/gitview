@@ -1,189 +1,140 @@
 # GitView
 
-**See Git clearly.**
+**All of Git, one window.**
 
-**3-way Git merge and Git tools for VS Code** — and editors compatible with the same extension API.
+Your Git is spread across five places — history in one extension, blame in another, the graph
+in a third, stash in the terminal. Commit, read history, blame a line, switch branches, stash,
+rebase, cherry-pick and review pull requests from one panel: the Git tool window you get in a
+JetBrains IDE, without leaving VS Code. When a merge does break, resolve it from the real Git
+index stages.
 
-Resolve merge conflicts from real Git index stages (base / ours / theirs), not just `<<<<<<<` markers. Includes file history, blame, compare, and Git actions from the editor context menu.
+**MIT · no account · no telemetry · commit graph works on private repos too.**
 
-## Features
+**[Install for VS Code](https://marketplace.visualstudio.com/items?itemName=gitview.gitview)**
+· [Open VSX](https://open-vsx.org/extension/gitview/gitview)
+· [gitview.dev](https://gitview.dev)
 
-- **True 3-way merge** — built from Git stages `:1:` / `:2:` / `:3:`
-- **Three-pane editor** — Local · Result · Repository with scroll sync and change-type colors
-- **Magic resolve (✦)** — auto-resolve trivial identical conflicts
-- **GitView workspace** — desktop-IDE-style Git tool window: widget, changes, commit, branches, log, diff, temporary work, hosted review
-- **Git History tab** — commit log, branch filter, inline diff preview
-- **Git context menu** — history, compare, blame, rollback, stage, commit, remote ops, branches, stash, merge, rebase
-- **Hosted review** — GitHub and GitLab PR/MR list, create PR/MR, filters, line comments, merge/squash/rebase, timeline
-- **Keyboard-first** — F7 / Shift+F7, Alt+↑↓, Alt+1/2/3, Ctrl+Enter
-- **Theme-aware** — uses VS Code CSS variables; supports light, dark, and high-contrast themes
+![GitView Git workspace — changes, commit, branches, log and diff in one panel](https://raw.githubusercontent.com/outof0/gitview/main/docs/launch/readme/workspace.png)
+
+---
+
+## What you get
+
+| Area | What it does |
+| --- | --- |
+| **Git workspace** | `git status` → stage → commit, with the diff beside the file list. The panel you open on a normal day. |
+| **History** | Visual commit graph with ref labels (`HEAD`, `origin/main`), per-file filter, file tree, inline diff. The equivalent of `git log --graph --decorate`, rendered. |
+| **Blame** | Inline annotations — author, SHA, date, message. Click through to history. |
+| **Branches** | Local and remote, current marker, checkout, create, delete. |
+| **Stash · rebase · cherry-pick** | A real UI for the commands you would otherwise type. |
+| **Hosted review** | GitHub and GitLab PR / MR list, filters, line comments, merge / squash / rebase, timeline. |
+| **3-way merge** | Reads `:1:` base · `:2:` ours · `:3:` theirs straight from the Git index. |
+| **Native context menus** | Right-click in Explorer, editor or SCM for history, compare, blame, rollback, stage, commit, remote ops, merge, rebase. |
+| **Keyboard-first** | `F7` / `Shift+F7` conflicts · `Alt+↑↓` hunks · `Alt+1/2/3` panes · `Ctrl+Enter` commit. |
+| **Theme-aware** | Uses the host `--vscode-*` variables — light, dark and high-contrast all look native. |
+
+![GitView history — branch tree, commit graph and file tree](https://raw.githubusercontent.com/outof0/gitview/main/docs/launch/readme/history.png)
+
+## 3-way merge that reads Git, not a guess
+
+Most merge tooling in editors now hands the hard hunks to a model. GitView does not.
+
+It reads the three versions Git itself writes into the index — `:1:` base, `:2:` ours,
+`:3:` theirs — and runs them through your own `git` CLI. The **✦ auto-resolve** button only
+fires when both sides wrote a byte-identical block; it never invents content. Everything
+else is a decision you make, in a three-pane editor with a live result preview.
+
+![GitView 3-way merge editor — base, ours, theirs and the editable result](https://raw.githubusercontent.com/outof0/gitview/main/docs/launch/readme/merge.png)
+
+That matters for the conflicts AI gets wrong most often: whitespace-only edits, rename
+plus edit, and binary hunks. Review the result before you apply it — nothing is written
+until you say so.
+
+![GitView blame — author, commit and date inline](https://raw.githubusercontent.com/outof0/gitview/main/docs/launch/readme/blame.png)
+
+## Why GitView exists
+
+- **One window, not five.** History in one extension, blame in another, graph in a third,
+  merge in a fourth, stash in the terminal. GitView puts the daily loop in one panel.
+- **No account, no paid tier.** The commit graph, full history and blame work on public
+  *and* private repositories. No login, no sync prompt, no upgrade nag.
+- **No telemetry.** Nothing phones home. Git operations run against your local `git` CLI
+  and stay on your machine; hosted review talks to the GitHub or GitLab API you configure,
+  with a token kept in Secret Storage.
+- **Deterministic.** Auto-resolve is conservative diff/merge logic — no network service, no
+  model, no AI. Same input, same output, every time.
+
+## Install
+
+| Editor | How to install |
+| --- | --- |
+| **VS Code** | [Marketplace](https://marketplace.visualstudio.com/items?itemName=gitview.gitview) → Install, or `code --install-extension gitview.gitview` |
+| **Cursor · Windsurf · VSCodium · Antigravity** | [Open VSX](https://open-vsx.org/extension/gitview/gitview) — or download the VSIX below |
+| **Offline / air-gapped** | Grab `gitview-0.1.1.vsix` from [GitHub Releases](https://github.com/outof0/gitview/releases/latest), then **Extensions → ⋯ → Install from VSIX** |
 
 ## Requirements
 
-| Requirement           | Notes                                          |
-| --------------------- | ---------------------------------------------- |
-| **VS Code 1.85+**     | Or a compatible fork on the same extension API |
-| **Git on PATH**       | Extension shells out to the `git` CLI          |
-| **Trusted workspace** | Git operations need workspace trust            |
-
-## Security & trust
-
-GitView can **modify files and Git state** in the workspace you open. Only enable it where you trust the folder.
-
-- **Workspace trust** required for Git writes ([docs](https://code.visualstudio.com/docs/editor/workspace-trust))
-- **No telemetry** — no usage or repository data sent to external product services
-- **Local Git only** — shells out to your `git` CLI and existing credentials
-
-Full detail (what can change the repo, recovery, path safety): [Security & trust guide](docs/guide/security.md).
-
-Reporting a vulnerability: see [SECURITY.md](SECURITY.md) — please do not open a public issue.
-
-## Installation
-
-```bash
-# Marketplace (after publish)
-code --install-extension gitview.gitview
-
-# Local VSIX
-pnpm install && pnpm run package
-code --install-extension gitview-<version>.vsix
-```
-
-More options (Open VSX, forks): [Installation guide](docs/guide/installation.md).
+| Requirement | Why |
+| --- | --- |
+| **VS Code 1.85+** | Or any editor or fork on the same extension API |
+| **Git on PATH** | GitView shells out to your `git` CLI |
+| **Trusted workspace** | Git writes require workspace trust ([docs](https://code.visualstudio.com/docs/editor/workspace-trust)) |
 
 ## Quick start
 
 1. Open a **trusted** Git workspace.
-2. Command Palette → **GitView: Open Git workspace** (or the activity-bar icon).
-3. During a merge: Explorer → right-click conflicted file → **Git** → **Resolve conflict**.
-4. Accept sides / edit Result → **Apply**. Context menu **Git** also covers history, blame, and remotes.
+2. Command Palette → **GitView: Open Git workspace** — or click the GitView icon in the
+   activity bar.
+3. That's it. Changes, commit, branches, history, blame and diff are in that panel.
 
-See [Getting started](docs/guide/getting-started.md).
+During a merge: right-click a conflicted file in the Explorer → **Git** → **Resolve conflict**.
 
-## Editor compatibility
+Full walkthrough: [getting started](https://github.com/outof0/gitview/blob/main/docs/guide/getting-started.md).
 
-| Editor | Install source | Notes |
-| --- | --- | --- |
-| **VS Code** | [Marketplace](https://marketplace.visualstudio.com/) | Primary target |
-| **Compatible editors and forks** | Open VSX or VSIX | Requires support for the declared `engines.vscode` API |
+## What's new in 0.1.1
 
-No Microsoft-proprietary APIs. UI colors use `--vscode-*` host variables.
+Completes the workspace experience and hardens the repository workflows.
 
-## Settings
+- **Commit flow** — a real commit composer and toolbar, with sign-off, GPG signing and hook
+  options, plus a commit sidebar in the activity bar.
+- **Rollback** — a Rollback Changes dialog with a per-file tree and a typed confirmation before
+  anything is discarded.
+- **Blame** — annotations now open in the editor area, with file history coordinated from the
+  workspace panel.
+- **Room to breathe** — commit, branches and rollback open as their own editor-area surfaces
+  instead of being crushed into a 258px panel.
+- **Fixes** — silent data loss in shelf, drop-selected and branch apply; a cleaner commit graph
+  with slimmer scrollbars.
+- **Under the hood** — lazy-loaded Monaco language support, wider end-to-end coverage, tighter
+  CI and cleaner packaging.
 
-All legacy-compatible keys remain under `gitView.*` — open Settings and search **GitView**.
+[Full changelog](https://github.com/outof0/gitview/blob/main/CHANGELOG.md).
 
-| Setting | Default | Description |
-| --- | --- | --- |
-| `mergeEngine` | `threeWay` | Git stages vs worktree markers only |
-| `autoStageOnResolved` | `true` | `git add` after Apply |
-| `confirmDestructiveActions` | `true` | Confirm discard / history rewrite |
-| `updateStrategy` | `merge` | Pull: `merge` · `rebase` · `ff_only` |
-| `gitExecutablePath` | `null` | Custom Git binary; `null` = PATH |
+## Known limits
 
-Full list: [Settings reference](docs/reference/settings.md) · `package.json` → `contributes.configuration`.
+We would rather you read these here than discover them later.
 
-## Extension API
+- The hosted review board is preview-quality — it works, it is not yet as dense as the rest.
+- No submodule panel and no Git LFS panel yet.
+- Merge behaviour follows the `git` on your PATH. If your Git is old, GitView is too.
 
-GitView exposes a versioned API for other VS Code extensions. Integrations can
-register hosted-review providers, add namespaced webview protocol handlers, and
-observe repository refreshes without importing internal modules.
+## Trust
 
-```ts
-import * as vscode from "vscode";
-import type { GitViewExtensionApi } from "gitview";
+GitView writes files and Git state in the workspace you open. Use it where you trust the folder.
 
-const extension = vscode.extensions.getExtension<GitViewExtensionApi>(
-  "gitview.gitview",
-);
-const api = await extension?.activate();
-
-if (api?.apiVersion === 1) {
-  const disposable = api.onDidRefresh(({ repoSnapshot }) => {
-    console.log(repoSnapshot.repositories.length);
-  });
-  context.subscriptions.push(disposable);
-}
-```
-
-See the [Extension API reference](docs/reference/extension-api.md) for provider
-and protocol-extension contracts and compatibility rules.
+- **No telemetry.** No product phone-home, ever. There is no GitView server to phone.
+- Local `git` operations stay local and use your existing credentials.
+- Hosted review calls the configured GitHub or GitLab API only when you use that feature.
+- Detail: [security guide](https://github.com/outof0/gitview/blob/main/docs/guide/security.md) ·
+  reports: [SECURITY.md](https://github.com/outof0/gitview/blob/main/SECURITY.md).
 
 ## Documentation
 
-| Section | Audience |
-| --- | --- |
-| [Guide](docs/guide/introduction.md) | Install, first use, features |
-| [Reference](docs/reference/settings.md) | Settings, commands, shortcuts, protocol |
-| [Contribute](docs/contribute/development.md) | Local setup & architecture |
-| [Maintainers](docs/maintainers/quality-standard.md) | Quality standard, product specs & coverage matrix |
-
-Full index: [docs/README.md](docs/README.md).
-
-## Development
-
-```bash
-pnpm install
-pnpm run quality        # complete pull-request quality gate
-pnpm run check:architecture # dependency direction + purity + cycles
-pnpm run check:docs     # local documentation links
-pnpm run typecheck      # host + webview TypeScript
-pnpm run lint           # oxlint
-pnpm run build          # webview + extension
-pnpm run check:package  # public declarations + VSIX contents
-pnpm run watch          # parallel dev watchers
-pnpm run test:unit      # Vitest
-pnpm run test:coverage  # coverage thresholds (CI gate)
-pnpm run test:int       # @vscode/test-electron
-pnpm run test:e2e       # Playwright webview smoke
-pnpm run package        # build + bundle budget + VSIX
-```
-
-CI (`.github/workflows/ci.yml`): **quality** (architecture, typecheck, lint, unit+coverage, build, bundle, package contract) · **e2e** · **integration**. Release tags rerun this workflow before GitHub Release creation.
-
-Quality policy: [docs/maintainers/quality-standard.md](docs/maintainers/quality-standard.md). Coverage matrix: [docs/maintainers/coverage-matrix.md](docs/maintainers/coverage-matrix.md). Release steps: [RELEASE.md](RELEASE.md).
-
-Launch configs:
-
-- **Run Extension (Merge Conflicts)** → `test-conflict-repo` (mid-merge; resolve conflicts)
-- **Run Extension (Clean Git Menu)** → `test-clean-repo` (stash, commit, branch, remotes)
-
-```bash
-pnpm run test:setup        # conflict fixture only
-pnpm run test:setup:clean  # clean + conflict fixtures
-```
-
-## Publishing
-
-Changelog is generated from [Conventional Commits](https://www.conventionalcommits.org/) at release time (same idea as Vue / Antfu projects):
-
-```bash
-pnpm run changelog:preview   # dry-run since last tag
-pnpm release                 # bump + CHANGELOG.md + tag v* + push
-```
-
-Tag push reruns CI, creates generated GitHub Release notes, and attaches the packaged VSIX. Publish to the extension registries with:
-
-```bash
-pnpm run package
-pnpm exec vsce login <publisher-id>
-pnpm exec vsce publish
-# Open VSX:
-pnpm exec ovsx publish gitview-<version>.vsix -p <OVSX_TOKEN>
-```
-
-Full checklist: [RELEASE.md](RELEASE.md). Commit style: [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## Contributing
-
-Start with [CONTRIBUTING.md](CONTRIBUTING.md) for the architecture tour and test
-commands. Participation is governed by our
-[Code of Conduct](CODE_OF_CONDUCT.md).
-
-Architectural boundaries are enforced in CI by `pnpm run check:architecture`
-(layering, dependency cycles, `core/` purity, the Git subprocess choke point).
-Run `pnpm run quality` before opening a pull request.
+- User guide: [docs/guide/introduction.md](https://github.com/outof0/gitview/blob/main/docs/guide/introduction.md)
+- Settings, commands, shortcuts: [docs/reference/](https://github.com/outof0/gitview/tree/main/docs/reference)
+- Extension API: [docs/reference/extension-api.md](https://github.com/outof0/gitview/blob/main/docs/reference/extension-api.md)
+- Build from source: [docs/contribute/development.md](https://github.com/outof0/gitview/blob/main/docs/contribute/development.md)
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+[MIT](https://github.com/outof0/gitview/blob/main/LICENSE). Fork it, patch it, ship your own build.

@@ -7,14 +7,21 @@ only. Please upgrade before reporting an issue against an older build.
 
 | Version | Supported |
 | ------- | --------- |
-| 0.1.x   | Yes       |
-| < 0.1   | No        |
+| 0.1.1+ | Yes |
+| 0.1.0 | No — contains a known data-loss bug. See below. |
+| < 0.1 | No |
+
+### Known issues in unsupported versions
+
+- **0.1.0 (Marketplace, 2026-08-08)** — silent data loss in `shelf`,
+  `drop-selected`, and `branch apply` operations. Fixed in commit `949f469` and
+  shipped in **0.1.1** (GitHub Releases). Upgrade before using those operations.
 
 ## Reporting a vulnerability
 
 **Do not open a public issue for a security vulnerability.**
 
-Report privately via [GitHub Security Advisories](https://github.com/gitview/gitview/security/advisories/new).
+Report privately via [GitHub Security Advisories](https://github.com/outof0/gitview/security/advisories/new).
 If that is unavailable to you, open a regular issue that contains only the words
 "security report — please provide a private contact" and no technical detail; a
 maintainer will follow up with a private channel.

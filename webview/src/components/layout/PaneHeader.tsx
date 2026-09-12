@@ -1,4 +1,5 @@
 import { useGitViewStore } from "../../stores/gitViewStore";
+import { Button } from "../ui/Button";
 
 // Pane header for side-by-side merge panes.
 type PaneVariant = "left" | "center" | "right";
@@ -19,28 +20,27 @@ export function PaneHeader({
   const toggleShowDetails = onToggleShowDetails || globalToggleShowDetails;
 
   const headerClass =
-    "flex items-center gap-1.5 px-2.5 h-[26px] text-[11.5px] border-b border-[var(--vscode-panel-border)] bg-[var(--vscode-editorGroupHeader-tabsBackground,var(--vscode-editor-background))] text-[var(--vscode-descriptionForeground)]";
+    "flex min-w-0 items-center gap-1.5 overflow-hidden whitespace-nowrap px-2 h-toolbar text-ui-sm border-b border-border bg-vscode-titlebar-bg text-vscode-description";
 
   const linkClass =
-    "text-[11px] text-[var(--vscode-textLink-foreground)] hover:underline cursor-pointer bg-transparent border-none p-0";
+    "px-0 text-vscode-link enabled:hover:bg-transparent enabled:hover:underline";
 
   const showDetails = (
-    <button
-      type="button"
+    <Button
+      variant="toolbar"
+      size="compact"
       className={linkClass}
       onClick={toggleShowDetails}
       title="Show details"
     >
       Show Details
-    </button>
+    </Button>
   );
 
   if (variant === "center") {
     return (
       <div className={headerClass}>
-        <span className="font-semibold text-[var(--vscode-editor-foreground)]">
-          Result
-        </span>
+        <span className="font-semibold text-vscode-editor-fg">Result</span>
         <span className="flex-1" />
       </div>
     );
@@ -48,9 +48,12 @@ export function PaneHeader({
 
   const branchLabel = (
     <>
-      <span>Changes from</span>
+      <span className="ui-pane-header-prefix">Changes from</span>
       {branch && (
-        <span className="font-semibold text-[var(--vscode-editor-foreground)]">
+        <span
+          className="min-w-0 truncate font-semibold text-vscode-editor-fg"
+          title={branch}
+        >
           {branch}
         </span>
       )}

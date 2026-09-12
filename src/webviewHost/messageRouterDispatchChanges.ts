@@ -45,7 +45,7 @@ export async function dispatchChanges(
           request.requestId,
           request.payload.repoId,
           request.payload.paths,
-          Boolean(request.payload.confirmed),
+          request.payload.confirmation,
           statusFiles,
         );
         return true;
@@ -91,6 +91,13 @@ export async function dispatchChanges(
         await mutations.updateAllRoots(
           request.requestId,
           request.payload.strategy,
+        );
+        return true;
+
+      case "sync.cancel":
+        await mutations.cancelSync(
+          request.requestId,
+          request.payload.operationId,
         );
         return true;
     default:

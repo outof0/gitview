@@ -61,7 +61,7 @@ interface GitExtensionExports {
   getAPI(version: 1): GitApi;
 }
 
-export async function getGitApi(): Promise<GitApi | undefined> {
+async function getGitApi(): Promise<GitApi | undefined> {
   const ext = vscode.extensions.getExtension<GitExtensionExports>("vscode.git");
   if (!ext) {
     return undefined;

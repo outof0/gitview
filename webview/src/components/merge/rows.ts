@@ -2,18 +2,27 @@
 // ChangeBlocks into aligned rows for the Local / Result / Repository panes.
 // No React, no DOM — easy to unit-test.
 
-import type { MergeDocument } from "../../../../src/core/types";
+import { isMagicMergeResolvable } from "../../../../src/core";
+import type { ChangeBlock, MergeDocument } from "../../../../src/core/types";
 import { buildBaseRows, buildBlockRows } from "./rowsBuild";
 import { classifyChangeType } from "./rowsHelpers";
 
-export type {
-  BlockRows,
-  ChangeType,
-  RowCell,
-  RowOrigin,
-} from "./rowsTypes";
+export type { BlockRows, ChangeType, RowCell, RowOrigin } from "./rowsTypes";
 export type { BuildBlockRowsOptions } from "./rowsHelpers";
 export { buildBlockRows, buildBaseRows, classifyChangeType };
+
+function isUntouchedMagicMergeCandidate(block: ChangeBlock): boolean {
+  const conflict = block.metadata.conflict;
+  return (
+    block.kind === "conflict" &&
+    block.status === "unresolved" &&
+    !block.metadata.hasManualEdit &&
+    conflict?.ours === "pending" &&
+    conflict.theirs === "pending" &&
+    conflict.acceptedOrder.length === 0 &&
+    isMagicMergeResolvable(block)
+  );
+}
 
 // Counts for the toolbar/bottom-bar (specs §21).
 export function countChanges(doc: MergeDocument): {
@@ -33,9 +42,14 @@ export function countChanges(doc: MergeDocument): {
       (b.kind === "ours_only" || b.kind === "theirs_only") &&
       b.status === "unresolved",
   ).length;
-  const unresolvedSimpleConflicts = doc.blocks.filter(
-    (b) => b.kind === "both_same" && b.status === "unresolved",
-  ).length;
+  const supportsMagicMerge =
+    doc.special === "none" &&
+    doc.base !== null &&
+    doc.ours !== null &&
+    doc.theirs !== null;
+  const unresolvedSimpleConflicts = supportsMagicMerge
+    ? doc.blocks.filter(isUntouchedMagicMergeCandidate).length
+    : 0;
   return {
     totalChanges,
     conflicts,

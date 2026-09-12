@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
+import { isSyncOperationActive } from "@gitview/shared/types/sync";
 import { CommitCheckWarningDialog } from "../../components/git/CommitCheckWarningDialog";
 import { CommitDialog } from "../../components/git/CommitDialog";
-import { CreateBranchDialog } from "../../components/git/CreateBranchDialog";
 import { CreateBranchFromCommitDialog } from "../../components/git/CreateBranchFromCommitDialog";
 import { DeleteBranchDialog } from "../../components/git/DeleteBranchDialog";
 import { DeleteReviewSourceBranchDialog } from "../../components/git/DeleteReviewSourceBranchDialog";
@@ -14,6 +14,7 @@ import { RebaseOntoDialog } from "../../components/git/RebaseOntoDialog";
 import { RenameBranchDialog } from "../../components/git/RenameBranchDialog";
 import { ResetConfirmDialog } from "../../components/git/ResetConfirmDialog";
 import { RewriteHistoryConfirmDialog } from "../../components/git/RewriteHistoryConfirmDialog";
+import { RollbackChangesDialog } from "../../components/git/RollbackChangesDialog";
 import { RollbackConfirmDialog } from "../../components/git/RollbackConfirmDialog";
 import { SyncBranchConfirmDialog } from "../../components/git/SyncBranchConfirmDialog";
 import { UpdateAllRootsDialog } from "../../components/git/UpdateAllRootsDialog";
@@ -22,6 +23,7 @@ import type {
   GitWorkspaceDialogId,
   GitWorkspaceDialogPayloads,
 } from "../../stores/gitWorkspaceDialogs";
+import type { GitFileStatus } from "@gitview/shared/types/status";
 import type { GitWorkspaceController } from "./gitWorkspaceControllerTypes";
 import { StashDialog, UnstashDialog } from "./GitWorkspaceStashDialogs";
 
@@ -33,6 +35,7 @@ import { StashDialog, UnstashDialog } from "./GitWorkspaceStashDialogs";
 export type GitWorkspaceDialogRenderer<K extends GitWorkspaceDialogId> = (
   payload: GitWorkspaceDialogPayloads[K],
   ctx: GitWorkspaceController,
+  visibleFiles?: GitFileStatus[],
 ) => ReactNode;
 
 export const GIT_WORKSPACE_DIALOG_RENDERERS: {
@@ -63,6 +66,7 @@ export const GIT_WORKSPACE_DIALOG_RENDERERS: {
         gpgSign={ctx.gpgSign}
         author={ctx.author}
         runChecks={ctx.runChecks}
+        runHooks={ctx.runHooks}
         busy={ctx.syncing}
         currentBranch={ctx.activeRepo?.currentBranch}
         protectedBranch={ctx.activeRepo?.protectedBranch}
@@ -72,33 +76,13 @@ export const GIT_WORKSPACE_DIALOG_RENDERERS: {
         onGpgSignChange={ctx.setGpgSign}
         onAuthorChange={ctx.setAuthor}
         onRunChecksChange={ctx.setRunChecks}
+        onRunHooksChange={ctx.setRunHooks}
         onCommit={() => void runCommit(false)}
         onCommitAndPush={() => void runCommit(true)}
         onCancel={() => ctx.closeDialog("commit")}
       />
     );
   },
-
-  createBranch: (payload, ctx) => (
-    <CreateBranchDialog
-      open
-      branches={ctx.branchSnapshot?.branches ?? []}
-      startPoint={payload.startPoint}
-      busy={ctx.syncing}
-      onCancel={() => ctx.closeDialog("createBranch")}
-      onConfirm={(name, startPoint, opts) => {
-        const repo = ctx.activeRepo;
-        if (!repo) {
-          return;
-        }
-        ctx.closeDialog("createBranch");
-        void ctx.runMutation(async () => {
-          await ctx.clientRef.current.createBranch(repo.id, name, startPoint, opts);
-          await ctx.loadBranches();
-        });
-      }}
-    />
-  ),
 
   merge: (payload, ctx) => (
     <MergeBranchDialog
@@ -143,19 +127,36 @@ export const GIT_WORKSPACE_DIALOG_RENDERERS: {
     />
   ),
 
-  forceCheckout: (payload, ctx) => (
-    <ForceCheckoutDialog
-      open
-      refName={payload.ref}
-      onCancel={() => ctx.closeDialog("forceCheckout")}
-      onConfirm={() => {
-        ctx.closeDialog("forceCheckout");
-        void ctx.runMutation(() =>
-          ctx.handleBranchCheckout(payload.ref, { ...payload.opts, force: true }),
-        );
-      }}
-    />
-  ),
+  forceCheckout: (payload, ctx) => {
+    const targetIds =
+      payload.confirmation.action === "force_checkout_multi"
+        ? payload.confirmation.targets.map((target) => target.repoId)
+        : [payload.confirmation.repoId];
+    const repositoryNames = targetIds.map(
+      (repoId) =>
+        ctx.repoSnapshot?.repositories.find((repo) => repo.id === repoId)?.name ??
+        repoId,
+    );
+    return (
+      <ForceCheckoutDialog
+        open
+        confirmation={payload.confirmation}
+        repositoryNames={repositoryNames}
+        busy={ctx.syncing}
+        onCancel={() => ctx.closeDialog("forceCheckout")}
+        onConfirm={(confirmation) =>
+          void ctx.runMutation(() =>
+            ctx.handleBranchCheckout(
+              payload.ref,
+              { ...payload.opts, force: true },
+              false,
+              confirmation,
+            ),
+          )
+        }
+      />
+    );
+  },
 
   renameBranch: (payload, ctx) => (
     <RenameBranchDialog
@@ -210,12 +211,30 @@ export const GIT_WORKSPACE_DIALOG_RENDERERS: {
     />
   ),
 
+  rollbackChanges: (payload, ctx, visibleFiles) => (
+    <RollbackChangesDialog
+      open
+      paths={payload.paths}
+      selectedPaths={payload.selectedPaths}
+      files={visibleFiles ?? ctx.visibleFiles()}
+      busy={ctx.syncing}
+      onCancel={() => ctx.closeDialog("rollbackChanges")}
+      onConfirm={(paths) => {
+        ctx.closeDialog("rollbackChanges");
+        void ctx.handleRollback(paths);
+      }}
+    />
+  ),
+
   rollbackConfirm: (payload, ctx) => (
     <RollbackConfirmDialog
       open
-      paths={payload.paths}
+      confirmation={payload.confirmation}
+      busy={ctx.syncing}
       onCancel={() => ctx.closeDialog("rollbackConfirm")}
-      onConfirm={() => void ctx.handleRollback(payload.paths, true)}
+      onConfirm={(confirmation) =>
+        void ctx.handleRollback(payload.confirmation.paths, confirmation)
+      }
     />
   ),
 
@@ -224,9 +243,28 @@ export const GIT_WORKSPACE_DIALOG_RENDERERS: {
       open
       sha={payload.sha}
       mode={payload.mode}
-      onModeChange={(mode) => ctx.openDialog("reset", { ...payload, mode })}
+      confirmation={payload.confirmation}
+      busy={ctx.syncing}
+      onModeChange={(mode) => {
+        if (mode === "hard" && !payload.confirmation) {
+          void ctx.handleReset(payload.sha, mode);
+          return;
+        }
+        ctx.openDialog("reset", {
+          sha: payload.sha,
+          mode,
+          confirmation: mode === "hard" ? payload.confirmation : undefined,
+        });
+      }}
       onCancel={() => ctx.closeDialog("reset")}
-      onConfirm={() => void ctx.handleReset(payload.sha, payload.mode, true)}
+      onConfirm={(confirmation) =>
+        void ctx.handleReset(
+          payload.sha,
+          payload.mode,
+          confirmation === undefined,
+          confirmation,
+        )
+      }
     />
   ),
 
@@ -283,9 +321,16 @@ export const GIT_WORKSPACE_DIALOG_RENDERERS: {
       open
       sha={payload.sha}
       action={payload.action}
+      confirmation={payload.confirmation}
+      busy={ctx.syncing}
       onCancel={() => ctx.closeDialog("rewrite")}
-      onConfirm={() =>
-        void ctx.handleRewriteHistory(payload.sha, payload.action, true)
+      onConfirm={(confirmation) =>
+        void ctx.handleRewriteHistory(
+          payload.sha,
+          payload.action,
+          confirmation === undefined,
+          confirmation,
+        )
       }
     />
   ),
@@ -311,27 +356,47 @@ export const GIT_WORKSPACE_DIALOG_RENDERERS: {
       open
       sha={payload.sha}
       path={payload.path}
+      confirmation={payload.confirmation}
+      busy={ctx.syncing}
       onCancel={() => ctx.closeDialog("dropSelected")}
-      onConfirm={() =>
+      onConfirm={(confirmation) =>
         void ctx.handleDropSelected(
           payload.sha,
           payload.path,
           { hunkIndexes: payload.hunkIndexes, lines: payload.lines },
-          true,
+          confirmation,
         )
       }
     />
   ),
 
-  pushUpstream: (payload, ctx) => (
-    <PushUpstreamDialog
-      open
-      branchName={payload.branch}
-      remote={payload.remote}
-      onCancel={() => ctx.closeDialog("pushUpstream")}
-      onConfirm={() => void ctx.confirmPushUpstream()}
-    />
-  ),
+  pushUpstream: (payload, ctx) => {
+    const event = ctx.syncOperation?.event;
+    const activePush =
+      event?.operation === "push" && isSyncOperationActive(event) ? event : null;
+    const cancellable =
+      activePush?.state === "accepted" ||
+      activePush?.state === "running" ||
+      activePush?.state === "cancel_rejected"
+        ? activePush.cancellable
+        : false;
+    return (
+      <PushUpstreamDialog
+        open
+        branchName={payload.branch}
+        remote={payload.remote}
+        busy={ctx.syncing}
+        cancelling={activePush?.state === "cancel_requested"}
+        onCancel={() => ctx.closeDialog("pushUpstream")}
+        onCancelPush={
+          activePush && cancellable
+            ? () => void ctx.handleCancelSync(activePush.operationId)
+            : undefined
+        }
+        onConfirm={() => void ctx.confirmPushUpstream()}
+      />
+    );
+  },
 
   syncBranch: (payload, ctx) => (
     <SyncBranchConfirmDialog
@@ -339,30 +404,49 @@ export const GIT_WORKSPACE_DIALOG_RENDERERS: {
       refName={payload.ref}
       targets={payload.targets}
       onCancel={() => ctx.closeDialog("syncBranch")}
-      onConfirm={() => {
-        ctx.closeDialog("syncBranch");
+      onConfirm={() =>
         void ctx.runMutation(() =>
           ctx.handleBranchCheckout(payload.ref, payload.opts, true),
-        );
-      }}
+        )
+      }
     />
   ),
 
-  updateAllRootsReport: (payload, ctx) => (
-    <UpdateAllRootsDialog
-      open
-      results={payload.results}
-      onClose={() => ctx.closeDialog("updateAllRootsReport")}
-    />
-  ),
+  updateAllRootsReport: (payload, ctx) => {
+    const retryingRepoIds = ctx.syncOperations.flatMap((operation) =>
+      operation.event.operation === "pull" &&
+      isSyncOperationActive(operation.event)
+        ? operation.event.repoIds
+        : [],
+    );
+    return (
+      <UpdateAllRootsDialog
+        open
+        results={payload.results}
+        activeRepoId={ctx.activeRepo?.id}
+        retryingRepoIds={retryingRepoIds}
+        onRetryRoot={(repoId) => void ctx.handleRetrySyncRoot(repoId)}
+        onShowChanges={() => {
+          ctx.closeDialog("updateAllRootsReport");
+          ctx.setWorkspaceTab("changes");
+        }}
+        onClose={() => ctx.closeDialog("updateAllRootsReport")}
+      />
+    );
+  },
 
   worktreeRemove: (payload, ctx) => (
     <WorktreeRemoveDialog
       open
-      path={payload.path}
-      forceRequired={payload.forceRequired}
+      confirmation={payload.confirmation}
+      busy={ctx.syncing}
       onCancel={() => ctx.closeDialog("worktreeRemove")}
-      onConfirm={(force) => void ctx.handleRemoveWorktree(payload.path, force, true)}
+      onConfirm={(confirmation) =>
+        void ctx.handleRemoveWorktree(
+          payload.confirmation.target.path,
+          confirmation,
+        )
+      }
     />
   ),
 };

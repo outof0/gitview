@@ -1,5 +1,13 @@
-import { expect, type ElectronApplication, type Frame, type Page } from "@playwright/test";
-import { _electron as electron, type ElectronApplication as ElectronApp } from "playwright";
+import {
+  expect,
+  type ElectronApplication,
+  type Frame,
+  type Page,
+} from "@playwright/test";
+import {
+  _electron as electron,
+  type ElectronApplication as ElectronApp,
+} from "playwright";
 import { downloadAndUnzipVSCode } from "@vscode/test-electron";
 import { execFile } from "child_process";
 import * as fs from "fs/promises";
@@ -36,11 +44,21 @@ export type NativeVsCodeSession = {
   stopSilentWatcher?: () => void;
 };
 
-type NativeVsCodeLaunchOptions = {
+export type NativeVsCodeLaunchOptions = {
   vsixPath?: string;
+  width?: number;
+  height?: number;
   /** Written to User/settings.json before launch (gitView.* keys). */
   settings?: Record<string, unknown>;
+  /**
+   * Extension folders copied into the throwaway profile before launch. The
+   * profile gets a fresh `--extensions-dir`, so launch photography installs
+   * its color theme this way instead of hitting the Marketplace.
+   */
+  localExtensions?: string[];
 };
+
+type NativeWindowSize = { width: number; height: number };
 
 let vscodeExecutablePathPromise: Promise<string> | undefined;
 
@@ -69,20 +87,83 @@ export async function prepareMergeRepo(): Promise<void> {
   });
 }
 
+/**
+ * Files inside `$GIT_DIR` that prove an operation is still running, paired
+ * with the command that ends it.
+ *
+ * `git <op> --abort` fails when no such operation is running, which is why
+ * these used to be wrapped in `.catch(() => "")`. That swallow is what let a
+ * fixture reach "Commit and Push" with a merge still open — the run then
+ * died on `fatal: cannot do a partial commit during a merge` inside a test
+ * that had nothing to do with merging. Abort only what the marker proves is
+ * live, and let a real abort failure fail the run.
+ */
+const ACTIVE_OPERATION_MARKERS = [
+  { marker: "MERGE_HEAD", args: ["merge", "--abort"] },
+  { marker: "CHERRY_PICK_HEAD", args: ["cherry-pick", "--abort"] },
+  { marker: "REVERT_HEAD", args: ["revert", "--abort"] },
+  { marker: "rebase-merge", args: ["rebase", "--abort"] },
+  { marker: "rebase-apply", args: ["rebase", "--abort"] },
+] as const;
+
+async function activeOperationMarkers(): Promise<string[]> {
+  const gitDir = (await git(["rev-parse", "--absolute-git-dir"])).trim();
+  let entries: string[];
+  try {
+    entries = await fs.readdir(gitDir);
+  } catch (err) {
+    throw new Error(
+      `Cannot list ${gitDir} to check for an active Git operation: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    );
+  }
+  const known = new Set<string>(
+    ACTIVE_OPERATION_MARKERS.map((entry) => entry.marker),
+  );
+  return entries.filter((entry) => known.has(entry));
+}
+
+/** End every in-progress merge/rebase/cherry-pick/revert. Throws on failure. */
+async function abortActiveOperations(): Promise<void> {
+  for (const marker of await activeOperationMarkers()) {
+    const entry = ACTIVE_OPERATION_MARKERS.find(
+      (candidate) => candidate.marker === marker,
+    );
+    if (!entry) {
+      continue;
+    }
+    await git([...entry.args]);
+  }
+}
+
+/**
+ * Post-condition for every fixture reset: no operation may still be open.
+ * Without this, a half-cleaned fixture surfaces as a confusing failure in a
+ * later, unrelated test instead of at the reset that caused it.
+ */
+async function expectNoActiveOperation(): Promise<void> {
+  const remaining = await activeOperationMarkers();
+  if (remaining.length > 0) {
+    throw new Error(
+      `Git operation still active in ${TEST_WORKSPACE} after cleanup: ${remaining.join(", ")}`,
+    );
+  }
+}
+
 export async function prepareCleanGitRepo(): Promise<void> {
   await prepareMergeRepo();
-  await git(["merge", "--abort"]).catch(() => "");
-  await git(["rebase", "--abort"]).catch(() => "");
-  await git(["cherry-pick", "--abort"]).catch(() => "");
+  await abortActiveOperations();
   await git(["reset", "--hard", "HEAD"]);
   await git(["clean", "-fd"]);
-  await git(["stash", "clear"]).catch(() => "");
+  await git(["stash", "clear"]);
   await fs
     .rm(path.join(TEST_WORKSPACE, ".git", "gitview-shelves"), {
       recursive: true,
       force: true,
     })
     .catch(() => undefined);
+  await expectNoActiveOperation();
 }
 
 async function closeVsCodeSignInPrompt(page: Page): Promise<void> {
@@ -101,12 +182,15 @@ async function closeVsCodeSignInPrompt(page: Page): Promise<void> {
  * VS Code re-shows / repositions the workbench after load — so we re-park on
  * show/move/resize as well as via the interval watcher.
  */
-async function installSilentMainProcessHooks(app: ElectronApp): Promise<void> {
+async function installSilentMainProcessHooks(
+  app: ElectronApp,
+  size: NativeWindowSize,
+): Promise<void> {
   if (process.env.HEADED) {
     return;
   }
   await app
-    .evaluate(async ({ BrowserWindow, app: electronApp }) => {
+    .evaluate(async ({ BrowserWindow, app: electronApp }, windowSize) => {
       const g = globalThis as typeof globalThis & {
         __gitviewSilentHooks?: boolean;
         __gitviewSilentParked?: WeakSet<object>;
@@ -119,9 +203,15 @@ async function installSilentMainProcessHooks(app: ElectronApp): Promise<void> {
         setOpacity?: (n: number) => void;
         setPosition?: (x: number, y: number) => void;
         setSize?: (w: number, h: number) => void;
+        setMinimumSize?: (w: number, h: number) => void;
         hide?: () => void;
         setMenuBarVisibility?: (v: boolean) => void;
-        getBounds?: () => { x: number; y: number; width: number; height: number };
+        getBounds?: () => {
+          x: number;
+          y: number;
+          width: number;
+          height: number;
+        };
         on?: (event: string, cb: () => void) => void;
       };
 
@@ -134,7 +224,8 @@ async function installSilentMainProcessHooks(app: ElectronApp): Promise<void> {
           win.setMenuBarVisibility?.(false);
           win.setOpacity?.(0);
           win.setPosition?.(-20_000, -20_000);
-          win.setSize?.(800, 600);
+          win.setMinimumSize?.(1, 1);
+          win.setSize?.(windowSize.width, windowSize.height);
           win.hide?.();
         } catch {
           // window may be mid-destroy
@@ -187,24 +278,28 @@ async function installSilentMainProcessHooks(app: ElectronApp): Promise<void> {
       for (const win of BrowserWindow.getAllWindows()) {
         attach(win);
       }
-    })
+    }, size)
     .catch(() => undefined);
 }
 
 /** Re-apply park to any windows that re-showed (dialogs, workbench restore). */
-async function concealNativeVsCodeWindows(app: ElectronApp): Promise<void> {
+async function concealNativeVsCodeWindows(
+  app: ElectronApp,
+  size: NativeWindowSize,
+): Promise<void> {
   if (process.env.HEADED) {
     return;
   }
-  await installSilentMainProcessHooks(app);
+  await installSilentMainProcessHooks(app, size);
   await app
-    .evaluate(async ({ BrowserWindow, app: electronApp }) => {
+    .evaluate(async ({ BrowserWindow, app: electronApp }, windowSize) => {
       for (const win of BrowserWindow.getAllWindows()) {
         try {
           win.setSkipTaskbar?.(true);
           win.setOpacity?.(0);
           win.setPosition(-20_000, -20_000);
-          win.setSize(800, 600);
+          win.setMinimumSize(1, 1);
+          win.setSize(windowSize.width, windowSize.height);
           win.hide?.();
         } catch {
           // ignore
@@ -213,17 +308,20 @@ async function concealNativeVsCodeWindows(app: ElectronApp): Promise<void> {
       if (process.platform === "darwin") {
         electronApp.dock?.hide();
       }
-    })
+    }, size)
     .catch(() => undefined);
 }
 
 /** Keep re-parking windows during long suites (VS Code recreates UI surfaces). */
-function startSilentWindowWatcher(app: ElectronApp): () => void {
+function startSilentWindowWatcher(
+  app: ElectronApp,
+  size: NativeWindowSize,
+): () => void {
   if (process.env.HEADED) {
     return () => undefined;
   }
   const timer = setInterval(() => {
-    void concealNativeVsCodeWindows(app);
+    void concealNativeVsCodeWindows(app, size);
   }, 400);
   // unref so the interval does not keep Node alive after tests finish
   timer.unref?.();
@@ -257,11 +355,20 @@ async function launchNativeVsCodeOnce(
   options: NativeVsCodeLaunchOptions = {},
 ): Promise<NativeVsCodeSession> {
   const userDataDir = await fs.mkdtemp(path.join(os.tmpdir(), "nd-vsc-"));
+  const windowSize = {
+    width: options.width ?? 800,
+    height: options.height ?? 600,
+  };
   const executablePath = await vscodeExecutablePath();
   // Mark test VS Code as LSUIElement agent (no Dock / no focus steal) before launch.
   await prepareSilentVsCodeApp(executablePath);
   const extensionsDir = path.join(userDataDir, "extensions");
   await fs.mkdir(extensionsDir, { recursive: true });
+  for (const source of options.localExtensions ?? []) {
+    await fs.cp(source, path.join(extensionsDir, path.basename(source)), {
+      recursive: true,
+    });
+  }
 
   const userSettingsDir = path.join(userDataDir, "User");
   await fs.mkdir(userSettingsDir, { recursive: true });
@@ -269,7 +376,18 @@ async function launchNativeVsCodeOnce(
     path.join(userSettingsDir, "settings.json"),
     JSON.stringify(
       {
-        "workbench.chat.enabled": false,
+        // Chat ships enabled in current VS Code. `workbench.chat.enabled` is
+        // not a real key and silently did nothing, so the Chat secondary side
+        // bar (default: visible in a workspace) stayed inside every native
+        // screenshot. Disable AI features and keep the secondary bar closed.
+        "chat.disableAIFeatures": true,
+        "chat.agentsControl.enabled": "hidden",
+        "workbench.secondarySideBar.defaultVisibility": "hidden",
+        // The Linux test build otherwise falls back to the custom workbench
+        // context menu, which never emits vscode:contextmenu to the main
+        // process hook used by the native-menu assertions.
+        "window.titleBarStyle": "native",
+        "window.menuStyle": "native",
         "window.restoreWindows": "none",
         "git.enabled": true,
         "git.autoRepositoryDetection": true,
@@ -298,8 +416,6 @@ async function launchNativeVsCodeOnce(
 
   const app = await electron.launch({
     executablePath,
-    // Native VS Code e2e: headless + agent mode unless HEADED=1.
-    headless: !process.env.HEADED,
     args: [
       "--no-sandbox",
       "--disable-gpu",
@@ -308,31 +424,30 @@ async function launchNativeVsCodeOnce(
       "--skip-welcome",
       "--skip-release-notes",
       // Park before first paint (paired with LSUIElement + runtime hooks).
-      ...(!process.env.HEADED
-        ? ["--window-position=-20000,-20000", "--window-size=800,600"]
-        : []),
+      ...(!process.env.HEADED ? ["--window-position=-20000,-20000"] : []),
+      `--window-size=${windowSize.width},${windowSize.height}`,
       `--user-data-dir=${userDataDir}`,
       `--extensions-dir=${extensionsDir}`,
-      ...(options.vsixPath ? [] : [`--extensionDevelopmentPath=${PROJECT_ROOT}`]),
+      ...(options.vsixPath
+        ? []
+        : [`--extensionDevelopmentPath=${PROJECT_ROOT}`]),
       workspacePath,
     ],
     timeout: 60_000,
   });
 
   // Install hide hooks immediately — race first window creation.
-  const hooksReady = installSilentMainProcessHooks(app);
+  const hooksReady = installSilentMainProcessHooks(app, windowSize);
   const page = await app.firstWindow({ timeout: 30_000 });
   await hooksReady;
-  await concealNativeVsCodeWindows(app);
+  await concealNativeVsCodeWindows(app, windowSize);
   await page.waitForLoadState("domcontentloaded").catch(() => undefined);
   await page.locator(".monaco-workbench").waitFor({ timeout: 30_000 });
-  await concealNativeVsCodeWindows(app);
-  const stopSilentWatcher = startSilentWindowWatcher(app);
+  await concealNativeVsCodeWindows(app, windowSize);
+  const stopSilentWatcher = startSilentWindowWatcher(app, windowSize);
   await closeVsCodeSignInPrompt(page);
   await installNativeMenuClickHook(app);
-  await expect
-    .poll(() => !page.isClosed(), { timeout: 5_000 })
-    .toBe(true);
+  await expect.poll(() => !page.isClosed(), { timeout: 5_000 }).toBe(true);
   return {
     app,
     page,
@@ -353,7 +468,9 @@ export async function launchNativeVsCode(
       return await launchNativeVsCodeOnce(workspacePath, options);
     } catch (error) {
       lastError = error;
-      await new Promise((resolve) => setTimeout(resolve, 2_000 * (attempt + 1)));
+      await new Promise((resolve) =>
+        setTimeout(resolve, 2_000 * (attempt + 1)),
+      );
     }
   }
   throw lastError;
@@ -372,29 +489,68 @@ export async function findWebviewFrame(
   testId: string,
 ): Promise<Frame | null> {
   for (const page of app.windows()) {
+    if (page.isClosed()) {
+      continue;
+    }
     for (const frame of page.frames()) {
-      if ((await frame.getByTestId(testId).count()) > 0) {
-        return frame;
+      try {
+        if (frame === page.mainFrame()) {
+          continue;
+        }
+        const frameElement = await frame.frameElement();
+        if (!(await frameElement.isVisible())) {
+          continue;
+        }
+        const target = frame.getByTestId(testId).first();
+        if ((await target.count()) > 0 && (await target.isVisible())) {
+          return frame;
+        }
+      } catch {
+        // Frame may detach while the webview closes or reloads.
       }
     }
   }
   return null;
 }
 
-export async function closeNativeVsCode(session: NativeVsCodeSession): Promise<void> {
+export async function closeNativeVsCode(
+  session: NativeVsCodeSession,
+): Promise<void> {
   session.stopSilentWatcher?.();
   const child = session.app.process();
   await Promise.race([
-    session.app.close(),
+    session.app.close().catch(() => undefined),
     new Promise((resolve) => setTimeout(resolve, 8_000)),
-  ]).catch(() => undefined);
-  if (!child.killed) {
+  ]);
+
+  const waitForExit = async (timeoutMs: number): Promise<boolean> => {
+    if (child.exitCode !== null || child.signalCode !== null) {
+      return true;
+    }
+    return new Promise((resolve) => {
+      const onExit = (): void => {
+        clearTimeout(timer);
+        resolve(true);
+      };
+      const timer = setTimeout(() => {
+        child.off("exit", onExit);
+        resolve(false);
+      }, timeoutMs);
+      child.once("exit", onExit);
+    });
+  };
+
+  if (!(await waitForExit(2_000))) {
+    child.kill("SIGTERM");
+  }
+  if (!(await waitForExit(5_000))) {
     child.kill("SIGKILL");
   }
-  await new Promise((resolve) => setTimeout(resolve, 1_500));
-  await fs
-    .rm(session.userDataDir, { recursive: true, force: true })
-    .catch(() => undefined);
+  if (!(await waitForExit(5_000))) {
+    throw new Error("VS Code did not exit before the next native E2E test");
+  }
+
+  await fs.rm(session.userDataDir, { recursive: true, force: true });
 }
 
 async function installNativeMenuClickHook(app: ElectronApp): Promise<void> {
@@ -461,19 +617,19 @@ async function installNativeMenuClickHook(app: ElectronApp): Promise<void> {
         function plain(
           menuItems: Array<{ id: number; label?: string; submenu?: unknown[] }>,
         ): unknown[] {
-        return menuItems.map((menuItem) => ({
-          id: menuItem.id,
-          label: normalizeLabel(menuItem.label),
-          enabled: (menuItem as { enabled?: boolean }).enabled,
-          submenu: Array.isArray(menuItem.submenu)
-            ? plain(
-                menuItem.submenu as Array<{
-                  id: number;
-                  label?: string;
-                  enabled?: boolean;
-                  submenu?: unknown[];
-                }>,
-              )
+          return menuItems.map((menuItem) => ({
+            id: menuItem.id,
+            label: normalizeLabel(menuItem.label),
+            enabled: (menuItem as { enabled?: boolean }).enabled,
+            submenu: Array.isArray(menuItem.submenu)
+              ? plain(
+                  menuItem.submenu as Array<{
+                    id: number;
+                    label?: string;
+                    enabled?: boolean;
+                    submenu?: unknown[];
+                  }>,
+                )
               : undefined,
           }));
         }
@@ -563,7 +719,8 @@ async function openExplorerContextMenu(
     box,
     `Explorer row for ${resourceName} should have a bounding box`,
   ).not.toBeNull();
-  const clickX = box!.x + Math.min(Math.max(80, box!.width * 0.35), box!.width - 8);
+  const clickX =
+    box!.x + Math.min(Math.max(80, box!.width * 0.35), box!.width - 8);
   await page.mouse.click(clickX, box!.y + box!.height / 2, { button: "right" });
 }
 
@@ -658,7 +815,9 @@ export async function clickNativeGitMenu(
         globalThis.__gitviewNativeMenus = [];
         globalThis.__gitviewNativeMenuTargetLabels = expectedLabels;
       },
-      ["Git", menuLabel],
+      // Normalized ("..." not "…"): the hook compares against normalized
+      // labels, so a raw ellipsis would never match.
+      ["Git", expectedLabel],
     );
 
     await openExplorerContextMenu(page, resourceName);
@@ -752,13 +911,40 @@ export async function waitForWebviewFrame(
   return frame;
 }
 
+/** Wait until a webview test id is absent from every live VS Code webview. */
+export async function waitForNoWebview(
+  app: ElectronApplication,
+  testId: string,
+  timeout = 15_000,
+): Promise<void> {
+  await expect
+    .poll(
+      async () => {
+        for (const page of app.windows()) {
+          if (page.isClosed()) {
+            continue;
+          }
+          for (const frame of page.frames()) {
+            try {
+              if ((await frame.getByTestId(testId).count()) > 0) {
+                return false;
+              }
+            } catch {
+              // A transient webview detach means the old surface is gone.
+            }
+          }
+        }
+        return true;
+      },
+      { timeout },
+    )
+    .toBe(true);
+}
+
 export async function openConflictsDialog(
   session: NativeVsCodeSession,
 ): Promise<Frame> {
-  let list = await findWebviewFrame(
-    session.app,
-    "conflicts-file-row-file.txt",
-  );
+  let list = await findWebviewFrame(session.app, "conflicts-file-row-file.txt");
   if (list) {
     await expect(list.getByText("Merging branch")).toBeVisible({
       timeout: 10_000,
@@ -766,10 +952,7 @@ export async function openConflictsDialog(
     return list;
   }
 
-  await runVsCodeCommand(
-    session.page,
-    "Resolve conflict",
-  );
+  await runVsCodeCommand(session.page, "Resolve conflict");
 
   // Command may jump straight into the merge resolver when a file was selected.
   const merge = await findWebviewFrame(session.app, "pane-left");
@@ -807,7 +990,9 @@ export async function expectMergeResolverWebviewBoot(
   const monacoError = frame.getByTestId("monaco-center-error");
   if ((await monacoError.count()) > 0) {
     const message = await monacoError.textContent();
-    throw new Error(`Monaco failed to load in webview: ${message ?? "(no message)"}`);
+    throw new Error(
+      `Monaco failed to load in webview: ${message ?? "(no message)"}`,
+    );
   }
   await expect(frame.getByTestId("monaco-center-loading")).toHaveCount(0, {
     timeout: 90_000,
@@ -815,9 +1000,11 @@ export async function expectMergeResolverWebviewBoot(
   await expect(center).toHaveAttribute("data-monaco-ready", "true", {
     timeout: 90_000,
   });
-  await expect(center.locator(".monaco-editor .view-line").first()).toBeVisible({
-    timeout: 30_000,
-  });
+  await expect(center.locator(".monaco-editor .view-line").first()).toBeVisible(
+    {
+      timeout: 30_000,
+    },
+  );
 }
 
 export async function openMergeResolver(
@@ -831,8 +1018,12 @@ export async function openMergeResolver(
   }
 
   const conflicts = await openConflictsDialog(session);
-  await conflicts.getByTestId(`conflicts-file-row-${relativePath}`).click();
-  await conflicts.getByRole("button", { name: "Merge..." }).click();
+  await conflicts
+    .getByTestId(`conflicts-file-row-${relativePath}`)
+    .evaluate((element) => (element as HTMLElement).click());
+  await conflicts
+    .getByRole("button", { name: "Merge..." })
+    .evaluate((element) => (element as HTMLElement).click());
   const frame = await waitForWebviewFrame(session.app, "pane-left");
   await expectMergeResolverWebviewBoot(frame, relativePath);
   return frame;
@@ -980,6 +1171,16 @@ export async function acceptQuickPickStep(
   await page.keyboard.press("Enter");
 }
 
+export async function openGitViewActivityBar(page: Page): Promise<void> {
+  await page.bringToFront();
+  await dismissVsCodeOverlays(page);
+  const activityButton = page
+    .getByRole("button", { name: /^GitView$/i })
+    .or(page.getByRole("tab", { name: /^GitView$/i }));
+  await expect(activityButton.first()).toBeVisible({ timeout: 20_000 });
+  await activityButton.first().click();
+}
+
 export async function focusScmView(page: Page): Promise<void> {
   await page.bringToFront();
   await dismissVsCodeOverlays(page);
@@ -1016,11 +1217,16 @@ export async function seedScmCommitMessage(
   );
   await page.keyboard.type(message);
   await expect(
-    page.locator(".scm-view .scm-editor, .scm-view .scm-input, .scm-editor").first(),
+    page
+      .locator(".scm-view .scm-editor, .scm-view .scm-input, .scm-editor")
+      .first(),
   ).toContainText(message, { timeout: 5_000 });
 }
 
-export async function expectDiffEditor(page: Page, fileName: string): Promise<void> {
+export async function expectDiffEditor(
+  page: Page,
+  fileName: string,
+): Promise<void> {
   await expect(page.locator(".monaco-diff-editor").first()).toBeVisible({
     timeout: 10_000,
   });

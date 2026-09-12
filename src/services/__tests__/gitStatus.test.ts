@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
+  createStatusApi,
   mapEntryToFileStatus,
   parsePorcelainV1Z,
 } from "../git/status";
@@ -19,7 +20,18 @@ describe("git status parsing", () => {
     const output = "## HEAD (no branch)\0";
     const parsed = parsePorcelainV1Z(output);
     expect(parsed.branch?.isDetached).toBe(true);
+    expect(parsed.branch?.isUnborn).toBe(false);
     expect(parsed.branch?.currentBranch).toBeNull();
+  });
+
+  it.each([
+    ["No commits yet on main", "main"],
+    ["Initial commit on feature/first", "feature/first"],
+  ])("parses unborn header %s", (header, branch) => {
+    const parsed = parsePorcelainV1Z(`## ${header}\0`);
+    expect(parsed.branch?.currentBranch).toBe(branch);
+    expect(parsed.branch?.isDetached).toBe(false);
+    expect(parsed.branch?.isUnborn).toBe(true);
   });
 
   it("maps porcelain codes to GitView status kinds", () => {
@@ -57,5 +69,22 @@ describe("git status parsing", () => {
     const output = "??  leading and trailing  \0";
     const parsed = parsePorcelainV1Z(output);
     expect(parsed.entries[0]?.path).toBe(" leading and trailing  ");
+  });
+
+  it("disables optional index locks for status reads", async () => {
+    const execGit = vi.fn(async () => ({
+      stdout: "## main\0",
+      stderr: "",
+    }));
+
+    await createStatusApi(execGit).getStatus("/repo", "repo-1", {
+      includeIgnored: true,
+    });
+
+    expect(execGit).toHaveBeenCalledWith(
+      "/repo",
+      ["status", "--porcelain=v1", "-z", "-b", "--ignored"],
+      { env: { GIT_OPTIONAL_LOCKS: "0" } },
+    );
   });
 });

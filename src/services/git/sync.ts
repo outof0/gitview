@@ -1,6 +1,7 @@
 import type { GitExecFn, GitExecOptions } from "./types";
 import { NETWORK_GIT_TIMEOUT_MS } from "./exec";
 import { isGitErrorCode } from "../../shared/errors/classifyGitError";
+import { assertSafeGitOperand } from "../../shared/lib/gitOperand";
 
 const networkExecOptions: GitExecOptions = {
   maxBuffer: 50 * 1024 * 1024,
@@ -21,16 +22,33 @@ export type RootUpdateResult = {
   error?: string;
 };
 
+export type SyncExecutionOptions = {
+  signal?: AbortSignal;
+};
+
+function networkOptions(options?: SyncExecutionOptions): GitExecOptions {
+  return options?.signal
+    ? { ...networkExecOptions, signal: options.signal }
+    : networkExecOptions;
+}
+
 export function createSyncApi(execGit: GitExecFn) {
-  async function fetch(repoRoot: string, remote = "origin"): Promise<void> {
-    await execGit(repoRoot, ["fetch", remote], networkExecOptions);
+  async function fetch(
+    repoRoot: string,
+    remote = "origin",
+    options?: SyncExecutionOptions,
+  ): Promise<void> {
+    assertSafeGitOperand(remote, "remote");
+    await execGit(repoRoot, ["fetch", remote], networkOptions(options));
   }
 
   async function pull(
     repoRoot: string,
     strategy: PullStrategy = "merge",
     remote = "origin",
+    options?: SyncExecutionOptions,
   ): Promise<void> {
+    assertSafeGitOperand(remote, "remote");
     const args = ["pull", remote];
     if (strategy === "rebase") {
       args.push("--rebase");
@@ -39,13 +57,20 @@ export function createSyncApi(execGit: GitExecFn) {
     } else {
       args.push("--no-rebase");
     }
-    await execGit(repoRoot, args, networkExecOptions);
+    await execGit(repoRoot, args, networkOptions(options));
   }
 
   async function push(
     repoRoot: string,
     opts?: { setUpstream?: boolean; remote?: string; branch?: string },
+    options?: SyncExecutionOptions,
   ): Promise<PushResult> {
+    if (opts?.remote) {
+      assertSafeGitOperand(opts.remote, "remote");
+    }
+    if (opts?.branch) {
+      assertSafeGitOperand(opts.branch, "branch");
+    }
     const args = ["push"];
     if (opts?.setUpstream) {
       args.push("-u");
@@ -57,11 +82,14 @@ export function createSyncApi(execGit: GitExecFn) {
       args.push(opts.branch);
     }
     try {
-      await execGit(repoRoot, args, networkExecOptions);
+      await execGit(repoRoot, args, networkOptions(options));
       return { rejected: false, stderr: "" };
     } catch (err) {
+      if (!isGitErrorCode(err, "PUSH_REJECTED")) {
+        throw err;
+      }
       return {
-        rejected: isGitErrorCode(err, "PUSH_REJECTED"),
+        rejected: true,
         stderr: err instanceof Error ? err.message : String(err),
       };
     }
@@ -71,12 +99,13 @@ export function createSyncApi(execGit: GitExecFn) {
     repos: Array<{ id: string; name: string; rootPath: string }>,
     strategy: PullStrategy = "merge",
     remote = "origin",
+    options?: SyncExecutionOptions,
   ): Promise<RootUpdateResult[]> {
     const results: RootUpdateResult[] = [];
     for (const repo of repos) {
       try {
-        await fetch(repo.rootPath, remote);
-        await pull(repo.rootPath, strategy, remote);
+        await fetch(repo.rootPath, remote, options);
+        await pull(repo.rootPath, strategy, remote, options);
         results.push({ repoId: repo.id, name: repo.name, ok: true });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -84,7 +113,8 @@ export function createSyncApi(execGit: GitExecFn) {
           repoId: repo.id,
           name: repo.name,
           ok: false,
-          error: msg.replace(/.*Command failed: git[^\n]*\n?/i, "").trim() || msg,
+          error:
+            msg.replace(/.*Command failed: git[^\n]*\n?/i, "").trim() || msg,
         });
       }
     }

@@ -16,13 +16,7 @@ export function blameBlockBackground(sha: string): string {
   for (let i = 0; i < sha.length; i += 1) {
     hash = (hash * 31 + sha.charCodeAt(i)) >>> 0;
   }
-  const palette = [
-    "#5b8def",
-    "#6a9bd6",
-    "#7a8a9a",
-    "#4f7ec4",
-    "#8b95a1",
-  ];
+  const palette = ["#5b8def", "#6a9bd6", "#7a8a9a", "#4f7ec4", "#8b95a1"];
   return palette[hash % palette.length]!;
 }
 
@@ -40,21 +34,11 @@ export function isCurrentRevisionLine(
   );
 }
 
-/** compact blame label on every line: "24/6/22 Author commit message *" */
-export function formatBlameAnnotationLabel(
-  line: {
-    author: string;
-    authorTime: number;
-    sha: string;
-    summary: string;
-  },
-  headSha?: string | null,
-): string {
+/** Compact blame label; commit details belong in the hover card. */
+export function formatBlameAnnotationLabel(line: {
+  author: string;
+  authorTime: number;
+}): string {
   const date = formatBlameAnnotationDate(line.authorTime);
-  const current = isCurrentRevisionLine(line.sha, headSha);
-  const marker = current ? " *" : "";
-  const summary = line.summary.trim();
-  return summary
-    ? `${date} ${line.author} ${summary}${marker}`
-    : `${date} ${line.author}${marker}`;
+  return `${date} – ${line.author}`;
 }

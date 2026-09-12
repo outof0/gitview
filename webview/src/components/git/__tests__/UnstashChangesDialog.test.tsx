@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi, afterEach } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import type { StashEntry } from "@gitview/shared/types/stash";
+import type { StashDetail, StashEntry } from "@gitview/shared/types/stash";
 import { UnstashChangesDialog } from "../stash/UnstashChangesDialog";
 
 const stashes: StashEntry[] = [
@@ -15,6 +15,33 @@ const stashes: StashEntry[] = [
     relativeDate: "2 hours ago",
   },
 ];
+
+const detail: StashDetail = {
+  repoId: "repo-1",
+  index: 0,
+  ref: "stash@{0}",
+  sha: "abc1234",
+  branch: "main",
+  message: "wip work",
+  authoredAt: "2026-01-01T00:00:00Z",
+  hasUntracked: false,
+  files: [
+    {
+      path: "pod-ai/graphql/schema.ts",
+      oldPath: null,
+      status: "M",
+      origin: "tracked",
+    },
+    {
+      path: "pod-ai/stores/custom-options.ts",
+      oldPath: null,
+      status: "M",
+      origin: "tracked",
+    },
+  ],
+  indexFiles: [],
+  refreshedAt: 0,
+};
 
 function renderDialog(overrides: Partial<Parameters<typeof UnstashChangesDialog>[0]> = {}) {
   const props = {
@@ -97,5 +124,22 @@ describe("UnstashChangesDialog", () => {
     expect(
       screen.getByTestId<HTMLButtonElement>("unstash-clear").disabled,
     ).toBe(true);
+  });
+
+  it("shows changed files as a tree by default and supports flat view", () => {
+    renderDialog({ detail });
+
+    expect(screen.getByTestId("stash-file-tree")).toBeTruthy();
+    expect(screen.getByTestId("stash-folder-pod-ai")).toBeTruthy();
+    expect(screen.getByTestId("stash-folder-pod-ai/graphql")).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId("stash-view-mode-flat"));
+
+    expect(screen.queryByTestId("stash-file-tree")).toBeNull();
+    expect(screen.getByTestId("stash-file-pod-ai/graphql/schema.ts")).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId("stash-view-mode-tree"));
+
+    expect(screen.getByTestId("stash-file-tree")).toBeTruthy();
   });
 });

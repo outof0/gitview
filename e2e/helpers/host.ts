@@ -345,6 +345,29 @@ export async function installMockHost(
           );
           break;
         }
+        case "log.dag": {
+          const nodes = fx.fileLog.commits.map((commit) => ({
+            sha: commit.sha,
+            parentShas: commit.parentShas ?? [],
+            timestamp: commit.authorTime,
+          }));
+          const snapshot = {
+            repoId: E2E_REPO_ID,
+            headSha: nodes[0]?.sha ?? null,
+            refTips: nodes[0] ? [nodes[0].sha] : [],
+            nodes,
+            generatedAt: Date.now(),
+          };
+          await dispatchHostMessage(
+            page,
+            createHostEvent("log.dag", snapshot),
+          );
+          await dispatchHostMessage(
+            page,
+            createHostResponse(requestId, "log.dag", snapshot),
+          );
+          break;
+        }
         case "log.query":
           await dispatchHostMessage(
             page,

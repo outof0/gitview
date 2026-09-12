@@ -1,0 +1,53 @@
+# Code owners for GitView.
+#
+# Every pull request needs an approving review from an owner of *every* zone it
+# touches. See docs/maintainers/code-review.md for the review process and the
+# zone checklists; `pnpm run review:scope` prints the zones a diff touches.
+#
+# Order matters: the last matching pattern wins, so specific rules go last.
+
+# ---- Baseline: the maintainer owns everything -----------------------------
+*                           @outof0
+
+# ---- Foundation: pure logic and shared contracts --------------------------
+/src/core/                  @outof0
+/src/shared/                @outof0
+/src/types/                 @outof0
+
+# ---- Infrastructure: Git, storage, settings, telemetry --------------------
+/src/services/              @outof0
+/src/storage/               @outof0
+/src/config/                @outof0
+/src/util/                  @outof0
+/src/observability/         @outof0
+
+# ---- Host: commands, handlers, panels ------------------------------------
+/src/commands/              @outof0
+/src/webviewHost/           @outof0
+/src/webview/               @outof0
+/src/application/           @outof0
+
+# ---- Entry points and public API -----------------------------------------
+/src/extension.ts           @outof0
+/src/publicApi.ts           @outof0
+/package.json               @outof0
+
+# ---- Frontend ------------------------------------------------------------
+/webview/src/protocol/      @outof0
+/webview/src/stores/        @outof0
+/webview/src/apps/          @outof0
+/webview/src/               @outof0
+
+# ---- Tests, CI, packaging ------------------------------------------------
+/e2e/                       @outof0
+/scripts/                   @outof0
+/.github/                   @outof0
+/vitest.config.ts           @outof0
+/playwright.config.ts       @outof0
+
+# ---- Process documents: changing these changes the bar, so they are owned -
+/docs/maintainers/          @outof0
+/AGENTS.md                  @outof0
+/CONTRIBUTING.md            @outof0
+/RELEASE.md                 @outof0
+/SECURITY.md                @outof0

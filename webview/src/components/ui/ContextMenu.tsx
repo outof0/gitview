@@ -87,7 +87,7 @@ export function ContextMenu({
       data-testid={testId}
       role="menu"
       aria-label={ariaLabel}
-      className="nx-context-menu fixed z-[1000] py-1 bg-menu-bg border border-menu-border shadow-2xl font-[family-name:var(--nx-font-ui)] max-h-[min(72vh,560px)] overflow-y-auto overflow-x-hidden"
+      className="nx-context-menu fixed z-[1000] py-1 bg-menu-bg border border-menu-border shadow-2xl font-ui max-h-[min(72vh,560px)] overflow-y-auto overflow-x-hidden"
       style={{
         left: `${placement?.left ?? menu.x}px`,
         top: `${placement?.top ?? menu.y}px`,
@@ -100,13 +100,4 @@ export function ContextMenu({
       {children}
     </div>
   );
-}
-
-export function openContextMenu(
-  e: React.MouseEvent,
-  setMenu: (state: ContextMenuState) => void,
-): void {
-  e.preventDefault();
-  e.stopPropagation();
-  setMenu({ visible: true, x: e.clientX, y: e.clientY });
 }

@@ -35,7 +35,7 @@ export const DEFAULT_GIT_WORKSPACE_SETTINGS: GitWorkspaceSettings = {
   issueTrackerBaseUrl: null,
 };
 
-export function isGitUpdateStrategy(
+function isGitUpdateStrategy(
   value: unknown,
 ): value is GitUpdateStrategy {
   return value === "merge" || value === "rebase" || value === "ff_only";
@@ -57,11 +57,11 @@ export function isGitDiffViewModeSetting(
   return value === "side_by_side" || value === "unified";
 }
 
-export function isGitGraphSort(value: unknown): value is GitGraphSort {
+function isGitGraphSort(value: unknown): value is GitGraphSort {
   return value === "date" || value === "topological";
 }
 
-export function isGitWorkspaceMode(value: unknown): value is GitWorkspaceMode {
+function isGitWorkspaceMode(value: unknown): value is GitWorkspaceMode {
   return value === "staging" || value === "changelist";
 }
 

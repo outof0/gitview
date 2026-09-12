@@ -120,8 +120,8 @@ vi.mock("../../commands/gitMenuActions", () => ({
   runGitMenuAction: vi.fn(),
 }));
 
-vi.mock("../GitHistoryWebviewPanel", () => ({
-  openGitHistoryPanel: vi.fn(),
+vi.mock("../gitWorkspacePanel", () => ({
+  openGitWorkspaceHistory: vi.fn(),
 }));
 
 vi.mock("../../config/readGitViewSettings", () => ({

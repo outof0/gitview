@@ -10,10 +10,11 @@ import { createProtocolClientMergeMethods } from "./clientMergeSlice";
 export type ProtocolClient = ReturnType<typeof createProtocolClient>;
 
 export function createProtocolClient(postMessage: (msg: unknown) => void) {
-  const { handleHostMessage, request } = createProtocolClientTransport(postMessage);
+  const { handleHostMessage, request, isCurrentEvent } = createProtocolClientTransport(postMessage);
 
   return {
     handleHostMessage,
+    isCurrentEvent,
     ...createProtocolClientRepoMethods(request),
     ...createProtocolClientBranchMethods(request),
     ...createProtocolClientLogMethods(request),

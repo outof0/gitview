@@ -45,10 +45,10 @@ export function GitMenuVisualFixture() {
 
   return (
     <div
-      className="h-screen w-screen bg-[var(--vscode-editor-background,#1e1e1e)] text-foreground"
+      className="h-screen w-screen bg-vscode-editor-bg text-foreground"
       data-testid="git-menu-visual-root"
     >
-      <div className="absolute left-8 top-8 text-[11px] text-[var(--vscode-descriptionForeground)]">
+      <div className="absolute left-8 top-8 text-ui-sm text-vscode-description">
         Visual fixture — Git context menu
       </div>
       <ContextMenu

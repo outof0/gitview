@@ -52,4 +52,22 @@ describe("ResizableSplit", () => {
     expect(firstPane.style.width).not.toBe(widthBefore);
     expect(localStorage.getItem("test-split-drag")).toBeTruthy();
   });
+
+  it("clamps a stale stored ratio so both panes remain visible", () => {
+    localStorage.setItem("test-split-stale", "95");
+    const view = render(
+      <ResizableSplit
+        direction="vertical"
+        storageKey="test-split-stale"
+        minFirstPercent={20}
+        minSecondPercent={25}
+        first={<div>A</div>}
+        second={<div>B</div>}
+      />,
+    );
+
+    const container = view.getByTestId("resizable-split-vertical");
+    const firstPane = container.firstElementChild as HTMLElement;
+    expect(firstPane.style.height).toBe("75%");
+  });
 });

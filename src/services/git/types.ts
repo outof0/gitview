@@ -3,6 +3,13 @@ import type { BlameLine } from "../../types/blame";
 export type ExecResult = {
   stdout: string;
   stderr: string;
+  /**
+   * Raw stdout, populated only when the caller asked for `encoding: "buffer"`.
+   * Reading a blob as a UTF-8 string rewrites every invalid byte to U+FFFD,
+   * which silently corrupts binary files — anything that writes a blob back to
+   * disk must use this instead of `stdout`.
+   */
+  stdoutBuffer?: Buffer;
 };
 
 export type GitExecOptions = {
@@ -12,6 +19,8 @@ export type GitExecOptions = {
   timeoutMs?: number;
   /** Kills the child process when the caller aborts (editor closed, user cancelled). */
   signal?: AbortSignal;
+  /** Set to "buffer" to receive raw bytes in `ExecResult.stdoutBuffer`. */
+  encoding?: "buffer";
 };
 
 export type GitExecFn = (

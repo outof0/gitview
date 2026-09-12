@@ -18,7 +18,7 @@ export function createShelfHandlers(ctx: TemporaryWorkContext) {
         return;
       }
       const shelves = await shelf.listShelves(repo.rootPath, repo.id);
-      const snapshot = emitShelfSnapshot(repo.id, shelves);
+      const snapshot = emitShelfSnapshot(repo.id, shelves, requestId);
       deps.postMessage(createHostResponse(requestId, "shelf.list", snapshot));
     },
 
@@ -65,6 +65,7 @@ export function createShelfHandlers(ctx: TemporaryWorkContext) {
         const snapshot = emitShelfSnapshot(
           repo.id,
           await shelf.listShelves(repo.rootPath, repo.id),
+          requestId,
         );
         deps.postMessage(
           createHostResponse(requestId, "shelf.hunk", { entry, snapshot }),
@@ -110,6 +111,7 @@ export function createShelfHandlers(ctx: TemporaryWorkContext) {
         const snapshot = emitShelfSnapshot(
           repo.id,
           await shelf.listShelves(repo.rootPath, repo.id),
+          requestId,
         );
         deps.postMessage(
           createHostResponse(requestId, "shelf.files", { entry, snapshot }),
@@ -144,6 +146,7 @@ export function createShelfHandlers(ctx: TemporaryWorkContext) {
         const snapshot = emitShelfSnapshot(
           repo.id,
           await shelf.listShelves(repo.rootPath, repo.id),
+          requestId,
         );
         deps.postMessage(
           createHostResponse(requestId, "shelf.unshelve", { entry, snapshot }),
@@ -167,6 +170,7 @@ export function createShelfHandlers(ctx: TemporaryWorkContext) {
       const snapshot = emitShelfSnapshot(
         repo.id,
         await shelf.listShelves(repo.rootPath, repo.id),
+        requestId,
       );
       deps.postMessage(
         createHostResponse(requestId, "shelf.delete", { removed, snapshot }),

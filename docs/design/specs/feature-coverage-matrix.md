@@ -109,7 +109,7 @@ Status: ✅ Implemented+Tested | 🟡 Implemented (no wireframe) | 🔴 Missing 
 | Accept Left/Right/Both | ✅ | Per-block actions |
 | Navigate conflicts | ✅ | F7/Shift+F7 |
 | Conflict counter | ✅ | Frame 03 |
-| Auto-resolve simple | ✅ | |
+| Auto-resolve simple | ✅ | Per-file deterministic word/character 3-way merge; non-overlapping edits only |
 | Manual edit | ✅ | With validation |
 | Apply / mark resolved | ✅ | With git add |
 | Abort merge/rebase | ✅ | |

@@ -1,16 +1,17 @@
-import { useState } from "react";
+import {
+  useState,
+} from "react";
 import type { WorkspaceDiffDocument } from "@gitview/shared/types/diff";
 import type {
   StashDetail,
   StashEntry,
   StashFileEntry,
 } from "@gitview/shared/types/stash";
-import {
-  GitDialogShell,
-  gitDialogBtnDanger,
-  gitDialogBtnPrimary,
-  gitDialogBtnSecondary,
-} from "../../ui/GitDialogShell";
+import { GitDialogShell } from "../../ui/GitDialogShell";
+import { Button } from "../../ui/Button";
+import { Checkbox } from "../../ui/Checkbox";
+import { TextField } from "../../ui/TextField";
+import { SelectField } from "../../ui/SelectField";
 import { StashDetailView } from "./StashDetailView";
 import { StashList } from "./StashList";
 
@@ -97,51 +98,51 @@ export function UnstashChangesDialog({
       testId="unstash-dialog"
       footer={
         <>
-          <button
+          <Button
             type="button"
-            className={gitDialogBtnDanger}
+            variant="danger" size="compact"
             disabled={busy || !hasSelection}
             onClick={() => selectedIndex !== null && onDrop(selectedIndex)}
             data-testid="unstash-drop"
           >
             Drop
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className={gitDialogBtnDanger}
+            variant="danger" size="compact"
             disabled={busy || stashes.length === 0}
             onClick={() => (confirmClear ? onClear() : setConfirmClear(true))}
             data-testid="unstash-clear"
           >
             {confirmClear ? `Delete all ${stashes.length}?` : "Clear"}
-          </button>
+          </Button>
           <span className="flex-1" />
-          <button
+          <Button
             type="button"
-            className={gitDialogBtnSecondary}
+            variant="secondary" size="compact"
             onClick={onCancel}
             data-testid="unstash-cancel"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className={gitDialogBtnPrimary}
+            variant="primary" size="compact"
             disabled={busy || !hasSelection}
             onClick={confirm}
             data-testid="unstash-confirm"
           >
             {branch ? "Create Branch" : popStash ? "Pop Stash" : "Apply Stash"}
-          </button>
+          </Button>
         </>
       }
     >
-      <div className="flex-1 min-h-0 flex flex-col gap-2">
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-1.5">
-            <span className="text-vscode-description">Apply into branch</span>
-            <select
-              className="h-[var(--nx-row-h)] px-1 rounded-vscode border border-border bg-[var(--vscode-input-background)] text-foreground disabled:opacity-60"
+          <label className="flex items-center gap-1.5 text-foreground">
+            <span>Apply into branch</span>
+            <SelectField
+              className="w-auto"
               value={currentBranch ?? ""}
               disabled
               title="Git applies a stash to the current branch. Check out another branch first to apply it there."
@@ -150,36 +151,32 @@ export function UnstashChangesDialog({
               <option value={currentBranch ?? ""}>
                 {currentBranch ?? "current branch"}
               </option>
-            </select>
+            </SelectField>
           </label>
 
-          <label className="flex items-center gap-1.5">
-            <input
-              type="checkbox"
-              checked={popStash}
-              disabled={Boolean(branch)}
-              onChange={(e) => setPopStash(e.target.checked)}
-              data-testid="unstash-pop"
-            />
+          <Checkbox
+            checked={popStash}
+            disabled={Boolean(branch)}
+            onChange={setPopStash}
+            testId="unstash-pop"
+          >
             Pop stash (remove after applying)
-          </label>
+          </Checkbox>
 
-          <label className="flex items-center gap-1.5">
-            <input
-              type="checkbox"
-              checked={reinstateIndex}
-              disabled={Boolean(branch)}
-              onChange={(e) => setReinstateIndex(e.target.checked)}
-              data-testid="unstash-reinstate-index"
-            />
+          <Checkbox
+            checked={reinstateIndex}
+            disabled={Boolean(branch)}
+            onChange={setReinstateIndex}
+            testId="unstash-reinstate-index"
+          >
             Reinstate index
-          </label>
+          </Checkbox>
 
-          <label className="flex items-center gap-1.5">
-            <span className="text-vscode-description">As new branch</span>
-            <input
-              type="text"
-              className="h-[var(--nx-row-h)] px-1 rounded-vscode border border-border bg-[var(--vscode-input-background)] text-foreground"
+          <label className="flex items-center gap-1.5 text-foreground">
+            <span>As new branch</span>
+            <TextField
+              size="compact"
+              containerClassName="w-auto min-w-[12rem]"
               value={newBranch}
               placeholder="leave empty to apply in place"
               onChange={(e) => setNewBranch(e.target.value)}
@@ -188,7 +185,7 @@ export function UnstashChangesDialog({
           </label>
         </div>
 
-        <div className="shrink-0 max-h-[132px] overflow-y-auto border border-border rounded-vscode">
+        <div className="shrink-0 max-h-stash-list-max overflow-y-auto border border-border rounded-vscode">
           <StashList
             stashes={stashes}
             selectedIndex={selectedIndex}

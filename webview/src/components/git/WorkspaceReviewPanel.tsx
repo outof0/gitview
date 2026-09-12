@@ -61,14 +61,14 @@ export function WorkspaceReviewPanel({
       )}
 
       {loading && (
-        <div className="px-3 py-2 text-[12px] text-[var(--vscode-descriptionForeground)]">
+        <div className="px-3 py-2 text-ui text-vscode-description">
           Loading reviews…
         </div>
       )}
       {error && (
         <div
           role="alert"
-          className="px-3 py-2 text-[12px] text-[var(--vscode-errorForeground)]"
+          className="px-3 py-2 text-ui text-danger-fg"
           data-testid="review-error"
         >
           {error}
@@ -77,7 +77,7 @@ export function WorkspaceReviewPanel({
       {snapshot?.authRequired && (
         <div
           role="alert"
-          className="px-3 py-2 text-[12px] text-[var(--vscode-inputValidation-warningForeground)]"
+          className="px-3 py-2 text-ui text-warning-fg"
           data-testid="review-auth-required"
         >
           Connect a provider token to load pull requests and merge requests.
@@ -86,7 +86,7 @@ export function WorkspaceReviewPanel({
       {snapshot?.unavailableReason && !snapshot.authRequired && (
         <div
           role="status"
-          className="px-3 py-2 text-[12px] text-[var(--vscode-descriptionForeground)]"
+          className="px-3 py-2 text-ui text-vscode-description"
           data-testid="review-unavailable"
         >
           {snapshot.unavailableReason}

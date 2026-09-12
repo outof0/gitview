@@ -19,6 +19,9 @@ test-clean-repo/
 .claude/settings.local.json
 .cursor/
 .idea/
+# WorkBuddy AI scratch space: memory, reports, artifacts. Agent state, not
+# product source — it also leaked into a published .vsix once, so never commit it.
+.workbuddy-ai/
 
 # Editor/design backups
 *.bak

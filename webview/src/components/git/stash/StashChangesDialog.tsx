@@ -1,9 +1,13 @@
-import { useState } from "react";
 import {
+  useState,
+} from "react";
+import {
+  GitDialogField,
   GitDialogShell,
-  gitDialogBtnPrimary,
-  gitDialogBtnSecondary,
 } from "../../ui/GitDialogShell";
+import { Button } from "../../ui/Button";
+import { Checkbox } from "../../ui/Checkbox";
+import { TextField } from "../../ui/TextField";
 
 type StashChangesDialogProps = {
   open: boolean;
@@ -56,32 +60,31 @@ export function StashChangesDialog({
       testId="stash-changes-dialog"
       footer={
         <>
-          <button
+          <Button
             type="button"
-            className={gitDialogBtnSecondary}
+            variant="secondary" size="compact"
             onClick={onCancel}
             data-testid="stash-changes-cancel"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className={gitDialogBtnPrimary}
+            variant="primary" size="compact"
             disabled={busy}
             onClick={confirm}
             data-testid="stash-changes-confirm"
           >
             Create Stash
-          </button>
+          </Button>
         </>
       }
     >
       <div className="flex flex-col gap-2">
-        <label className="flex flex-col gap-1">
-          <span>Message</span>
-          <input
-            type="text"
-            className="w-full h-[var(--nx-row-h)] px-1.5 text-[length:var(--nx-font-size-ui)] rounded-vscode border border-border bg-[var(--vscode-input-background)] text-foreground"
+        <GitDialogField label="Message">
+          <TextField
+            size="compact"
+            containerClassName="w-full"
             placeholder={placeholder}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
@@ -93,54 +96,34 @@ export function StashChangesDialog({
             }}
             data-testid="stash-changes-message"
           />
-        </label>
+        </GitDialogField>
 
-        <label className="flex items-start gap-2">
-          <input
-            type="checkbox"
-            className="mt-0.5"
-            checked={keepIndex}
-            onChange={(e) => setKeepIndex(e.target.checked)}
-            data-testid="stash-changes-keep-index"
-          />
-          <span>
-            Keep index
-            <span className="block opacity-70">
-              Staged changes stay staged. They are still removed from the
-              working tree.
-            </span>
-          </span>
-        </label>
+        <Checkbox
+          checked={keepIndex}
+          onChange={setKeepIndex}
+          testId="stash-changes-keep-index"
+          hint="Staged changes stay staged. They are still removed from the working tree."
+        >
+          Keep index
+        </Checkbox>
 
-        <label className="flex items-start gap-2">
-          <input
-            type="checkbox"
-            className="mt-0.5"
-            checked={includeUntracked}
-            onChange={(e) => setIncludeUntracked(e.target.checked)}
-            data-testid="stash-changes-include-untracked"
-          />
-          <span>
-            Include untracked files
-            <span className="block opacity-70">
-              Also stashes files Git is not yet tracking.
-            </span>
-          </span>
-        </label>
+        <Checkbox
+          checked={includeUntracked}
+          onChange={setIncludeUntracked}
+          testId="stash-changes-include-untracked"
+          hint="Also stashes files Git is not yet tracking."
+        >
+          Include untracked files
+        </Checkbox>
 
         {hasSelection ? (
-          <label className="flex items-start gap-2">
-            <input
-              type="checkbox"
-              className="mt-0.5"
-              checked={onlySelected}
-              onChange={(e) => setOnlySelected(e.target.checked)}
-              data-testid="stash-changes-only-selected"
-            />
-            <span>
-              Only selected files ({selectedPaths.length})
-            </span>
-          </label>
+          <Checkbox
+            checked={onlySelected}
+            onChange={setOnlySelected}
+            testId="stash-changes-only-selected"
+          >
+            Only selected files ({selectedPaths.length})
+          </Checkbox>
         ) : null}
       </div>
     </GitDialogShell>

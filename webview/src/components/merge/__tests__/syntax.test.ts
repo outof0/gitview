@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { tokenizeLine, syntaxClass } from "../syntax";
+import { detectLanguage, tokenizeLine, syntaxClass } from "../syntax";
 
 describe("tokenizeLine", () => {
   it("tags keywords", () => {
@@ -56,6 +56,34 @@ describe("tokenizeLine", () => {
     const tokens = tokenizeLine("workflow:", "yaml");
     expect(tokens.map((t) => t.type)).toEqual(["property", "operator"]);
     expect(tokens.map((t) => t.value).join("")).toBe("workflow:");
+  });
+
+  it("provides a useful fallback for Vue/HTML tags and directives", () => {
+    const tokens = tokenizeLine('<button :class="active">Save</button>', "html");
+    expect(tokens.some((token) => token.type === "type" && token.value === "button")).toBe(
+      true,
+    );
+    expect(tokens.some((token) => token.type === "property" && token.value === ":class")).toBe(
+      true,
+    );
+    expect(tokens.some((token) => token.type === "string" && token.value === '"active"')).toBe(
+      true,
+    );
+  });
+
+  it("maps Vue and common web component files to an embedded HTML grammar", () => {
+    expect(detectLanguage("src/App.vue")).toBe("html");
+    expect(detectLanguage("src/Card.svelte")).toBe("html");
+    expect(detectLanguage("src/Page.astro")).toBe("html");
+  });
+
+  it("maps common repository languages to registered Monaco grammars", () => {
+    expect(detectLanguage("schema.graphql")).toBe("graphql");
+    expect(detectLanguage("infra/main.tf")).toBe("hcl");
+    expect(detectLanguage("scripts/build.ps1")).toBe("powershell");
+    expect(detectLanguage("config.toml")).toBe("ini");
+    expect(detectLanguage("Makefile")).toBe("shell");
+    expect(detectLanguage(".env.local")).toBe("shell");
   });
 });
 

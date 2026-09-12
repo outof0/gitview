@@ -4,8 +4,10 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   CircleDot,
+  ExternalLink,
   Eye,
   FileDiff,
+  FileText,
   GitBranch,
   GitBranchPlus,
   GitCommit,
@@ -14,6 +16,7 @@ import {
   GitPullRequest,
   History,
   Layers,
+  Link,
   PackageOpen,
   RefreshCw,
   RotateCcw,
@@ -101,6 +104,12 @@ function actionIcon(action: string): ReactNode {
       return <GitMerge {...ICON_PROPS} />;
     case "rebase":
       return <GitPullRequest {...ICON_PROPS} />;
+    case "openOnRemote":
+      return <ExternalLink {...ICON_PROPS} />;
+    case "copyRemoteLink":
+      return <Link {...ICON_PROPS} />;
+    case "copyRemoteLinkMarkdown":
+      return <FileText {...ICON_PROPS} />;
     default:
       return null;
   }

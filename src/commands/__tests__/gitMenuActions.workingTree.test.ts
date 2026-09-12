@@ -89,7 +89,7 @@ describe("gitMenuActions working tree and sync", () => {
 
     expect(mockExecFilePromise).toHaveBeenCalledWith(
       "git",
-      ["--no-pager", "restore", "--worktree", "--", "src/app.ts"],
+      ["--no-pager", "restore", "--staged", "--worktree", "--", "src/app.ts"],
       { cwd: "/repo" },
     );
   });
@@ -104,6 +104,42 @@ describe("gitMenuActions working tree and sync", () => {
       ["--no-pager", "restore", "--worktree", "--", "src/app.ts"],
       expect.anything(),
     );
+  });
+
+  it("surfaces native rollback in the Git workspace content", async () => {
+    const uri = vscode.Uri.file("/repo/src/app.ts") as vscode.Uri;
+
+    await gitRollback(uri, "/repo", undefined, mockGitMenuPresentation);
+
+    expect(mockGitMenuPresentation.openRollbackConfirmation).toHaveBeenCalledWith({
+      relativePath: "src/app.ts",
+      workspaceRoot: "/repo",
+      repoRoot: "/repo",
+    });
+    expect(mockExecFilePromise).not.toHaveBeenCalledWith(
+      "git",
+      ["--no-pager", "restore", "--worktree", "--", "src/app.ts"],
+      expect.anything(),
+    );
+  });
+
+  it("preserves a multi-file rollback selection for the workspace dialog", async () => {
+    const uri = vscode.Uri.file("/repo/src/app.ts") as vscode.Uri;
+
+    await gitRollback(
+      uri,
+      "/repo",
+      undefined,
+      mockGitMenuPresentation,
+      ["src/app.ts", "README.md"],
+    );
+
+    expect(mockGitMenuPresentation.openRollbackConfirmation).toHaveBeenCalledWith({
+      relativePath: "src/app.ts",
+      workspaceRoot: "/repo",
+      repoRoot: "/repo",
+      selectedPaths: ["src/app.ts", "README.md"],
+    });
   });
 
   it("gitOpenFile warns instead of opening a missing worktree file", async () => {
@@ -151,6 +187,37 @@ describe("gitMenuActions working tree and sync", () => {
         reusePanel: undefined,
       }),
     );
+  });
+
+  it("gitShowDiff falls back to the active editor when the keybinding has no resource", async () => {
+    const window = vscode.window as unknown as {
+      activeTextEditor?: { document: { uri: vscode.Uri } };
+    };
+    const previous = window.activeTextEditor;
+    window.activeTextEditor = {
+      document: { uri: vscode.Uri.file("/repo/src/app.ts") as vscode.Uri },
+    };
+    try {
+      await gitShowDiff(
+        context,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        mockGitMenuPresentation,
+      );
+      expect(mockOpenGitViewPanel).toHaveBeenCalledWith(
+        context,
+        expect.objectContaining({
+          relativePath: "src/app.ts",
+          title: expect.stringContaining("HEAD"),
+        }),
+        undefined,
+        expect.anything(),
+      );
+    } finally {
+      window.activeTextEditor = previous;
+    }
   });
 
   it("gitUnstage unstages the resolved file path in the right repository", async () => {
@@ -241,6 +308,8 @@ describe("gitMenuActions working tree and sync", () => {
     expect(openPanelDialog).toHaveBeenCalledWith({
       dialog: "stash",
       relativePath: "src/app.ts",
+      repoRoot: "/repo-b",
+      workspaceRoot: undefined,
     });
     expect(vscode.window.showInputBox).not.toHaveBeenCalled();
   });
@@ -324,7 +393,11 @@ describe("gitMenuActions working tree and sync", () => {
       { openPanelDialog } as never,
     );
 
-    expect(openPanelDialog).toHaveBeenCalledWith({ dialog: "unstash" });
+    expect(openPanelDialog).toHaveBeenCalledWith({
+      dialog: "unstash",
+      repoRoot: "/repo-b",
+      workspaceRoot: undefined,
+    });
     expect(vscode.window.showInformationMessage).not.toHaveBeenCalled();
   });
 

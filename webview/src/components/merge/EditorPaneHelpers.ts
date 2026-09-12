@@ -2,7 +2,7 @@ import type { BlockRows } from "./rows";
 
 export type EditorPaneSide = "left" | "center" | "right";
 
-export function sideStatusFor(
+function sideStatusFor(
   side: EditorPaneSide,
   block: BlockRows,
 ): NonNullable<BlockRows["conflictSideStatus"]>["ours"] | undefined {
