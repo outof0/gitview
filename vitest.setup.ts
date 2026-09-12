@@ -14,6 +14,16 @@ if (
   document.queryCommandSupported = () => false;
 }
 
+// jsdom's canvas shim logs "Not implemented" for every getContext call. The
+// graph overlay only needs a null context to skip painting under test.
+if (typeof HTMLCanvasElement !== "undefined") {
+  Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+    configurable: true,
+    writable: true,
+    value: () => null,
+  });
+}
+
 // Host handler unit tests import modules that read VS Code workspace settings.
 vi.mock("vscode", () => ({
   workspace: {

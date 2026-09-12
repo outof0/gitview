@@ -71,6 +71,40 @@ describe("log.query / log.commitDetail / log.fileAtRevision handlers", () => {
     return { router, sent, repoId: repos[0]!.id };
   }
 
+  it("log.dag returns the lightweight repository graph", async () => {
+    const execGit = makeExecGit({
+      ...baseRepoResponses,
+      "for-each-ref --format=%(objectname) refs/heads refs/remotes refs/tags": {
+        stdout: "abc\n",
+        stderr: "",
+      },
+      "log --format=%H%x00%P%x00%at --branches --remotes --tags HEAD": {
+        stdout: `${["abc", "def", "1"].join("\0")}\n${["def", "", "0"].join("\0")}\n`,
+        stderr: "",
+      },
+    });
+    const { router, sent, repoId } = await setupRouter(execGit);
+
+    await router.handleRawMessage({
+      protocolVersion: PROTOCOL_VERSION,
+      requestId: "dag-1",
+      type: "log.dag",
+      payload: { repoId },
+    });
+
+    const response = sent.find(
+      (m) =>
+        typeof m === "object" &&
+        m !== null &&
+        (m as { type?: string }).type === "log.dag" &&
+        (m as { ok?: boolean }).ok === true,
+    ) as { payload?: { nodes?: Array<{ sha: string }> } };
+    expect(response?.payload?.nodes?.map((node) => node.sha)).toEqual([
+      "abc",
+      "def",
+    ]);
+  });
+
   it("log.query scopes to a file path", async () => {
     const logOutput = sampleLogOutput("Fix greeting");
     const execGit = makeExecGit({
@@ -117,6 +151,87 @@ describe("log.query / log.commitDetail / log.fileAtRevision handlers", () => {
     expect(event?.requestId).toBe("log-1");
   });
 
+  it("annotates filtered parents on the repo log", async () => {
+    const logOutput = sampleLogOutput("Filtered commit");
+    const execGit = makeExecGit({
+      ...baseRepoResponses,
+      [`log --parents --diff-merges=first-parent --name-status --format=${LOG_FORMAT} -n 200 --first-parent --branches --remotes --tags HEAD`]:
+        {
+          stdout: logOutput,
+          stderr: "",
+        },
+    });
+    const { router, sent, repoId } = await setupRouter(execGit);
+
+    await router.handleRawMessage({
+      protocolVersion: PROTOCOL_VERSION,
+      requestId: "log-filtered",
+      type: "log.query",
+      payload: {
+        repoId,
+        scope: "repo",
+        range: "all",
+        firstParent: true,
+        limit: 200,
+      },
+    });
+
+    const response = sent.find(
+      (m) =>
+        typeof m === "object" &&
+        m !== null &&
+        (m as { type?: string }).type === "log.query",
+    ) as {
+      ok?: boolean;
+      payload?: { commits?: Array<{ parentPresent?: boolean[] }> };
+    };
+    expect(response?.ok).toBe(true);
+    expect(response?.payload?.commits?.[0]?.parentPresent).toEqual([true]);
+  });
+
+  it("resolves filtered parents from the full history scan", async () => {
+    const logOutput = sampleLogOutput("Filtered commit");
+    const parent = "1111111111111111111111111111111111111111";
+    const execGit = makeExecGit({
+      ...baseRepoResponses,
+      [`log --parents --diff-merges=first-parent --name-status --format=${LOG_FORMAT} -n 200 --author=Jane --branches --remotes --tags HEAD`]:
+        {
+          stdout: logOutput,
+          stderr: "",
+        },
+      [`log --format=%H --author=Jane --branches --remotes --tags HEAD`]: {
+        stdout: `${parent}\n`,
+        stderr: "",
+      },
+    });
+    const { router, sent, repoId } = await setupRouter(execGit);
+
+    await router.handleRawMessage({
+      protocolVersion: PROTOCOL_VERSION,
+      requestId: "log-author",
+      type: "log.query",
+      payload: {
+        repoId,
+        scope: "repo",
+        range: "all",
+        author: "Jane",
+        limit: 200,
+      },
+    });
+
+    const response = sent.find(
+      (m) =>
+        typeof m === "object" &&
+        m !== null &&
+        (m as { type?: string }).type === "log.query",
+    ) as {
+      ok?: boolean;
+      payload?: { commits?: Array<{ parentPresent?: boolean[] }> };
+    };
+    expect(response?.ok).toBe(true);
+    expect(response?.payload?.commits?.[0]?.parentPresent).toEqual([true]);
+  });
+
   it("log.query scopes to a folder when isFolder is true", async () => {
     const logOutput = sampleLogOutput("Folder change");
     const execGit = makeExecGit({
@@ -142,6 +257,40 @@ describe("log.query / log.commitDetail / log.fileAtRevision handlers", () => {
         (m as { type?: string }).type === "log.query",
     ) as { ok?: boolean };
     expect(response?.ok).toBe(true);
+  });
+
+  it("forwards pagination offsets to a scoped log query", async () => {
+    const logOutput = sampleLogOutput("Older file change");
+    const execGit = makeExecGit({
+      ...baseRepoResponses,
+      [`log --parents --follow --name-status --format=${LOG_FORMAT} -n 100 --skip=100 -- src/app.ts`]: {
+        stdout: logOutput,
+        stderr: "",
+      },
+    });
+    const { router, sent, repoId } = await setupRouter(execGit);
+
+    await router.handleRawMessage({
+      protocolVersion: PROTOCOL_VERSION,
+      requestId: "log-page-1",
+      type: "log.query",
+      payload: {
+        repoId,
+        path: "src/app.ts",
+        isFolder: false,
+        limit: 100,
+        skip: 100,
+      },
+    });
+
+    const response = sent.find(
+      (m) =>
+        typeof m === "object" &&
+        m !== null &&
+        (m as { type?: string }).type === "log.query",
+    ) as { ok?: boolean; payload?: { filters?: { skip?: number } } };
+    expect(response?.ok).toBe(true);
+    expect(response?.payload?.filters?.skip).toBe(100);
   });
 
   it("log.query rejects unknown branch filters", async () => {

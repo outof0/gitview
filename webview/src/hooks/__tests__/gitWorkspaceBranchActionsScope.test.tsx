@@ -116,7 +116,16 @@ describe("repository-scoped branch actions", () => {
 
   it("does not write repo A's log failure onto repo B", async () => {
     const gate = deferred<unknown>();
-    const client = { queryLog: vi.fn(() => gate.promise) };
+    const client = {
+      queryLog: vi.fn(() => gate.promise),
+      queryLogDag: vi.fn(() => Promise.resolve({
+        repoId: "rA",
+        headSha: null,
+        refTips: [],
+        nodes: [],
+        generatedAt: 0,
+      })),
+    };
     const hook = renderBranchActions(repoA, client);
 
     act(() => {

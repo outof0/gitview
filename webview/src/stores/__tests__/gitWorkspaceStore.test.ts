@@ -604,6 +604,65 @@ describe("gitWorkspaceStore slice", () => {
     });
   });
 
+  it("keeps the same log filters object when values do not change", () => {
+    const store = useGitWorkspaceStore.getState();
+    const before = store.logFilters;
+    store.setLogFilters({ ...before });
+    expect(useGitWorkspaceStore.getState().logFilters).toBe(before);
+  });
+
+  it("appends an older log page without replacing the visible history", () => {
+    const store = useGitWorkspaceStore.getState();
+    store.applyRepoSnapshot({ ...repoSnapshot, activeRepoId: "r1" });
+    store.setLogFilters({ range: "all", limit: 1 });
+    store.applyLogSnapshot({
+      repoId: "r1",
+      branch: "main",
+      refreshedAt: 1,
+      hasMore: true,
+      filters: { range: "all", limit: 1 },
+      commits: [
+        {
+          sha: "newest",
+          shortSha: "newest",
+          author: "Jane",
+          authorEmail: "jane@example.com",
+          authorTime: 2,
+          subject: "Newest",
+          changedFiles: [],
+        },
+      ],
+    });
+    store.setLogLoadingMore(true);
+    store.applyLogSnapshot({
+      repoId: "r1",
+      branch: "main",
+      refreshedAt: 2,
+      hasMore: false,
+      filters: { range: "all", limit: 1, skip: 1 },
+      commits: [
+        {
+          sha: "older",
+          shortSha: "older",
+          author: "Jane",
+          authorEmail: "jane@example.com",
+          authorTime: 1,
+          subject: "Older",
+          changedFiles: [],
+        },
+      ],
+    });
+
+    const state = useGitWorkspaceStore.getState();
+    expect(state.logSnapshot?.commits.map((commit) => commit.sha)).toEqual([
+      "newest",
+      "older",
+    ]);
+    expect(state.logSnapshot?.hasMore).toBe(false);
+    expect(state.logLoadingMore).toBe(false);
+    expect(state.logSnapshot?.filters).toEqual({ range: "all", limit: 1 });
+  });
+
   it("clears diff loading and error when a document arrives", () => {
     const store = useGitWorkspaceStore.getState();
     store.setDiffLoading(true);

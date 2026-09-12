@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Repository } from "@gitview/shared/types/repository";
 import { GitWorkspaceShell } from "../GitWorkspaceShell";
@@ -66,11 +72,38 @@ function context(
 describe("GitWorkspaceShell repository states", () => {
   afterEach(() => cleanup());
 
-  it("shows loading without rendering workspace tabs", () => {
-    render(<GitWorkspaceShell ctx={context(null, true)} />);
+  it("shows loading without rendering workspace tabs once boot stalls", () => {
+    vi.useFakeTimers();
+    try {
+      render(<GitWorkspaceShell ctx={context(null, true)} />);
 
-    expect(screen.getByTestId("repository-state-loading")).toBeTruthy();
-    expect(screen.queryByTestId("workspace-tab-bar")).toBeNull();
+      // Fast host replies must not flash the banner.
+      expect(screen.queryByTestId("repository-state-loading")).toBeNull();
+
+      act(() => {
+        vi.advanceTimersByTime(250);
+      });
+      expect(screen.getByTestId("repository-state-loading")).toBeTruthy();
+      expect(screen.queryByTestId("workspace-tab-bar")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("skips the loading banner when the repository arrives quickly", () => {
+    vi.useFakeTimers();
+    try {
+      const view = render(<GitWorkspaceShell ctx={context(null, true)} />);
+      view.rerender(<GitWorkspaceShell ctx={context(baseRepository)} />);
+      act(() => {
+        vi.advanceTimersByTime(250);
+      });
+
+      expect(screen.queryByTestId("repository-state-loading")).toBeNull();
+      expect(screen.getByTestId("workspace-tab-bar")).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("shows concrete acquisition actions when no repository exists", () => {

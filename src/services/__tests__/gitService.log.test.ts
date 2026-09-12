@@ -62,6 +62,22 @@ describe("GitService logFile and logFolder", () => {
     }
   });
 
+  it("skips the newest page when loading older file history", async () => {
+    const { service, calls } = makeFakeGit({
+      [`log --parents --follow --name-status --format=${LOG_FORMAT} -n 100 --skip=100 -- src/app.ts`]: {
+        stdout: logOutput,
+        stderr: "",
+      },
+    });
+    const result = await service.logFile("/repo", "src/app.ts", {
+      limit: 100,
+      skip: 100,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(calls[0]!.args).toContain("--skip=100");
+  });
+
   it("logFolder queries folder path with trailing slash", async () => {
     const { service, calls } = makeFakeGit({
       [`log --parents --name-status --format=${LOG_FORMAT} -n 100 -- src/`]: {
@@ -147,6 +163,24 @@ describe("GitService logRepo graph scope", () => {
 
     expect(result.ok).toBe(true);
     expect(calls[0]!.args).not.toContain("--all");
+  });
+
+  it("skips the newest page in the repository graph", async () => {
+    const { service, calls } = makeFakeGit({
+      [`log --parents --diff-merges=first-parent --name-status --format=${LOG_FORMAT} -n 200 --skip=200 --branches --remotes --tags HEAD`]: {
+        stdout: logOutput,
+        stderr: "",
+      },
+    });
+
+    const result = await service.logRepo("/repo", {
+      range: "all",
+      limit: 200,
+      skip: 200,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(calls[0]!.args).toContain("--skip=200");
   });
 
 });

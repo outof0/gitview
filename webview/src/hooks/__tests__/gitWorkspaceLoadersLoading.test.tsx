@@ -56,6 +56,13 @@ const client = {
   listTags: vi.fn(() => Promise.resolve(null)),
   openDiff: vi.fn(() => Promise.resolve(null)),
   queryLog: vi.fn(() => Promise.resolve(null)),
+  queryLogDag: vi.fn(() => Promise.resolve({
+    repoId: "repo-1",
+    headSha: "abc123",
+    refTips: ["abc123"],
+    nodes: [],
+    generatedAt: 0,
+  })),
   logFileDiff: vi.fn(() => Promise.resolve(null)),
 };
 
@@ -66,6 +73,7 @@ vi.mock("../../protocol/client", () => ({
 beforeEach(() => {
   deferred.clear();
   client.listBranches.mockClear();
+  client.queryLog.mockClear();
   useGitWorkspaceStore.setState({
     ...useGitWorkspaceStore.getState(),
     repoSnapshot: repositorySnapshot,
@@ -130,6 +138,53 @@ describe("workspace loaders release their loading flag", () => {
       await result.current.loadLog();
     });
     expect(useGitWorkspaceStore.getState().logLoading).toBe(false);
+  });
+
+  it("keeps a slow page request in flight without issuing duplicates on scroll", async () => {
+    const store = useGitWorkspaceStore.getState();
+    store.setLogFilters({ range: "all", limit: 1 });
+    store.applyLogSnapshot({
+      repoId: repository.id,
+      branch: "main",
+      refreshedAt: 0,
+      hasMore: true,
+      filters: { range: "all", limit: 1 },
+      commits: [
+        {
+          sha: "newest",
+          shortSha: "newest",
+          author: "Jane",
+          authorEmail: "jane@example.com",
+          authorTime: 2,
+          subject: "Newest",
+          changedFiles: [],
+        },
+      ],
+    });
+    const { result } = renderLoaders();
+    let finish!: (value: null) => void;
+    client.queryLog.mockImplementationOnce(() => new Promise<null>((resolve) => {
+      finish = resolve;
+    }));
+    let pending!: Promise<void>;
+    await act(async () => {
+      pending = result.current.loadMoreLog();
+    });
+    expect(useGitWorkspaceStore.getState().logLoadingMore).toBe(true);
+    await act(async () => {
+      await Promise.all(Array.from({ length: 10 }, () => result.current.loadMoreLog()));
+    });
+    expect(client.queryLog).toHaveBeenCalledTimes(1);
+    expect(client.queryLog).toHaveBeenCalledWith(repository.id, {
+      range: "all",
+      limit: 1,
+      skip: 1,
+    });
+    await act(async () => {
+      finish(null);
+      await pending;
+    });
+    expect(useGitWorkspaceStore.getState().logLoadingMore).toBe(false);
   });
 
   it("clears diffLoading after openDiff settles", async () => {

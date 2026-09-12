@@ -241,6 +241,47 @@ describe("gitHistoryStore stale-result guards", () => {
     expect(filtered[0]?.subject).toBe("Add login form");
   });
 
+  it("appends an older log page without duplicating commits", () => {
+    const first = {
+      sha: "1111111111111111111111111111111111111111",
+      shortSha: "1111111",
+      author: "Alice",
+      authorEmail: "a@example.com",
+      authorTime: 1,
+      subject: "First",
+      changedFiles: [],
+    };
+    const second = {
+      ...first,
+      sha: "2222222222222222222222222222222222222222",
+      shortSha: "2222222",
+      subject: "Second",
+    };
+    useGitHistoryStore.getState().setLogResult({
+      path: "src/app.ts",
+      branch: "main",
+      commits: [first],
+      hasMore: true,
+    });
+    useGitHistoryStore.getState().setLoadingMore(true);
+
+    useGitHistoryStore.getState().appendLogResult({
+      path: "src/app.ts",
+      branch: "main",
+      commits: [first, second],
+      hasMore: false,
+    });
+
+    const state = useGitHistoryStore.getState();
+    expect(state.commits.map((commit) => commit.sha)).toEqual([
+      first.sha,
+      second.sha,
+    ]);
+    expect(state.hasMore).toBe(false);
+    expect(state.loadingMore).toBe(false);
+    expect(state.selectedSha).toBe(first.sha);
+  });
+
   it("branchTreeOpen defaults false and init resets closed", () => {
     expect(useGitHistoryStore.getState().branchTreeOpen).toBe(false);
 

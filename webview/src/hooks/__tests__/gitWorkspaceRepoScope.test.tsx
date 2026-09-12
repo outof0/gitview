@@ -95,7 +95,16 @@ describe("repository-scoped async completions", () => {
 
   it("drops loader errors and loading flags after a repository switch", async () => {
     const gate = deferred<unknown>();
-    const client = { queryLog: vi.fn(() => gate.promise) };
+    const client = {
+      queryLog: vi.fn(() => gate.promise),
+      queryLogDag: vi.fn(() => Promise.resolve({
+        repoId: "rA",
+        headSha: null,
+        refTips: [],
+        nodes: [],
+        generatedAt: 0,
+      })),
+    };
     const hook = renderLoaders(repoA, client);
 
     let pending: Promise<void> | undefined;
@@ -123,7 +132,16 @@ describe("repository-scoped async completions", () => {
 
   it("suppresses a stale completion after switching away and back (ABA)", async () => {
     const gate = deferred<unknown>();
-    const client = { queryLog: vi.fn(() => gate.promise) };
+    const client = {
+      queryLog: vi.fn(() => gate.promise),
+      queryLogDag: vi.fn(() => Promise.resolve({
+        repoId: "rA",
+        headSha: null,
+        refTips: [],
+        nodes: [],
+        generatedAt: 0,
+      })),
+    };
     const hook = renderLoaders(repoA, client);
 
     let pending: Promise<void> | undefined;
@@ -158,6 +176,13 @@ describe("repository-scoped async completions", () => {
         .fn()
         .mockReturnValueOnce(slow.promise)
         .mockResolvedValueOnce(undefined),
+      queryLogDag: vi.fn(() => Promise.resolve({
+        repoId: "rA",
+        headSha: null,
+        refTips: [],
+        nodes: [],
+        generatedAt: 0,
+      })),
     };
     const hook = renderLoaders(repoA, client);
 

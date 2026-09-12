@@ -75,6 +75,33 @@ describe("protocol", () => {
     ).toMatchObject({ ok: false, code: "INVALID_REQUEST" });
   });
 
+  it("accepts non-negative log pagination offsets and rejects invalid ones", () => {
+    expect(
+      parseWebviewRequest({
+        protocolVersion: PROTOCOL_VERSION,
+        requestId: "log-page-1",
+        type: "log.query",
+        payload: { repoId: "repo", limit: 200, skip: 0 },
+      })?.type,
+    ).toBe("log.query");
+    expect(
+      parseWebviewRequest({
+        protocolVersion: PROTOCOL_VERSION,
+        requestId: "log-dag-1",
+        type: "log.dag",
+        payload: { repoId: "repo" },
+      })?.type,
+    ).toBe("log.dag");
+    expect(
+      parseWebviewRequestResult({
+        protocolVersion: PROTOCOL_VERSION,
+        requestId: "log-page-2",
+        type: "log.query",
+        payload: { repoId: "repo", skip: -1 },
+      }),
+    ).toMatchObject({ ok: false, code: "INVALID_REQUEST" });
+  });
+
   it("validates repository acquisition and recovery requests", () => {
     for (const type of [
       "workspace.openFolder",
@@ -399,6 +426,7 @@ describe("protocol", () => {
       }),
     ).toBe(false);
     expect(HOST_EVENT_TYPES).toContain("sync.operation");
+    expect(HOST_EVENT_TYPES).toContain("log.dag");
   });
 
   it("creates host success and error responses", () => {
