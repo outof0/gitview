@@ -52,6 +52,67 @@ test("History tab — commits, branch filter, diff preview", async ({
   });
 });
 
+test("scrolling near the end requests and appends the next log page", async ({
+  page,
+}) => {
+  const seed = fixtures.fileLog.commits[0]!;
+  const commits = Array.from({ length: 200 }, (_, index) => {
+    const suffix = String(index).padStart(39, "0");
+    return {
+      ...seed,
+      sha: `1${suffix}`,
+      shortSha: `1${String(index).padStart(6, "0")}`,
+      subject: `History page ${index}`,
+      parentShas: [],
+      changedFiles: [],
+    };
+  });
+  const older = {
+    ...seed,
+    sha: "2".repeat(40),
+    shortSha: "2222222",
+    subject: "History page 200",
+    parentShas: [],
+    changedFiles: [],
+  };
+  const { posted } = await installGitHistoryPage(
+    page,
+    {
+      ...fixtures,
+      fileLog: {
+        commits,
+        subjectSample: commits[0]!.subject,
+      },
+    },
+    {
+      initialHasMore: true,
+      logPages: [{ skip: commits.length, commits: [older], hasMore: false }],
+    },
+  );
+
+  const scroll = page.getByTestId("git-history-commits-scroll");
+  await scroll.evaluate((element) => {
+    Object.defineProperties(element, {
+      scrollHeight: { configurable: true, value: 4_800 },
+      clientHeight: { configurable: true, value: 800 },
+      scrollTop: { configurable: true, value: 3_900, writable: true },
+    });
+  });
+  await scroll.dispatchEvent("scroll");
+
+  await expect
+    .poll(() =>
+      posted.some(
+        (message) =>
+          message.type === "log.query" &&
+          (message.payload as { skip?: number }).skip === commits.length,
+      ),
+    )
+    .toBe(true);
+  await expect(page.getByTestId("git-commit-2222222")).toBeVisible();
+  await expect(page.getByTestId("git-history-loading-more")).toHaveCount(0);
+});
+
 test("branch filter sends log.query with the selected branch", async ({
   page,
 }) => {

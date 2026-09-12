@@ -255,11 +255,11 @@ export async function expectGitLogGraphFitsCommitList(
   surface: ScreenSurface,
 ): Promise<void> {
   const graph = surface.getByTestId("git-log-graph");
+  const canvas = surface.getByTestId("git-log-graph-canvas");
   const firstRow = surface.locator('[data-graph-row="true"]').first();
-  const firstDot = surface.locator('[data-testid^="git-log-graph-dot-"]').first();
   await expect(graph).toBeVisible();
+  await expect(canvas).toBeVisible();
   await expect(firstRow).toBeVisible();
-  await expect(firstDot).toBeVisible();
 
   const graphWidth = Number(await graph.getAttribute("width"));
   const metrics = await firstRow.evaluate((row) => {
@@ -271,6 +271,7 @@ export async function expectGitLogGraphFitsCommitList(
     return {
       rowWidth: rowRect.width,
       subjectWidth: subjectRect?.width ?? 0,
+      subjectLeft: subjectRect?.left ?? 0,
       subjectVisible:
         subjectRect !== undefined &&
         subjectRect.right > rowRect.left &&
@@ -283,17 +284,18 @@ export async function expectGitLogGraphFitsCommitList(
   expect(metrics.subjectVisible).toBe(true);
   expect(metrics.subjectWidth).toBeGreaterThan(12);
 
-  const [rowBox, dotBox] = await Promise.all([
+  const [rowBox, canvasBox] = await Promise.all([
     firstRow.boundingBox(),
-    firstDot.boundingBox(),
+    canvas.boundingBox(),
   ]);
   expect(rowBox).not.toBeNull();
-  expect(dotBox).not.toBeNull();
-  expect(
-    Math.abs(
-      (dotBox!.y + dotBox!.height / 2) - (rowBox!.y + rowBox!.height / 2),
-    ),
-  ).toBeLessThanOrEqual(3);
+  expect(canvasBox).not.toBeNull();
+  expect(canvasBox!.width).toBeGreaterThan(0);
+  expect(canvasBox!.height).toBeGreaterThan(0);
+  // The graph is a fixed gutter: the subject starts after its clipped edge.
+  expect(metrics.subjectLeft).toBeGreaterThanOrEqual(
+    canvasBox!.x + canvasBox!.width - 1,
+  );
 }
 
 export async function expectGitViewHistoryScreen(
